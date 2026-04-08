@@ -12,6 +12,7 @@ const FINANCE_TABS = [
   { label: 'Expenses', href: '/finance/expenses' },
   { label: 'Revenue', href: '/finance/revenue' },
   { label: 'Periods', href: '/finance/periods' },
+  { label: 'Tax', href: '/finance/tax' },
 ];
 
 export default function FinanceLayout({ children }: { children: React.ReactNode }) {

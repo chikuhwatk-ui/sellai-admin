@@ -21,6 +21,9 @@ const routeTitles: Record<string, string> = {
   "/analytics/categories": "Category Analytics",
   "/analytics/operations": "Operations Analytics",
   "/analytics/predictive": "Predictive Analytics",
+  "/disputes": "Disputes",
+  "/seller-success": "Seller Success",
+  "/support": "Support Tickets",
   "/settings": "Settings",
   "/settings/audit-log": "Audit Log",
 };
