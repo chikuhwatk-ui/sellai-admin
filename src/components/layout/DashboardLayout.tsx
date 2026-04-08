@@ -2,6 +2,7 @@
 
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { usePathname } from "next/navigation";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
@@ -24,11 +25,7 @@ const routeTitles: Record<string, string> = {
   "/settings/audit-log": "Audit Log",
 };
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = routeTitles[pathname] || "Sellai Admin";
   useSessionTimeout();
@@ -41,5 +38,17 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ErrorBoundary>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </ErrorBoundary>
   );
 }
