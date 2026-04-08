@@ -151,12 +151,22 @@ export default function FinancePage() {
 
   const creditSeries = overview?.creditTimeSeries || [];
   const walletSeries = overview?.walletTimeSeries || [];
-  const paymentMethods = overview?.paymentMethods || [
-    { label: 'EcoCash', value: 0, color: '#10B981' },
-    { label: 'Visa', value: 0, color: '#3B82F6' },
-    { label: 'Mastercard', value: 0, color: '#8B5CF6' },
-  ];
-  const bundles = overview?.bundles || [];
+  // Backend returns paymentMethods as [{ method, count }] — map to chart format
+  const rawPaymentMethods = overview?.paymentMethods || [];
+  const totalPayments = rawPaymentMethods.reduce((s: number, m: any) => s + (m.count || 0), 0) || 1;
+  const methodColors: Record<string, string> = { ECOCASH: '#10B981', VISA: '#3B82F6', MASTERCARD: '#8B5CF6', INNBUCKS: '#F59E0B' };
+  const paymentMethods = rawPaymentMethods.length > 0
+    ? rawPaymentMethods.map((m: any) => ({
+        label: String(m.method || 'Unknown'),
+        value: Math.round(((m.count || 0) / totalPayments) * 100),
+        color: methodColors[String(m.method || '').toUpperCase()] || '#6B7280',
+      }))
+    : [{ label: 'No data', value: 0, color: '#6B7280' }];
+  // Backend returns bundles as [{ type, count, revenue }] — map to chart format
+  const bundles = (overview?.bundles || []).map((b: any) => ({
+    name: String(b.type || 'Unknown'),
+    sales: b.count || 0,
+  }));
   const recentTransactions = txData?.data || [];
 
   return (
@@ -171,30 +181,26 @@ export default function FinancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           title="Total Revenue (30d)"
-          value={overview?.revenue ?? 0}
+          value={Number(overview?.revenue ?? 0)}
           prefix="$"
-          change={overview?.revenueChange}
-          trend={creditSeries.slice(-7).map((d: any) => d.value)}
+          trend={creditSeries.slice(-7).map((d: any) => Number(d.value || 0))}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
         />
         <KPICard
           title="Credit Sales"
-          value={overview?.creditSales ?? 0}
+          value={Number(overview?.creditSales?.total ?? overview?.creditSales ?? 0)}
           prefix="$"
-          change={overview?.creditSalesChange}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>}
         />
         <KPICard
           title="Wallet Top-ups"
-          value={overview?.walletTopUps ?? 0}
+          value={Number(overview?.walletTopUps?.total ?? overview?.walletTopUps ?? 0)}
           prefix="$"
-          change={overview?.walletTopUpsChange}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" /></svg>}
         />
         <KPICard
           title="Failed Payments"
-          value={overview?.failedPayments ?? 0}
-          change={overview?.failedPaymentsChange}
+          value={Number(overview?.failedPayments ?? 0)}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
         />
       </div>

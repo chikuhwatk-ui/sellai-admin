@@ -130,13 +130,14 @@ export default function OperationalEfficiencyPage() {
               const barW = 65;
               const gap = 20;
               const x = 50 + i * (barW + gap);
-              const barH = (w.rate / maxWave) * 150;
+              const rate = Number(w.rate || 0);
+              const barH = (rate / maxWave) * 150;
               const y = 185 - barH;
               return (
-                <g key={w.wave}>
+                <g key={String(w.wave)}>
                   <rect x={x} y={y} width={barW} height={barH} rx="4" fill="#06B6D4" />
-                  <text x={x + barW / 2} y={y - 8} textAnchor="middle" fill="#E5E7EB" fontSize="12" fontWeight="600">{w.rate}%</text>
-                  <text x={x + barW / 2} y={205} textAnchor="middle" fill="#6B7280" fontSize="11">{w.wave}</text>
+                  <text x={x + barW / 2} y={y - 8} textAnchor="middle" fill="#E5E7EB" fontSize="12" fontWeight="600">{rate}%</text>
+                  <text x={x + barW / 2} y={205} textAnchor="middle" fill="#6B7280" fontSize="11">{String(w.wave)}</text>
                 </g>
               );
             })}
@@ -158,9 +159,9 @@ export default function OperationalEfficiencyPage() {
             </svg>
             <div className="grid grid-cols-2 gap-4 mt-4 w-full">
               {runnerStats.map((s: any) => (
-                <div key={s.label} className="text-center">
-                  <div className="text-lg font-bold text-white">{s.value}</div>
-                  <div className="text-xs text-[#6B7280]">{s.label}</div>
+                <div key={String(s.label)} className="text-center">
+                  <div className="text-lg font-bold text-white">{String(s.value ?? 0)}</div>
+                  <div className="text-xs text-[#6B7280]">{String(s.label)}</div>
                 </div>
               ))}
             </div>
@@ -187,12 +188,12 @@ export default function OperationalEfficiencyPage() {
                 <tr><td colSpan={5} className="py-8 text-center text-sm text-[#6B7280]">No payment data available</td></tr>
               )}
               {payments.map((p: any) => (
-                <tr key={p.method} className="border-b border-[#2A2D37]/50">
-                  <td className="py-2 text-[#E5E7EB] font-medium">{p.method}</td>
-                  <td className="py-2 text-right text-[#10B981]">{p.successRate}%</td>
-                  <td className="py-2 text-right text-[#E5E7EB]">{p.avgTime}</td>
-                  <td className="py-2 text-right text-[#EF4444]">{p.failureRate}%</td>
-                  <td className="py-2 text-right text-[#E5E7EB]">{p.volume}</td>
+                <tr key={String(p.method)} className="border-b border-[#2A2D37]/50">
+                  <td className="py-2 text-[#E5E7EB] font-medium">{String(p.method || 'Unknown')}</td>
+                  <td className="py-2 text-right text-[#10B981]">{Number(p.successRate || 0)}%</td>
+                  <td className="py-2 text-right text-[#E5E7EB]">{String(p.avgTime || '--')}</td>
+                  <td className="py-2 text-right text-[#EF4444]">{Number(p.failureRate || 0)}%</td>
+                  <td className="py-2 text-right text-[#E5E7EB]">{String(p.volume || 0)}</td>
                 </tr>
               ))}
             </tbody>

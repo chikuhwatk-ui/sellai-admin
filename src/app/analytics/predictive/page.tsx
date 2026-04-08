@@ -159,23 +159,23 @@ export default function PredictiveStrategicPage() {
                   )}
                   {(section.users || []).map((user: any, i: number) => (
                     <tr key={i} className="border-b border-[#2A2D37]/50">
-                      <td className="py-2 text-[#E5E7EB]">{user.name}</td>
+                      <td className="py-2 text-[#E5E7EB]">{String(user.name || 'Unknown')}</td>
                       <td className="py-2">
                         <div className="flex items-center gap-2">
                           <div className="w-32 h-2 bg-[#0F1117] rounded overflow-hidden">
                             <div
                               className="h-full rounded"
                               style={{
-                                width: `${user.risk || 0}%`,
-                                backgroundColor: (user.risk || 0) > 80 ? '#EF4444' : (user.risk || 0) > 60 ? '#F59E0B' : '#10B981',
+                                width: `${Number(user.risk || 0)}%`,
+                                backgroundColor: Number(user.risk || 0) > 80 ? '#EF4444' : Number(user.risk || 0) > 60 ? '#F59E0B' : '#10B981',
                               }}
                             />
                           </div>
-                          <span className="text-xs text-[#6B7280]">{user.risk || 0}</span>
+                          <span className="text-xs text-[#6B7280]">{Number(user.risk || 0)}</span>
                         </div>
                       </td>
-                      <td className="py-2 text-[#6B7280]">{user.lastActive}</td>
-                      <td className="py-2 text-[#06B6D4] text-xs">{user.action}</td>
+                      <td className="py-2 text-[#6B7280]">{String(user.lastActive || '--')}</td>
+                      <td className="py-2 text-[#06B6D4] text-xs">{String(user.action || '--')}</td>
                     </tr>
                   ))}
                 </tbody>
