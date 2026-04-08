@@ -38,15 +38,19 @@ export default function VerificationPage() {
   // Track items claimed locally for the "In Review" column
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
 
-  const { data: pendingItems, loading: pendingLoading, refetch: refetchPending } = useApi<Verification[]>('/api/verification/queue?status=PENDING');
-  const { data: processedItems, loading: processedLoading, refetch: refetchProcessed } = useApi<Verification[]>('/api/verification/queue?status=VERIFIED');
+  const { data: pendingRaw, loading: pendingLoading, refetch: refetchPending } = useApi<any>('/api/verification/queue?status=PENDING');
+  const { data: processedRaw, loading: processedLoading, refetch: refetchProcessed } = useApi<any>('/api/verification/queue?status=VERIFIED');
   const { data: stats } = useApi<any>('/api/admin/verification/stats');
 
-  const allPending = pendingItems || [];
+  // API returns { queue: [...], total: N }
+  const pendingItems: Verification[] = Array.isArray(pendingRaw) ? pendingRaw : (pendingRaw?.queue || pendingRaw?.data || []);
+  const processedItems: Verification[] = Array.isArray(processedRaw) ? processedRaw : (processedRaw?.queue || processedRaw?.data || []);
+
+  const allPending = pendingItems;
   // Split pending into truly pending vs claimed (in review)
   const pending = allPending.filter(v => !claimedIds.has(v.id));
   const inReview = allPending.filter(v => claimedIds.has(v.id));
-  const processed = processedItems || [];
+  const processed = processedItems;
 
   const allItems = [...allPending, ...processed];
   const expanded = expandedId ? allItems.find(v => v.id === expandedId) : null;

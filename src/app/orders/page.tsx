@@ -69,7 +69,7 @@ export default function OrdersPage() {
       sortable: true,
       render: (o) => (
         <span className="text-text font-medium">
-          ${(o.totalAmount ?? 0).toFixed(2)} <span className="text-text-muted text-xs">{o.currency}</span>
+          ${Number(o.totalAmount ?? 0).toFixed(2)} <span className="text-text-muted text-xs">{o.currency}</span>
         </span>
       ),
     },

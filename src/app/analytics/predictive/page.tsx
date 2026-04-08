@@ -8,14 +8,21 @@ export default function PredictiveStrategicPage() {
 
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
-  // Demand forecast
-  const actual = data?.forecast?.actual || [];
-  const forecast = data?.forecast?.predicted || [];
-  const confidence = data?.forecast?.confidence || forecast.map((d: any) => ({
-    date: d?.date,
-    upper: (d?.value || 0) + 15,
-    lower: Math.max(0, (d?.value || 0) - 15),
-  }));
+  // Demand forecast — backend returns { date, count } but we need { date, value }
+  const actual = (data?.forecast?.actual || []).map((d: any) => ({ date: d.date, value: d.count ?? d.value ?? 0 }));
+  const forecast = (data?.forecast?.predicted || []).map((d: any) => ({ date: d.date, value: d.count ?? d.value ?? 0 }));
+  const rawConfidence = data?.forecast?.confidence || [];
+  const confidence = rawConfidence.length > 0
+    ? rawConfidence.map((d: any) => ({
+        date: d.date,
+        upper: d.high ?? d.upper ?? ((d.count ?? d.value ?? 0) + 15),
+        lower: d.low ?? d.lower ?? Math.max(0, (d.count ?? d.value ?? 0) - 15),
+      }))
+    : forecast.map((d: any) => ({
+        date: d.date,
+        upper: (d.value || 0) + 15,
+        lower: Math.max(0, (d.value || 0) - 15),
+      }));
 
   const allForecastVals = [
     ...actual.map((d: any) => d.value),
@@ -46,12 +53,21 @@ export default function PredictiveStrategicPage() {
   const ciBottom = [...confidence].reverse().map((d: any, i: number) => `${fX(actual.length + confidence.length - 1 - i)},${fY(d.lower ?? d.value ?? 0)}`).join(' ');
   const ciPolygon = ciTop && ciBottom ? `${ciTop} ${ciBottom}` : '';
 
-  // Churn risk
+  // Churn risk — backend returns { buyers: [...], sellers: [...], runners: [...] } as direct arrays
   const churnRisk = data?.churnRisk || {};
+  const mapChurnUsers = (users: any[]) => users.map((u: any) => ({
+    name: u.name || 'Unknown',
+    risk: u.risk === 'high' ? 85 : u.risk === 'medium' ? 55 : (typeof u.risk === 'number' ? u.risk : 30),
+    lastActive: u.lastActivity ? new Date(u.lastActivity).toLocaleDateString('en', { day: 'numeric', month: 'short' }) : '--',
+    action: u.risk === 'high' ? 'Send retention offer' : 'Send re-engagement email',
+  }));
+  const buyerUsers = Array.isArray(churnRisk.buyers) ? churnRisk.buyers : (churnRisk.buyers?.users || []);
+  const sellerUsers = Array.isArray(churnRisk.sellers) ? churnRisk.sellers : (churnRisk.sellers?.users || []);
+  const runnerUsers = Array.isArray(churnRisk.runners) ? churnRisk.runners : (churnRisk.runners?.users || []);
   const churnSections = [
-    { segment: 'Buyers', highRisk: churnRisk.buyers?.highRisk ?? 0, color: '#EF4444', users: churnRisk.buyers?.users || [] },
-    { segment: 'Sellers', highRisk: churnRisk.sellers?.highRisk ?? 0, color: '#F59E0B', users: churnRisk.sellers?.users || [] },
-    { segment: 'Runners', highRisk: churnRisk.runners?.highRisk ?? 0, color: '#8B5CF6', users: churnRisk.runners?.users || [] },
+    { segment: 'Buyers', highRisk: buyerUsers.filter((u: any) => u.risk === 'high').length, color: '#EF4444', users: mapChurnUsers(buyerUsers) },
+    { segment: 'Sellers', highRisk: sellerUsers.filter((u: any) => u.risk === 'high').length, color: '#F59E0B', users: mapChurnUsers(sellerUsers) },
+    { segment: 'Runners', highRisk: runnerUsers.filter((u: any) => u.risk === 'high').length, color: '#8B5CF6', users: mapChurnUsers(runnerUsers) },
   ];
 
   // Unfilled demand value

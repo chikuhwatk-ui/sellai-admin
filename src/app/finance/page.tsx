@@ -267,18 +267,18 @@ export default function FinancePage() {
                 ) : (
                   recentTransactions.map((txn: any) => (
                     <tr key={txn.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                      <td className="px-6 py-3 font-mono text-xs text-primary">{txn.id}</td>
-                      <td className="px-4 py-3 text-text font-medium">{txn.user || txn.userName || '--'}</td>
+                      <td className="px-6 py-3 font-mono text-xs text-primary">{String(txn.id).slice(0, 8)}</td>
+                      <td className="px-4 py-3 text-text font-medium">{txn.sellerName || txn.description || '--'}</td>
                       <td className="px-4 py-3">
-                        <Badge variant={txn.type === 'Credit Purchase' ? 'primary' : 'info'}>
-                          {txn.type}
+                        <Badge variant={txn.type === 'CREDIT_PURCHASE' ? 'primary' : 'info'}>
+                          {txn.type === 'CREDIT_PURCHASE' ? 'Credit Purchase' : txn.type === 'WALLET_TRANSACTION' ? 'Wallet' : txn.type}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-text font-medium">${(txn.amount ?? 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-text-muted">{txn.method || txn.paymentMethod || '--'}</td>
+                      <td className="px-4 py-3 text-text font-medium">${Number(txn.amount ?? 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-text-muted">{txn.bundleType || txn.transactionType || txn.reference || '--'}</td>
                       <td className="px-4 py-3"><StatusPill status={txn.status} /></td>
                       <td className="px-6 py-3 text-text-muted text-xs">
-                        {txn.time || (txn.createdAt ? new Date(txn.createdAt).toLocaleString('en', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : '--')}
+                        {txn.createdAt ? new Date(txn.createdAt).toLocaleString('en', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : '--'}
                       </td>
                     </tr>
                   ))

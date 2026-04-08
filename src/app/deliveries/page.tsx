@@ -156,13 +156,13 @@ export default function DeliveriesPage() {
       key: 'baseFee',
       header: 'Fee',
       sortable: true,
-      render: (d) => <span className="text-text font-medium">${(d.baseFee ?? 0).toFixed(2)}</span>,
+      render: (d) => <span className="text-text font-medium">${Number(d.baseFee ?? 0).toFixed(2)}</span>,
     },
     {
       key: 'distance',
       header: 'Distance',
       sortable: true,
-      render: (d) => <span className="text-text-muted">{(d.distance ?? 0).toFixed(1)} km</span>,
+      render: (d) => <span className="text-text-muted">{Number(d.distance ?? 0).toFixed(1)} km</span>,
     },
     {
       key: 'requestedAt',

@@ -9,16 +9,43 @@ export default function OperationalEfficiencyPage() {
 
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
-  const matchingStats = data?.matching?.stats || data?.matching || [];
-  const waves = data?.waves || [];
-  const payments = data?.payments || [];
+  const matchingRaw = data?.matching || {};
+  // Backend returns waves with { wave, offerRate, ... } — map to expected { wave, rate }
+  const waves = (data?.waves || []).map((w: any) => ({
+    wave: `Wave ${w.wave}`,
+    rate: w.offerRate ?? w.rate ?? 0,
+  }));
+  // Backend returns raw payment data grouped by provider/status — aggregate for display
+  const paymentsRaw = data?.payments || [];
+  const paymentsByMethod: Record<string, { total: number; success: number; volume: number }> = {};
+  paymentsRaw.forEach((p: any) => {
+    const key = p.provider || p.method || 'Unknown';
+    if (!paymentsByMethod[key]) paymentsByMethod[key] = { total: 0, success: 0, volume: 0 };
+    paymentsByMethod[key].total += p.count || 0;
+    paymentsByMethod[key].volume += Number(p.totalAmount || 0);
+    if (p.status === 'COMPLETED' || p.status === 'SUCCESS') {
+      paymentsByMethod[key].success += p.count || 0;
+    }
+  });
+  const payments = Object.entries(paymentsByMethod).map(([method, d]) => ({
+    method,
+    successRate: d.total > 0 ? Math.round((d.success / d.total) * 100) : 0,
+    avgTime: '--',
+    failureRate: d.total > 0 ? Math.round(((d.total - d.success) / d.total) * 100) : 0,
+    volume: d.volume.toLocaleString(),
+  }));
+  // Runner utilization — backend returns { utilizationRate, onlinePartners, activeDeliveries, totalPartners }
   const runnerData = data?.runnerUtilization || {};
   const notifications = data?.notifications || null;
 
   const maxWave = waves.length ? Math.max(...waves.map((w: any) => w.rate)) : 1;
 
-  const utilization = runnerData.utilization ?? 0;
-  const runnerStats = runnerData.stats || [];
+  const utilization = runnerData.utilizationRate ?? runnerData.utilization ?? 0;
+  const runnerStats = runnerData.stats || [
+    { label: 'Online', value: runnerData.onlinePartners ?? 0 },
+    { label: 'Active Deliveries', value: runnerData.activeDeliveries ?? 0 },
+    { label: 'Total Partners', value: runnerData.totalPartners ?? 0 },
+  ];
 
   // Hourly notification data - use API data if available, otherwise generate from pattern
   const hourlyRates = useMemo(() => {
@@ -50,12 +77,12 @@ export default function OperationalEfficiencyPage() {
   const gaugeRange = gaugeEnd - gaugeStart;
   const gaugeAngle = gaugeStart + (utilization / 100) * gaugeRange;
 
-  // Normalize matchingStats to array format for display
-  const matchingDisplay = Array.isArray(matchingStats) ? matchingStats : [
-    { label: 'Notifications Sent', value: String(matchingStats.notificationsSent ?? 0), sub: `Last ${period} days`, color: '#10B981' },
-    { label: 'View Rate', value: `${matchingStats.viewRate ?? 0}%`, sub: matchingStats.viewRateChange ?? '', color: '#06B6D4' },
-    { label: 'Response Rate', value: `${matchingStats.responseRate ?? 0}%`, sub: matchingStats.responseRateChange ?? '', color: '#F59E0B' },
-    { label: 'Avg Offers/Demand', value: String(matchingStats.avgOffersPerDemand ?? 0), sub: `Target: ${matchingStats.target ?? 5.0}`, color: '#8B5CF6' },
+  // Normalize matching stats for display
+  const matchingDisplay = [
+    { label: 'Notifications Sent', value: String(matchingRaw.totalNotifications ?? 0), sub: `Last ${period} days`, color: '#10B981' },
+    { label: 'View Rate', value: `${matchingRaw.viewRate ?? 0}%`, sub: `${matchingRaw.totalIntents ?? 0} intents`, color: '#06B6D4' },
+    { label: 'Response Rate', value: `${matchingRaw.responseRate ?? 0}%`, sub: `${matchingRaw.totalOffers ?? 0} offers`, color: '#F59E0B' },
+    { label: 'Offer Rate', value: `${matchingRaw.offerRate ?? 0}%`, sub: 'Intents with offers', color: '#8B5CF6' },
   ];
 
   return (

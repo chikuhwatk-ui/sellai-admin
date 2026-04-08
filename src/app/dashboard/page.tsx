@@ -200,7 +200,7 @@ export default function DashboardPage() {
   const demands = Array.isArray(timeSeries?.demands) ? timeSeries.demands : [];
   const offers = Array.isArray(timeSeries?.offers) ? timeSeries.offers : [];
   const funnelData = Array.isArray(funnel) ? funnel : [];
-  const verificationList = Array.isArray(verifications) ? verifications : [];
+  const verificationList = Array.isArray(verifications) ? verifications : (verifications?.queue || []);
 
   return (
     <div className="min-h-screen p-6 space-y-6">
