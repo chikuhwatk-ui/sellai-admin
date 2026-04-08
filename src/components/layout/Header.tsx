@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeaderProps {
   title: string;
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export default function Header({ title }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <header className="flex items-center justify-between h-16 px-6 bg-background border-b border-border shrink-0">
@@ -66,11 +68,13 @@ export default function Header({ title }: HeaderProps) {
             className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-surface-hover transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary">A</span>
+              <span className="text-sm font-medium text-primary">
+                {user?.name?.charAt(0)?.toUpperCase() || 'A'}
+              </span>
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-text">Admin</p>
-              <p className="text-xs text-text-muted">admin@sellai.com</p>
+              <p className="text-sm font-medium text-text">{user?.name || 'Admin'}</p>
+              <p className="text-xs text-text-muted">{user?.phoneNumber || 'admin@sellai.com'}</p>
             </div>
             <svg
               className={`w-4 h-4 text-text-muted transition-transform ${
@@ -97,8 +101,8 @@ export default function Header({ title }: HeaderProps) {
               />
               <div className="absolute right-0 top-full mt-2 w-56 bg-surface border border-border rounded-xl shadow-xl shadow-black/20 z-50 py-1">
                 <div className="px-4 py-3 border-b border-border">
-                  <p className="text-sm font-medium text-text">Admin User</p>
-                  <p className="text-xs text-text-muted">admin@sellai.com</p>
+                  <p className="text-sm font-medium text-text">{user?.name || 'Admin User'}</p>
+                  <p className="text-xs text-text-muted">{user?.phoneNumber || 'admin@sellai.com'}</p>
                 </div>
                 <div className="py-1">
                   <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-text-muted hover:text-text hover:bg-surface-hover transition-colors">
@@ -116,7 +120,13 @@ export default function Header({ title }: HeaderProps) {
                   </button>
                 </div>
                 <div className="border-t border-border py-1">
-                  <button className="flex items-center gap-3 w-full px-4 py-2 text-sm text-danger hover:bg-surface-hover transition-colors">
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      logout();
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-2 text-sm text-danger hover:bg-surface-hover transition-colors"
+                  >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
                     </svg>

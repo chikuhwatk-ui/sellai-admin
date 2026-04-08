@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Badge, RoleBadge } from '@/components/ui/Badge';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { generateMockUsers } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
+import { api } from '@/lib/api';
 
 function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -23,8 +24,18 @@ export default function UserDetailPage() {
   const router = useRouter();
   const userId = params.id as string;
 
-  const allUsers = useMemo(() => generateMockUsers(50), []);
-  const user = allUsers.find(u => u.id === userId);
+  const { data: user, loading, refetch } = useApi<any>(`/api/admin/users/${userId}`);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text-muted">Loading user...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -44,36 +55,55 @@ export default function UserDetailPage() {
   const isRunner = user.role === 'DELIVERY_PARTNER';
   const avatarColor = getAvatarColor(user.name);
 
-  // Mock extended data
-  const stats = {
-    ordersPlaced: Math.floor(Math.random() * 45) + 5,
-    demandsPosted: Math.floor(Math.random() * 30) + 2,
-    reviewsWritten: Math.floor(Math.random() * 20),
+  const sellerProfile = user.sellerProfile;
+  const sellerMetrics = sellerProfile?.metrics;
+  const deliveryPartner = user.deliveryPartner;
+  const orderCount = user._count?.orders ?? 0;
+  const recentOrders = user.orders || [];
+  const recentIntents = user.intents || [];
+  const verification = user.verificationSubmissions?.[0];
+
+  const handleAdminAction = async (action: string, payload: Record<string, unknown> = {}) => {
+    try {
+      await api.patch(`/api/admin/users/${userId}`, { ...payload });
+      refetch();
+    } catch (err) {
+      console.error('Admin action failed:', err);
+    }
   };
 
-  const sellerData = {
-    businessName: `${user.name.split(' ')[0]}'s Shop`,
-    rating: (3.5 + Math.random() * 1.5).toFixed(1),
-    trustScore: Math.floor(70 + Math.random() * 30),
-    credits: Math.floor(Math.random() * 100) + 5,
-    categories: ['Electronics', 'Fashion', 'Home & Living'].slice(0, Math.floor(Math.random() * 3) + 1),
-  };
-
-  const runnerData = {
-    vehicleType: ['Motorcycle', 'Bicycle', 'Car'][Math.floor(Math.random() * 3)],
-    deliveryCount: Math.floor(Math.random() * 200) + 10,
-    earnings: (Math.random() * 500 + 50).toFixed(2),
-    isOnline: Math.random() > 0.4,
-  };
-
-  const timeline = [
-    { action: 'Completed order #1247', time: '2 hours ago', type: 'success' },
-    { action: 'Posted demand in Electronics', time: '5 hours ago', type: 'info' },
-    { action: 'Updated profile information', time: '1 day ago', type: 'default' },
-    { action: 'Received 5-star review', time: '2 days ago', type: 'success' },
-    { action: 'Verification approved', time: '5 days ago', type: 'success' },
-    { action: 'Account created', time: new Date(user.createdAt).toLocaleDateString(), type: 'default' },
-  ];
+  // Build activity timeline from real data
+  const timeline: { action: string; time: string; type: string }[] = [];
+  if (recentOrders.length > 0) {
+    recentOrders.slice(0, 3).forEach((order: any) => {
+      timeline.push({
+        action: `Order #${order.id?.slice(-6) || 'N/A'} - ${order.status}`,
+        time: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '',
+        type: order.status === 'COMPLETED' ? 'success' : 'info',
+      });
+    });
+  }
+  if (recentIntents.length > 0) {
+    recentIntents.slice(0, 2).forEach((intent: any) => {
+      timeline.push({
+        action: `Posted demand: ${intent.title || 'Untitled'}`,
+        time: intent.createdAt ? new Date(intent.createdAt).toLocaleDateString() : '',
+        type: 'info',
+      });
+    });
+  }
+  if (verification) {
+    timeline.push({
+      action: `Verification ${verification.status?.toLowerCase() || 'submitted'}`,
+      time: verification.submittedAt ? new Date(verification.submittedAt).toLocaleDateString() : '',
+      type: verification.status === 'VERIFIED' ? 'success' : 'default',
+    });
+  }
+  timeline.push({
+    action: 'Account created',
+    time: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '',
+    type: 'default',
+  });
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -114,7 +144,7 @@ export default function UserDetailPage() {
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
                 </svg>
-                {user.location}, {user.country}
+                {user.location || 'Unknown'}{user.country ? `, ${user.country}` : ''}
               </span>
               <span className="flex items-center gap-1.5">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -130,34 +160,34 @@ export default function UserDetailPage() {
       {/* Activity Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="text-center">
-          <div className="text-2xl font-bold text-text">{stats.ordersPlaced}</div>
-          <div className="text-xs text-text-muted mt-1">Orders Placed</div>
+          <div className="text-2xl font-bold text-text">{orderCount}</div>
+          <div className="text-xs text-text-muted mt-1">Orders</div>
         </Card>
         <Card className="text-center">
-          <div className="text-2xl font-bold text-text">{stats.demandsPosted}</div>
+          <div className="text-2xl font-bold text-text">{recentIntents.length}</div>
           <div className="text-xs text-text-muted mt-1">Demands Posted</div>
         </Card>
         <Card className="text-center">
-          <div className="text-2xl font-bold text-text">{stats.reviewsWritten}</div>
-          <div className="text-xs text-text-muted mt-1">Reviews Written</div>
+          <div className="text-2xl font-bold text-text">{verification ? 1 : 0}</div>
+          <div className="text-xs text-text-muted mt-1">Verifications</div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Role-specific Panel */}
         <div className="lg:col-span-2 space-y-6">
-          {isSeller && (
+          {isSeller && sellerProfile && (
             <Card>
               <h3 className="text-sm font-semibold text-text mb-4">Seller Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-xs text-text-muted mb-1">Business Name</div>
-                  <div className="text-sm font-medium text-text">{sellerData.businessName}</div>
+                  <div className="text-sm font-medium text-text">{sellerProfile.businessName || '--'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-text-muted mb-1">Rating</div>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm font-medium text-warning">{sellerData.rating}</span>
+                    <span className="text-sm font-medium text-warning">{sellerMetrics?.rating?.toFixed(1) ?? '--'}</span>
                     <svg width="14" height="14" fill="#F59E0B" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
                   </div>
                 </div>
@@ -165,48 +195,50 @@ export default function UserDetailPage() {
                   <div className="text-xs text-text-muted mb-1">Trust Score</div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${sellerData.trustScore}%` }} />
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${sellerMetrics?.trustScore ?? 0}%` }} />
                     </div>
-                    <span className="text-sm font-medium text-primary">{sellerData.trustScore}%</span>
+                    <span className="text-sm font-medium text-primary">{sellerMetrics?.trustScore ?? 0}%</span>
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-text-muted mb-1">Credits</div>
-                  <div className="text-sm font-medium text-text">{sellerData.credits} credits</div>
+                  <div className="text-sm font-medium text-text">{sellerProfile.credits ?? 0} credits</div>
                 </div>
-                <div className="col-span-2">
-                  <div className="text-xs text-text-muted mb-2">Categories</div>
-                  <div className="flex flex-wrap gap-2">
-                    {sellerData.categories.map(cat => (
-                      <Badge key={cat} variant="primary">{cat}</Badge>
-                    ))}
+                {sellerProfile.categories && sellerProfile.categories.length > 0 && (
+                  <div className="col-span-2">
+                    <div className="text-xs text-text-muted mb-2">Categories</div>
+                    <div className="flex flex-wrap gap-2">
+                      {sellerProfile.categories.map((cat: string) => (
+                        <Badge key={cat} variant="primary">{cat}</Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </Card>
           )}
 
-          {isRunner && (
+          {isRunner && deliveryPartner && (
             <Card>
               <h3 className="text-sm font-semibold text-text mb-4">Runner Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-xs text-text-muted mb-1">Vehicle Type</div>
-                  <div className="text-sm font-medium text-text">{runnerData.vehicleType}</div>
+                  <div className="text-sm font-medium text-text">{deliveryPartner.vehicleType || '--'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-text-muted mb-1">Delivery Count</div>
-                  <div className="text-sm font-medium text-text">{runnerData.deliveryCount}</div>
+                  <div className="text-sm font-medium text-text">{deliveryPartner.deliveryCount ?? 0}</div>
                 </div>
                 <div>
                   <div className="text-xs text-text-muted mb-1">Total Earnings</div>
-                  <div className="text-sm font-medium text-primary">${runnerData.earnings}</div>
+                  <div className="text-sm font-medium text-primary">${deliveryPartner.earnings?.toFixed(2) ?? '0.00'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-text-muted mb-1">Status</div>
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${runnerData.isOnline ? 'bg-primary' : 'bg-text-muted'}`} />
-                    <span className="text-sm font-medium text-text">{runnerData.isOnline ? 'Online' : 'Offline'}</span>
+                    <span className={`w-2 h-2 rounded-full ${deliveryPartner.isOnline ? 'bg-primary' : 'bg-text-muted'}`} />
+                    <span className="text-sm font-medium text-text">{deliveryPartner.isOnline ? 'Online' : 'Offline'}</span>
                   </div>
                 </div>
               </div>
@@ -218,22 +250,16 @@ export default function UserDetailPage() {
               <h3 className="text-sm font-semibold text-text mb-4">Buyer Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Total Spent</div>
-                  <div className="text-sm font-medium text-text">${(Math.random() * 2000 + 50).toFixed(2)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-text-muted mb-1">Favorite Category</div>
-                  <div className="text-sm font-medium text-text">Electronics</div>
+                  <div className="text-xs text-text-muted mb-1">Total Orders</div>
+                  <div className="text-sm font-medium text-text">{orderCount}</div>
                 </div>
                 <div>
                   <div className="text-xs text-text-muted mb-1">Last Active</div>
                   <div className="text-sm font-medium text-text">
-                    {new Date(user.lastActive).toLocaleDateString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {user.lastActive
+                      ? new Date(user.lastActive).toLocaleDateString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                      : '--'}
                   </div>
-                </div>
-                <div>
-                  <div className="text-xs text-text-muted mb-1">Average Order Value</div>
-                  <div className="text-sm font-medium text-text">${(Math.random() * 100 + 15).toFixed(2)}</div>
                 </div>
               </div>
             </Card>
@@ -243,13 +269,22 @@ export default function UserDetailPage() {
           <Card>
             <h3 className="text-sm font-semibold text-text mb-4">Admin Actions</h3>
             <div className="flex flex-wrap gap-3">
-              <button className="px-4 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors">
+              <button
+                onClick={() => handleAdminAction('verify', { verificationStatus: 'VERIFIED' })}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+              >
                 Override Verification
               </button>
-              <button className="px-4 py-2.5 rounded-xl text-sm font-medium bg-info/10 text-info hover:bg-info/20 border border-info/20 transition-colors">
+              <button
+                onClick={() => handleAdminAction('credits', {})}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-info/10 text-info hover:bg-info/20 border border-info/20 transition-colors"
+              >
                 Adjust Credits
               </button>
-              <button className="px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors">
+              <button
+                onClick={() => handleAdminAction('suspend', { verificationStatus: 'SUSPENDED' })}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors"
+              >
                 Suspend User
               </button>
             </div>

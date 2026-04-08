@@ -1,16 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { KPICard } from '@/components/ui/KPICard';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { StatusPill } from '@/components/ui/StatusPill';
-import {
-  generateMockKPIs,
-  generateMockTimeSeries,
-  generateMockFunnel,
-  generateMockVerifications,
-} from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 
 // ── SVG Dual Line Chart ──
 function DualLineChart({
@@ -168,11 +163,10 @@ function QueueItem({
 }
 
 export default function DashboardPage() {
-  const kpis = useMemo(() => generateMockKPIs(), []);
-  const demands = useMemo(() => generateMockTimeSeries(30, 45, 20), []);
-  const offers = useMemo(() => generateMockTimeSeries(30, 65, 25), []);
-  const funnel = useMemo(() => generateMockFunnel(), []);
-  const verifications = useMemo(() => generateMockVerifications(5), []);
+  const { data: kpis, loading: kpiLoading } = useApi<any>('/api/admin/dashboard/kpis');
+  const { data: timeSeries, loading: tsLoading } = useApi<any>('/api/admin/dashboard/time-series?period=30');
+  const { data: funnel, loading: funnelLoading } = useApi<any>('/api/admin/dashboard/funnel?period=30');
+  const { data: verifications } = useApi<any[]>('/api/verification/queue?status=PENDING');
 
   const systemAlerts = [
     { title: 'Failed Payment - Order #1247', subtitle: 'EcoCash timeout after 3 retries', time: '12m ago', severity: 'danger' as const },
@@ -186,6 +180,22 @@ export default function DashboardPage() {
     { title: 'Reported Seller: ShopMax', subtitle: '3 reports in 24h - price gouging', time: '1h ago' },
     { title: 'Flagged Listing: #4521', subtitle: 'Prohibited item detected (auto)', time: '3h ago' },
   ];
+
+  if (kpiLoading) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text-muted">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const demands = timeSeries?.demands || [];
+  const offers = timeSeries?.offers || [];
+  const funnelData = funnel || [];
+  const verificationList = verifications || [];
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -210,43 +220,43 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard
           title="Active Users"
-          value={kpis.activeUsers.value}
-          change={kpis.activeUsers.change}
-          trend={kpis.activeUsers.trend}
+          value={kpis?.activeUsers?.value ?? 0}
+          change={kpis?.activeUsers?.change}
+          trend={kpis?.activeUsers?.trend}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
         />
         <KPICard
           title="Open Demands"
-          value={kpis.openDemands.value}
-          change={kpis.openDemands.change}
-          trend={kpis.openDemands.trend}
+          value={kpis?.openDemands?.value ?? 0}
+          change={kpis?.openDemands?.change}
+          trend={kpis?.openDemands?.trend}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>}
         />
         <KPICard
           title="Pending Verifications"
-          value={kpis.pendingVerifications.value}
-          subtitle={`Oldest: ${kpis.pendingVerifications.oldestWait}`}
+          value={kpis?.pendingVerifications?.value ?? 0}
+          subtitle={kpis?.pendingVerifications?.oldestWait ? `Oldest: ${kpis.pendingVerifications.oldestWait}` : undefined}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
         />
         <KPICard
           title="Active Deliveries"
-          value={kpis.activeDeliveries.value}
-          change={kpis.activeDeliveries.change}
-          trend={kpis.activeDeliveries.trend}
+          value={kpis?.activeDeliveries?.value ?? 0}
+          change={kpis?.activeDeliveries?.change}
+          trend={kpis?.activeDeliveries?.trend}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>}
         />
         <KPICard
           title="Revenue Today"
-          value={kpis.revenueToday.value}
-          change={kpis.revenueToday.change}
-          trend={kpis.revenueToday.trend}
+          value={kpis?.revenueToday?.value ?? 0}
+          change={kpis?.revenueToday?.change}
+          trend={kpis?.revenueToday?.trend}
           prefix="$"
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
         />
         <KPICard
           title="Disputes"
-          value={kpis.disputes.value}
-          change={kpis.disputes.change}
+          value={kpis?.disputes?.value ?? 0}
+          change={kpis?.disputes?.change}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
         />
       </div>
@@ -255,18 +265,26 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
           <h3 className="text-sm font-semibold text-text mb-4">Demands vs Offers (30 Days)</h3>
-          <DualLineChart
-            data1={demands}
-            data2={offers}
-            label1="Demands"
-            label2="Offers"
-            color1="#10B981"
-            color2="#3B82F6"
-          />
+          {tsLoading || demands.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">Loading chart...</div>
+          ) : (
+            <DualLineChart
+              data1={demands}
+              data2={offers}
+              label1="Demands"
+              label2="Offers"
+              color1="#10B981"
+              color2="#3B82F6"
+            />
+          )}
         </Card>
         <Card className="p-6">
           <h3 className="text-sm font-semibold text-text mb-4">Conversion Funnel</h3>
-          <FunnelChart data={funnel} />
+          {funnelLoading || funnelData.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">Loading funnel...</div>
+          ) : (
+            <FunnelChart data={funnelData} />
+          )}
         </Card>
       </div>
 
@@ -276,10 +294,10 @@ export default function DashboardPage() {
         <Card padding={false}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold text-text">Verification Queue</h3>
-            <Badge variant="warning">{verifications.length} pending</Badge>
+            <Badge variant="warning">{verificationList.length} pending</Badge>
           </div>
           <div className="max-h-[320px] overflow-y-auto">
-            {verifications.map(v => (
+            {verificationList.map((v: any) => (
               <QueueItem
                 key={v.id}
                 title={v.fullName}

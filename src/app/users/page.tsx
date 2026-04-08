@@ -1,30 +1,55 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { Badge, RoleBadge } from '@/components/ui/Badge';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { generateMockUsers } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
+import { api } from '@/lib/api';
 
-type User = ReturnType<typeof generateMockUsers>[number];
+type User = Record<string, unknown> & {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  role: string;
+  verificationStatus: string;
+  location?: string;
+  createdAt: string;
+  _count?: { orders: number };
+};
 
 export default function UsersPage() {
   const router = useRouter();
-  const allUsers = useMemo(() => generateMockUsers(50), []);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const filtered = useMemo(() => {
-    return allUsers.filter(u => {
-      if (search && !u.name.toLowerCase().includes(search.toLowerCase()) && !u.phoneNumber.includes(search)) return false;
-      if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
-      if (statusFilter !== 'ALL' && u.verificationStatus !== statusFilter) return false;
-      return true;
-    });
-  }, [allUsers, search, roleFilter, statusFilter]);
+  // Debounce search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data, loading } = useApi<{ data: User[]; total: number }>(
+    `/api/admin/users?page=${page}&limit=12&search=${debouncedSearch}&role=${roleFilter}&status=${statusFilter}`,
+    [page, debouncedSearch, roleFilter, statusFilter]
+  );
+
+  const users = data?.data || [];
+  const total = data?.total || 0;
+
+  const handleBulkAction = async (action: string) => {
+    try {
+      await api.post('/api/admin/users/bulk-action', { userIds: [...selectedIds], action });
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Bulk action failed:', err);
+    }
+  };
 
   const columns: Column<User>[] = [
     {
@@ -80,7 +105,7 @@ export default function UsersPage() {
       key: 'location',
       header: 'Location',
       sortable: true,
-      render: (u) => <span className="text-text-muted">{u.location}</span>,
+      render: (u) => <span className="text-text-muted">{u.location || '--'}</span>,
     },
     {
       key: 'createdAt',
@@ -96,7 +121,7 @@ export default function UsersPage() {
       key: 'orderCount',
       header: 'Orders',
       sortable: true,
-      render: (u) => <span className="text-text font-medium">{u.orderCount}</span>,
+      render: (u) => <span className="text-text font-medium">{u._count?.orders ?? 0}</span>,
     },
     {
       key: 'actions',
@@ -118,7 +143,7 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text">User Management</h1>
-          <p className="text-sm text-text-muted mt-1">{allUsers.length} total users</p>
+          <p className="text-sm text-text-muted mt-1">{total} total users</p>
         </div>
       </div>
 
@@ -133,7 +158,7 @@ export default function UsersPage() {
             type="text"
             placeholder="Search by name or phone..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors"
           />
         </div>
@@ -141,10 +166,10 @@ export default function UsersPage() {
         {/* Role Filter */}
         <select
           value={roleFilter}
-          onChange={e => setRoleFilter(e.target.value)}
+          onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
           className="px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text focus:outline-none focus:border-primary/50 transition-colors"
         >
-          <option value="ALL">All Roles</option>
+          <option value="">All Roles</option>
           <option value="BUYER">Buyer</option>
           <option value="SELLER">Seller</option>
           <option value="DELIVERY_PARTNER">Runner</option>
@@ -153,10 +178,10 @@ export default function UsersPage() {
         {/* Status Filter */}
         <select
           value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
+          onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           className="px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text focus:outline-none focus:border-primary/50 transition-colors"
         >
-          <option value="ALL">All Statuses</option>
+          <option value="">All Statuses</option>
           <option value="VERIFIED">Verified</option>
           <option value="PENDING">Pending</option>
           <option value="REJECTED">Rejected</option>
@@ -167,10 +192,16 @@ export default function UsersPage() {
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-xs text-text-muted">{selectedIds.size} selected</span>
-            <button className="px-3 py-2 rounded-xl text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+            <button
+              onClick={() => handleBulkAction('verify')}
+              className="px-3 py-2 rounded-xl text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            >
               Bulk Verify
             </button>
-            <button className="px-3 py-2 rounded-xl text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors">
+            <button
+              onClick={() => handleBulkAction('suspend')}
+              className="px-3 py-2 rounded-xl text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+            >
               Suspend Selected
             </button>
             <button className="px-3 py-2 rounded-xl text-xs font-medium bg-info/10 text-info hover:bg-info/20 transition-colors">
@@ -181,19 +212,43 @@ export default function UsersPage() {
       </div>
 
       {/* Results count */}
-      {(search || roleFilter !== 'ALL' || statusFilter !== 'ALL') && (
+      {(search || roleFilter || statusFilter) && (
         <div className="text-xs text-text-muted">
-          Showing {filtered.length} of {allUsers.length} users
+          Showing {users.length} of {total} users
         </div>
       )}
 
       {/* Table */}
       <DataTable<User>
         columns={columns}
-        data={filtered}
+        data={users}
         onRowClick={(u) => router.push(`/users/${u.id}`)}
         pageSize={12}
+        loading={loading}
       />
+
+      {/* Server-side pagination */}
+      {total > 12 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-text-muted">
+            Page {page} of {Math.ceil(total / 12)}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(Math.ceil(total / 12), p + 1))}
+            disabled={page >= Math.ceil(total / 12)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

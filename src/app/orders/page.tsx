@@ -1,11 +1,21 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { generateMockOrders } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 
-type Order = ReturnType<typeof generateMockOrders>[number];
+type Order = Record<string, unknown> & {
+  id: string;
+  buyer?: { name?: string };
+  seller?: { businessName?: string };
+  offer?: { seller?: { businessName?: string } };
+  totalAmount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+};
 
 const TABS = [
   { key: 'ALL', label: 'All' },
@@ -18,19 +28,22 @@ const TABS = [
 ];
 
 export default function OrdersPage() {
-  const orders = useMemo(() => generateMockOrders(40), []);
+  const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState('ALL');
 
-  const filtered = useMemo(() => {
-    if (activeTab === 'ALL') return orders;
-    return orders.filter(o => o.status === activeTab);
-  }, [orders, activeTab]);
+  const { data, loading } = useApi<{ data: Order[]; total: number; counts: Record<string, number> }>(
+    `/api/admin/orders?page=${page}&limit=10&status=${activeTab === 'ALL' ? '' : activeTab}`,
+    [page, activeTab]
+  );
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { ALL: orders.length };
-    orders.forEach(o => { c[o.status] = (c[o.status] || 0) + 1; });
-    return c;
-  }, [orders]);
+  const orders = data?.data || [];
+  const total = data?.total || 0;
+  const counts = data?.counts || {};
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setPage(1);
+  };
 
   const columns: Column<Order>[] = [
     {
@@ -43,13 +56,13 @@ export default function OrdersPage() {
       key: 'buyerName',
       header: 'Buyer',
       sortable: true,
-      render: (o) => <span className="text-text font-medium">{o.buyerName}</span>,
+      render: (o) => <span className="text-text font-medium">{o.buyer?.name || 'Unknown'}</span>,
     },
     {
       key: 'sellerName',
       header: 'Seller',
       sortable: true,
-      render: (o) => <span className="text-text">{o.sellerName}</span>,
+      render: (o) => <span className="text-text">{o.seller?.businessName || o.offer?.seller?.businessName || 'Unknown'}</span>,
     },
     {
       key: 'totalAmount',
@@ -57,7 +70,7 @@ export default function OrdersPage() {
       sortable: true,
       render: (o) => (
         <span className="text-text font-medium">
-          ${o.totalAmount.toFixed(2)} <span className="text-text-muted text-xs">{o.currency}</span>
+          ${(o.totalAmount ?? 0).toFixed(2)} <span className="text-text-muted text-xs">{o.currency}</span>
         </span>
       ),
     },
@@ -96,7 +109,7 @@ export default function OrdersPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-text">Order Management</h1>
-        <p className="text-sm text-text-muted mt-1">{orders.length} total orders</p>
+        <p className="text-sm text-text-muted mt-1">{total} total orders</p>
       </div>
 
       {/* Status Tabs */}
@@ -104,7 +117,7 @@ export default function OrdersPage() {
         {TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
               activeTab === tab.key
                 ? 'bg-primary/15 text-primary'
@@ -113,7 +126,7 @@ export default function OrdersPage() {
           >
             {tab.label}
             <span className={`ml-1.5 text-xs ${activeTab === tab.key ? 'text-primary/70' : 'text-text-muted/60'}`}>
-              {counts[tab.key] || 0}
+              {counts[tab.key] ?? 0}
             </span>
           </button>
         ))}
@@ -122,10 +135,34 @@ export default function OrdersPage() {
       {/* Table */}
       <DataTable<Order>
         columns={columns}
-        data={filtered}
+        data={orders}
         pageSize={10}
+        loading={loading}
         emptyMessage={`No ${activeTab === 'ALL' ? '' : activeTab.toLowerCase().replace('_', ' ') + ' '}orders found`}
       />
+
+      {/* Server-side pagination */}
+      {total > 10 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-text-muted">
+            Page {page} of {Math.ceil(total / 10)}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(Math.ceil(total / 10), p + 1))}
+            disabled={page >= Math.ceil(total / 10)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

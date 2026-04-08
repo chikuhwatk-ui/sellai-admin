@@ -1,40 +1,32 @@
 'use client';
 
-import { useMemo } from 'react';
-import { generateMockCohortData } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 
 export default function UserEconomicsPage() {
-  const cohorts = useMemo(() => generateMockCohortData(), []);
+  const { data, loading } = useApi<any>('/api/admin/analytics/user-economics');
 
-  const ltvData = useMemo(() => cohorts.map(c => ({
+  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
+
+  const cohorts = data?.cohorts || [];
+  const sellerSegments = data?.sellerSegments || [];
+  const creditStats = data?.creditStats || { totalPurchases: 0, totalRevenue: 0, avgPerSeller: 0, utilizationRate: 0 };
+  const earningsBands = data?.runnerEarnings || [];
+
+  const ltvData = data?.buyerLTV || cohorts.map((c: any) => ({
     cohort: c.cohort,
-    ltv: Math.floor(Math.random() * 80) + 20,
-  })), [cohorts]);
+    ltv: c.ltv || 0,
+  }));
 
-  const maxLtv = Math.max(...ltvData.map(d => d.ltv));
+  const maxLtv = ltvData.length ? Math.max(...ltvData.map((d: any) => d.ltv)) : 1;
+  const maxEarnings = earningsBands.length ? Math.max(...earningsBands.map((b: any) => b.count)) : 1;
 
-  const sellerSegments = useMemo(() => [
-    { label: 'Power Sellers', count: 124, color: '#10B981', icon: '⚡' },
-    { label: 'Growing', count: 387, color: '#06B6D4', icon: '📈' },
-    { label: 'Dormant', count: 213, color: '#F59E0B', icon: '💤' },
-    { label: 'Churned', count: 96, color: '#EF4444', icon: '🚪' },
-  ], []);
-
-  const creditStats = useMemo(() => [
-    { label: 'Credits Purchased', value: '34,250', sub: 'This month' },
-    { label: 'Credits Spent', value: '28,140', sub: '82% utilization' },
-    { label: 'Avg Offers per Credit', value: '1.4', sub: '+0.2 vs last month' },
-    { label: 'Revenue per Credit', value: '$2.85', sub: '+12% MoM' },
-  ], []);
-
-  const earningsBands = useMemo(() => [
-    { band: '$0 - $50', count: Math.floor(Math.random() * 300) + 200 },
-    { band: '$50 - $100', count: Math.floor(Math.random() * 200) + 100 },
-    { band: '$100 - $200', count: Math.floor(Math.random() * 100) + 50 },
-    { band: '$200+', count: Math.floor(Math.random() * 50) + 20 },
-  ], []);
-
-  const maxEarnings = Math.max(...earningsBands.map(b => b.count));
+  // Map creditStats to display format
+  const creditDisplay = Array.isArray(creditStats) ? creditStats : [
+    { label: 'Credits Purchased', value: String(creditStats.totalPurchases ?? 0), sub: 'This month' },
+    { label: 'Total Revenue', value: `$${creditStats.totalRevenue ?? 0}`, sub: 'From credits' },
+    { label: 'Avg per Seller', value: String(creditStats.avgPerSeller ?? 0), sub: 'Credits' },
+    { label: 'Utilization Rate', value: `${creditStats.utilizationRate ?? 0}%`, sub: 'Credits used' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -58,12 +50,12 @@ export default function UserEconomicsPage() {
               </tr>
             </thead>
             <tbody>
-              {cohorts.map(c => (
+              {cohorts.map((c: any) => (
                 <tr key={c.cohort} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#E5E7EB] font-medium">{c.cohort}</td>
                   <td className="py-2 text-[#E5E7EB]">{c.size}</td>
                   {Array.from({ length: 6 }, (_, j) => {
-                    const val = c.retention[j];
+                    const val = c.retention?.[j];
                     if (val === undefined) return <td key={j} className="px-2" />;
                     const opacity = val / 100;
                     return (
@@ -88,7 +80,7 @@ export default function UserEconomicsPage() {
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Buyer LTV by Cohort</h2>
         <svg viewBox="0 0 600 250" className="w-full" preserveAspectRatio="xMidYMid meet">
-          {ltvData.map((d, i) => {
+          {ltvData.map((d: any, i: number) => {
             const barW = 60;
             const gap = 25;
             const x = 60 + i * (barW + gap);
@@ -118,7 +110,7 @@ export default function UserEconomicsPage() {
 
       {/* Seller Segments */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {sellerSegments.map(seg => (
+        {sellerSegments.map((seg: any) => (
           <div key={seg.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 text-center">
             <div className="text-3xl mb-2">{seg.icon}</div>
             <div className="text-2xl font-bold text-white">{seg.count}</div>
@@ -129,7 +121,7 @@ export default function UserEconomicsPage() {
 
       {/* Credit ROI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {creditStats.map(stat => (
+        {creditDisplay.map((stat: any) => (
           <div key={stat.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
             <div className="text-[#6B7280] text-sm mb-1">{stat.label}</div>
             <div className="text-2xl font-bold text-white">{stat.value}</div>
@@ -142,7 +134,7 @@ export default function UserEconomicsPage() {
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Runner Earnings Distribution</h2>
         <div className="space-y-3">
-          {earningsBands.map(band => (
+          {earningsBands.map((band: any) => (
             <div key={band.band} className="flex items-center gap-4">
               <div className="w-24 text-sm text-[#E5E7EB]">{band.band}</div>
               <div className="flex-1 h-8 bg-[#0F1117] rounded overflow-hidden">

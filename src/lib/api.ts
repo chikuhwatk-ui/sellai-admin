@@ -1,7 +1,6 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 async function getAuthHeaders(): Promise<HeadersInit> {
-  // In production, get from session/cookie
   const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
   return {
     'Content-Type': 'application/json',
@@ -9,12 +8,55 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   };
 }
 
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken =
+    typeof window !== 'undefined' ? localStorage.getItem('adminRefreshToken') : null;
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    localStorage.setItem('adminToken', data.access_token);
+    localStorage.setItem('adminRefreshToken', data.refresh_token);
+    document.cookie = `adminToken=${data.access_token};path=/;max-age=2592000;SameSite=Lax`;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: { ...headers, ...options?.headers },
   });
+
+  // Token refresh on 401
+  if (res.status === 401) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      const newHeaders = await getAuthHeaders();
+      res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers: { ...newHeaders, ...options?.headers },
+      });
+    } else {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminRefreshToken');
+        localStorage.removeItem('adminUser');
+        document.cookie = 'adminToken=;path=/;max-age=0';
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired');
+    }
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(error.message || `API Error: ${res.status}`);
@@ -33,7 +75,10 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 };
 
-// ── Mock data generators for development ──
+// ── Mock data generators for development (to be removed once pages use real API) ──
+
+type OrderStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED';
+type DeliveryStatus = 'REQUESTED' | 'BID_PENDING' | 'BID_ACCEPTED' | 'PICKED_UP' | 'EN_ROUTE' | 'ARRIVED' | 'COMPLETED' | 'CANCELLED';
 
 export function generateMockKPIs() {
   return {
@@ -130,7 +175,7 @@ export function generateMockCategoryMetrics() {
     'Health & Beauty', 'Home Services', 'Repair & Maintenance', 'Professional Services',
     'Tech & Digital', 'Education', 'Events & Catering', 'Transport', 'Construction', 'Agriculture',
   ];
-  return categories.map((name, i) => ({
+  return categories.map((name) => ({
     categoryId: name.toLowerCase().replace(/\s+/g, '-'),
     categoryName: name,
     demandCount: Math.floor(Math.random() * 500) + 20,
@@ -155,6 +200,3 @@ export function generateMockCohortData() {
     return { cohort: monthStr, size, retention };
   });
 }
-
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED';
-type DeliveryStatus = 'REQUESTED' | 'BID_PENDING' | 'BID_ACCEPTED' | 'PICKED_UP' | 'EN_ROUTE' | 'ARRIVED' | 'COMPLETED' | 'CANCELLED';

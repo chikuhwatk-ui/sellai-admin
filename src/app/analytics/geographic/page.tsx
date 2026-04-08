@@ -1,37 +1,15 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useApi } from '@/hooks/useApi';
 
 export default function GeographicIntelligencePage() {
-  const cities = useMemo(() => [
-    { name: 'Harare', x: 62, y: 38, r: 28, users: 3420, demands: 1840, fillRate: 72, revenue: 45200, growth: 14.2 },
-    { name: 'Bulawayo', x: 35, y: 72, r: 20, users: 1860, demands: 920, fillRate: 65, revenue: 22100, growth: 8.5 },
-    { name: 'Mutare', x: 82, y: 42, r: 14, users: 680, demands: 340, fillRate: 58, revenue: 8400, growth: 22.1 },
-    { name: 'Gweru', x: 45, y: 55, r: 12, users: 420, demands: 210, fillRate: 51, revenue: 5100, growth: 11.3 },
-    { name: 'Masvingo', x: 58, y: 68, r: 8, users: 240, demands: 120, fillRate: 45, revenue: 2800, growth: 6.7 },
-  ], []);
+  const { data, loading } = useApi<any>('/api/admin/analytics/geographic');
 
-  const routes = useMemo(() => [
-    { from: 'Harare CBD', to: 'Borrowdale', volume: 342, avgTime: '28min' },
-    { from: 'Harare CBD', to: 'Avondale', volume: 287, avgTime: '22min' },
-    { from: 'Bulawayo CBD', to: 'Hillside', volume: 198, avgTime: '18min' },
-    { from: 'Harare CBD', to: 'Eastlea', volume: 176, avgTime: '15min' },
-    { from: 'Harare CBD', to: 'Mbare', volume: 154, avgTime: '20min' },
-    { from: 'Mutare CBD', to: 'Murambi', volume: 112, avgTime: '25min' },
-    { from: 'Borrowdale', to: 'Mt Pleasant', volume: 98, avgTime: '16min' },
-    { from: 'Bulawayo CBD', to: 'Burnside', volume: 87, avgTime: '14min' },
-    { from: 'Gweru CBD', to: 'Mkoba', volume: 65, avgTime: '12min' },
-    { from: 'Avondale', to: 'Harare CBD', volume: 54, avgTime: '24min' },
-  ], []);
+  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
-  const expansion = useMemo(() => [
-    { city: 'Chitungwiza', score: 78, population: '356K', mobileMoney: 72, signups: 145 },
-    { city: 'Epworth', score: 65, population: '228K', mobileMoney: 64, signups: 67 },
-    { city: 'Kadoma', score: 52, population: '91K', mobileMoney: 58, signups: 34 },
-    { city: 'Kwekwe', score: 48, population: '100K', mobileMoney: 55, signups: 28 },
-    { city: 'Chinhoyi', score: 42, population: '79K', mobileMoney: 51, signups: 18 },
-    { city: 'Zvishavane', score: 35, population: '45K', mobileMoney: 47, signups: 12 },
-  ], []);
+  const cities = data?.cities || [];
+  const routes = data?.corridors || [];
+  const expansion = data?.expansion || [];
 
   return (
     <div className="space-y-6">
@@ -54,15 +32,15 @@ export default function GeographicIntelligencePage() {
             />
             <text x="50" y="95" textAnchor="middle" fill="#2A2D37" fontSize="3">ZIMBABWE</text>
             {/* City hotspots */}
-            {cities.map(city => (
+            {cities.map((city: any) => (
               <g key={city.name}>
                 <circle cx={city.x} cy={city.y} r={city.r} fill="#10B981" opacity="0.15" />
-                <circle cx={city.x} cy={city.y} r={city.r * 0.6} fill="#10B981" opacity="0.3" />
-                <circle cx={city.x} cy={city.y} r={city.r * 0.25} fill="#10B981" opacity="0.8" />
-                <text x={city.x} y={city.y - city.r - 2} textAnchor="middle" fill="#E5E7EB" fontSize="3.5" fontWeight="bold">
+                <circle cx={city.x} cy={city.y} r={(city.r || 10) * 0.6} fill="#10B981" opacity="0.3" />
+                <circle cx={city.x} cy={city.y} r={(city.r || 10) * 0.25} fill="#10B981" opacity="0.8" />
+                <text x={city.x} y={city.y - (city.r || 10) - 2} textAnchor="middle" fill="#E5E7EB" fontSize="3.5" fontWeight="bold">
                   {city.name}
                 </text>
-                <text x={city.x} y={city.y + city.r + 4} textAnchor="middle" fill="#6B7280" fontSize="2.5">
+                <text x={city.x} y={city.y + (city.r || 10) + 4} textAnchor="middle" fill="#6B7280" fontSize="2.5">
                   {city.demands} demands
                 </text>
               </g>
@@ -73,15 +51,15 @@ export default function GeographicIntelligencePage() {
 
       {/* City Scorecards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {cities.map(city => (
+        {cities.map((city: any) => (
           <div key={city.name} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-4">
             <h3 className="text-white font-semibold mb-3">{city.name}</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-[#6B7280]">Users</span><span className="text-[#E5E7EB]">{city.users.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Demands</span><span className="text-[#E5E7EB]">{city.demands.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Fill Rate</span><span className="text-[#E5E7EB]">{city.fillRate}%</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Revenue</span><span className="text-[#E5E7EB]">${city.revenue.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Growth</span><span className="text-[#10B981]">+{city.growth}%</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Users</span><span className="text-[#E5E7EB]">{(city.users || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Demands</span><span className="text-[#E5E7EB]">{(city.demands || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Fill Rate</span><span className="text-[#E5E7EB]">{city.fillRate || 0}%</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Revenue</span><span className="text-[#E5E7EB]">${(city.revenue || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Growth</span><span className="text-[#10B981]">+{city.growth || 0}%</span></div>
             </div>
           </div>
         ))}
@@ -103,7 +81,7 @@ export default function GeographicIntelligencePage() {
               </tr>
             </thead>
             <tbody>
-              {routes.map((r, i) => (
+              {routes.map((r: any, i: number) => (
                 <tr key={i} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#6B7280]">{i + 1}</td>
                   <td className="py-2 text-[#E5E7EB]">{r.from}</td>
@@ -133,22 +111,22 @@ export default function GeographicIntelligencePage() {
               </tr>
             </thead>
             <tbody>
-              {expansion.map(city => {
-                const scoreColor = city.score >= 70 ? '#10B981' : city.score >= 50 ? '#F59E0B' : '#EF4444';
+              {expansion.map((city: any) => {
+                const scoreColor = (city.score || 0) >= 70 ? '#10B981' : (city.score || 0) >= 50 ? '#F59E0B' : '#EF4444';
                 return (
                   <tr key={city.city} className="border-b border-[#2A2D37]/50">
                     <td className="py-2 text-[#E5E7EB] font-medium">{city.city}</td>
                     <td className="py-2">
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-[#0F1117] rounded overflow-hidden">
-                          <div className="h-full rounded" style={{ width: `${city.score}%`, backgroundColor: scoreColor }} />
+                          <div className="h-full rounded" style={{ width: `${city.score || 0}%`, backgroundColor: scoreColor }} />
                         </div>
-                        <span style={{ color: scoreColor }} className="text-sm font-medium">{city.score}</span>
+                        <span style={{ color: scoreColor }} className="text-sm font-medium">{city.score || 0}</span>
                       </div>
                     </td>
                     <td className="py-2 text-right text-[#E5E7EB]">{city.population}</td>
-                    <td className="py-2 text-right text-[#E5E7EB]">{city.mobileMoney}%</td>
-                    <td className="py-2 text-right text-[#E5E7EB]">{city.signups}</td>
+                    <td className="py-2 text-right text-[#E5E7EB]">{city.mobileMoney || 0}%</td>
+                    <td className="py-2 text-right text-[#E5E7EB]">{city.signups || 0}</td>
                   </tr>
                 );
               })}

@@ -1,31 +1,26 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { generateMockTimeSeries, generateMockFunnel, generateMockCategoryMetrics } from '@/lib/api';
+import { useState } from 'react';
+import { useApi } from '@/hooks/useApi';
 
 export default function MarketplaceHealthPage() {
   const [period, setPeriod] = useState<7 | 30 | 90>(30);
+  const { data, loading } = useApi<any>(`/api/admin/analytics/marketplace?period=${period}`, [period]);
 
-  const demands = useMemo(() => generateMockTimeSeries(period, 80, 30), [period]);
-  const offers = useMemo(() => generateMockTimeSeries(period, 120, 40), [period]);
-  const funnel = useMemo(() => generateMockFunnel(), []);
-  const categories = useMemo(() => generateMockCategoryMetrics(), []);
+  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
-  // Time to first offer histogram
-  const histogramBins = useMemo(() => [
-    { label: '<5min', count: Math.floor(Math.random() * 200) + 100 },
-    { label: '5-30min', count: Math.floor(Math.random() * 300) + 150 },
-    { label: '30m-1h', count: Math.floor(Math.random() * 150) + 80 },
-    { label: '1-4h', count: Math.floor(Math.random() * 100) + 40 },
-    { label: '>4h', count: Math.floor(Math.random() * 60) + 20 },
-  ], []);
+  const demands = data?.timeSeries?.demands || [];
+  const offers = data?.timeSeries?.offers || [];
+  const funnel = data?.funnel || [];
+  const categories = data?.categoryFillRates || [];
+  const histogramBins = data?.timeToFirstOffer || [];
 
-  const maxHistVal = Math.max(...histogramBins.map(b => b.count));
+  const maxHistVal = Math.max(...(histogramBins.length ? histogramBins.map((b: any) => b.count) : [1]));
 
   // SVG line chart helpers
-  const allValues = [...demands.map(d => d.value), ...offers.map(d => d.value)];
-  const maxY = Math.max(...allValues);
-  const minY = Math.min(...allValues);
+  const allValues = [...demands.map((d: any) => d.value), ...offers.map((d: any) => d.value)];
+  const maxY = allValues.length ? Math.max(...allValues) : 1;
+  const minY = allValues.length ? Math.min(...allValues) : 0;
   const chartW = 800;
   const chartH = 300;
   const pad = { top: 20, right: 20, bottom: 40, left: 50 };
@@ -33,6 +28,7 @@ export default function MarketplaceHealthPage() {
   const innerH = chartH - pad.top - pad.bottom;
 
   function toPoints(data: { date: string; value: number }[]) {
+    if (data.length < 2) return '';
     return data.map((d, i) => {
       const x = pad.left + (i / (data.length - 1)) * innerW;
       const y = pad.top + innerH - ((d.value - minY) / (maxY - minY || 1)) * innerH;
@@ -40,7 +36,7 @@ export default function MarketplaceHealthPage() {
     }).join(' ');
   }
 
-  const maxFunnel = funnel[0].value;
+  const maxFunnel = funnel.length ? funnel[0]?.value || 1 : 1;
 
   return (
     <div className="space-y-6">
@@ -87,12 +83,12 @@ export default function MarketplaceHealthPage() {
             );
           })}
           {/* X-axis labels */}
-          {demands.filter((_, i) => i % Math.max(1, Math.floor(demands.length / 6)) === 0).map((d, idx) => {
+          {demands.filter((_: any, i: number) => i % Math.max(1, Math.floor(demands.length / 6)) === 0).map((d: any, idx: number) => {
             const i = demands.indexOf(d);
             const x = pad.left + (i / (demands.length - 1)) * innerW;
             return (
               <text key={idx} x={x} y={chartH - 5} textAnchor="middle" fill="#6B7280" fontSize="10">
-                {d.date.slice(5)}
+                {d.date?.slice(5)}
               </text>
             );
           })}
@@ -106,7 +102,7 @@ export default function MarketplaceHealthPage() {
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Conversion Funnel</h2>
           <div className="space-y-3">
-            {funnel.map((stage, i) => {
+            {funnel.map((stage: any, i: number) => {
               const widthPct = (stage.value / maxFunnel) * 100;
               const dropOff = i > 0 ? Math.round(((funnel[i - 1].value - stage.value) / funnel[i - 1].value) * 100) : 0;
               return (
@@ -136,7 +132,7 @@ export default function MarketplaceHealthPage() {
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Time to First Offer</h2>
           <svg viewBox="0 0 400 250" className="w-full" preserveAspectRatio="xMidYMid meet">
-            {histogramBins.map((bin, i) => {
+            {histogramBins.map((bin: any, i: number) => {
               const barW = 50;
               const gap = 20;
               const x = 40 + i * (barW + gap);
@@ -168,8 +164,8 @@ export default function MarketplaceHealthPage() {
               </tr>
             </thead>
             <tbody>
-              {categories.map(cat => {
-                const pct = Math.round(cat.fillRate * 100);
+              {categories.map((cat: any) => {
+                const pct = Math.round((cat.fillRate || 0) * 100);
                 const color = pct < 30 ? '#EF4444' : pct < 60 ? '#F59E0B' : '#10B981';
                 return (
                   <tr key={cat.categoryId} className="border-b border-[#2A2D37]/50">

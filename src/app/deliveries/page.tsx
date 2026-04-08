@@ -1,11 +1,20 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { generateMockDeliveries } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 
-type Delivery = ReturnType<typeof generateMockDeliveries>[number];
+type Delivery = Record<string, unknown> & {
+  id: string;
+  pickupAddress: string;
+  deliveryAddress: string;
+  partner?: { user?: { name?: string } };
+  status: string;
+  baseFee: number;
+  distance: number;
+  requestedAt: string;
+};
 
 const TABS = [
   { key: 'ALL', label: 'All' },
@@ -96,19 +105,22 @@ function LiveMapPlaceholder({ deliveries }: { deliveries: Delivery[] }) {
 }
 
 export default function DeliveriesPage() {
-  const deliveries = useMemo(() => generateMockDeliveries(30), []);
+  const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState('ALL');
 
-  const filtered = useMemo(() => {
-    if (activeTab === 'ALL') return deliveries;
-    return deliveries.filter(d => d.status === activeTab);
-  }, [deliveries, activeTab]);
+  const { data, loading } = useApi<{ data: Delivery[]; total: number; counts: Record<string, number> }>(
+    `/api/admin/deliveries?page=${page}&limit=10&status=${activeTab === 'ALL' ? '' : activeTab}`,
+    [page, activeTab]
+  );
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { ALL: deliveries.length };
-    deliveries.forEach(d => { c[d.status] = (c[d.status] || 0) + 1; });
-    return c;
-  }, [deliveries]);
+  const deliveries = data?.data || [];
+  const total = data?.total || 0;
+  const counts = data?.counts || {};
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setPage(1);
+  };
 
   const columns: Column<Delivery>[] = [
     {
@@ -131,8 +143,8 @@ export default function DeliveriesPage() {
       key: 'runnerName',
       header: 'Runner',
       sortable: true,
-      render: (d) => d.runnerName
-        ? <span className="text-text font-medium text-sm">{d.runnerName}</span>
+      render: (d) => d.partner?.user?.name
+        ? <span className="text-text font-medium text-sm">{d.partner.user.name}</span>
         : <span className="text-text-muted text-xs italic">Unassigned</span>,
     },
     {
@@ -145,13 +157,13 @@ export default function DeliveriesPage() {
       key: 'baseFee',
       header: 'Fee',
       sortable: true,
-      render: (d) => <span className="text-text font-medium">${d.baseFee.toFixed(2)}</span>,
+      render: (d) => <span className="text-text font-medium">${(d.baseFee ?? 0).toFixed(2)}</span>,
     },
     {
       key: 'distance',
       header: 'Distance',
       sortable: true,
-      render: (d) => <span className="text-text-muted">{d.distance.toFixed(1)} km</span>,
+      render: (d) => <span className="text-text-muted">{(d.distance ?? 0).toFixed(1)} km</span>,
     },
     {
       key: 'requestedAt',
@@ -170,7 +182,7 @@ export default function DeliveriesPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-text">Delivery Management</h1>
-        <p className="text-sm text-text-muted mt-1">{deliveries.length} total deliveries</p>
+        <p className="text-sm text-text-muted mt-1">{total} total deliveries</p>
       </div>
 
       {/* Live Map */}
@@ -181,7 +193,7 @@ export default function DeliveriesPage() {
         {TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
               activeTab === tab.key
                 ? 'bg-primary/15 text-primary'
@@ -190,7 +202,7 @@ export default function DeliveriesPage() {
           >
             {tab.label}
             <span className={`ml-1 text-xs ${activeTab === tab.key ? 'text-primary/70' : 'text-text-muted/60'}`}>
-              {counts[tab.key] || 0}
+              {counts[tab.key] ?? 0}
             </span>
           </button>
         ))}
@@ -199,10 +211,34 @@ export default function DeliveriesPage() {
       {/* Table */}
       <DataTable<Delivery>
         columns={columns}
-        data={filtered}
+        data={deliveries}
         pageSize={10}
+        loading={loading}
         emptyMessage={`No ${activeTab === 'ALL' ? '' : activeTab.toLowerCase().replace(/_/g, ' ') + ' '}deliveries found`}
       />
+
+      {/* Server-side pagination */}
+      {total > 10 && (
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-text-muted">
+            Page {page} of {Math.ceil(total / 10)}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(Math.ceil(total / 10), p + 1))}
+            disabled={page >= Math.ceil(total / 10)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

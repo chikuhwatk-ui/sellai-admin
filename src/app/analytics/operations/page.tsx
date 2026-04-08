@@ -1,53 +1,36 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useApi } from '@/hooks/useApi';
 
 export default function OperationalEfficiencyPage() {
-  // Matching performance stats
-  const matchingStats = useMemo(() => [
-    { label: 'Notifications Sent', value: '12,847', sub: 'Last 30 days', color: '#10B981' },
-    { label: 'View Rate', value: '68.4%', sub: '+2.1% vs prior', color: '#06B6D4' },
-    { label: 'Response Rate', value: '34.2%', sub: '-1.5% vs prior', color: '#F59E0B' },
-    { label: 'Avg Offers/Demand', value: '3.2', sub: 'Target: 5.0', color: '#8B5CF6' },
-  ], []);
+  const [period, setPeriod] = useState(30);
+  const { data, loading } = useApi<any>(`/api/admin/analytics/operations?period=${period}`, [period]);
 
-  // Wave effectiveness
-  const waves = useMemo(() => [
-    { wave: 'Wave 1', rate: 42 },
-    { wave: 'Wave 2', rate: 28 },
-    { wave: 'Wave 3', rate: 18 },
-    { wave: 'Wave 4', rate: 12 },
-  ], []);
-  const maxWave = Math.max(...waves.map(w => w.rate));
+  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
-  // Payment processing
-  const payments = useMemo(() => [
-    { method: 'EcoCash', successRate: 96.2, avgTime: '3.2s', failureRate: 3.8, volume: '$34,200' },
-    { method: 'OneMoney', successRate: 93.8, avgTime: '4.1s', failureRate: 6.2, volume: '$12,450' },
-    { method: 'InnBucks', successRate: 94.5, avgTime: '3.8s', failureRate: 5.5, volume: '$8,720' },
-    { method: 'Bank Transfer', successRate: 98.1, avgTime: '12.4s', failureRate: 1.9, volume: '$22,100' },
-    { method: 'USD Cash', successRate: 99.5, avgTime: '1.0s', failureRate: 0.5, volume: '$15,300' },
-  ], []);
+  const matchingStats = data?.matching?.stats || data?.matching || [];
+  const waves = data?.waves || [];
+  const payments = data?.payments || [];
+  const runnerData = data?.runnerUtilization || {};
+  const notifications = data?.notifications || null;
 
-  // Notification timing
+  const maxWave = waves.length ? Math.max(...waves.map((w: any) => w.rate)) : 1;
+
+  const utilization = runnerData.utilization ?? 0;
+  const runnerStats = runnerData.stats || [];
+
+  // Hourly notification data - use API data if available, otherwise generate from pattern
   const hourlyRates = useMemo(() => {
+    if (notifications) return notifications;
     return Array.from({ length: 24 }, (_, h) => ({
       hour: h,
       rate: h >= 6 && h <= 22
         ? 15 + Math.sin((h - 6) / 16 * Math.PI) * 35 + Math.random() * 10
         : 5 + Math.random() * 8,
     }));
-  }, []);
-  const maxHourly = Math.max(...hourlyRates.map(h => h.rate));
-
-  // Runner utilization
-  const utilization = 72;
-  const runnerStats = useMemo(() => [
-    { label: 'Avg Delivery Time', value: '38 min' },
-    { label: 'Deliveries/Runner/Day', value: '4.7' },
-    { label: 'Active Runners', value: '124' },
-    { label: 'Idle Runners', value: '31' },
-  ], []);
+  }, [notifications]);
+  const maxHourly = hourlyRates.length ? Math.max(...hourlyRates.map((h: any) => h.rate)) : 1;
 
   // SVG arc for gauge
   function describeArc(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
@@ -67,16 +50,39 @@ export default function OperationalEfficiencyPage() {
   const gaugeRange = gaugeEnd - gaugeStart;
   const gaugeAngle = gaugeStart + (utilization / 100) * gaugeRange;
 
+  // Normalize matchingStats to array format for display
+  const matchingDisplay = Array.isArray(matchingStats) ? matchingStats : [
+    { label: 'Notifications Sent', value: String(matchingStats.notificationsSent ?? 0), sub: `Last ${period} days`, color: '#10B981' },
+    { label: 'View Rate', value: `${matchingStats.viewRate ?? 0}%`, sub: matchingStats.viewRateChange ?? '', color: '#06B6D4' },
+    { label: 'Response Rate', value: `${matchingStats.responseRate ?? 0}%`, sub: matchingStats.responseRateChange ?? '', color: '#F59E0B' },
+    { label: 'Avg Offers/Demand', value: String(matchingStats.avgOffersPerDemand ?? 0), sub: `Target: ${matchingStats.target ?? 5.0}`, color: '#8B5CF6' },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Operational Efficiency</h1>
-        <p className="text-[#6B7280] text-sm">Matching, payments, notifications, and runner performance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">Operational Efficiency</h1>
+          <p className="text-[#6B7280] text-sm">Matching, payments, notifications, and runner performance</p>
+        </div>
+        <div className="flex bg-[#1A1D27] border border-[#2A2D37] rounded-lg overflow-hidden">
+          {([7, 30, 90] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                period === p ? 'bg-[#10B981] text-white' : 'text-[#6B7280] hover:text-white'
+              }`}
+            >
+              {p}d
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Matching Performance */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {matchingStats.map(stat => (
+        {matchingDisplay.map((stat: any) => (
           <div key={stat.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
             <div className="text-[#6B7280] text-sm mb-1">{stat.label}</div>
             <div className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</div>
@@ -90,7 +96,7 @@ export default function OperationalEfficiencyPage() {
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Wave Effectiveness</h2>
           <svg viewBox="0 0 400 220" className="w-full" preserveAspectRatio="xMidYMid meet">
-            {waves.map((w, i) => {
+            {waves.map((w: any, i: number) => {
               const barW = 65;
               const gap = 20;
               const x = 50 + i * (barW + gap);
@@ -120,7 +126,7 @@ export default function OperationalEfficiencyPage() {
               <text x="100" y="112" textAnchor="middle" fill="#6B7280" fontSize="10">Utilization</text>
             </svg>
             <div className="grid grid-cols-2 gap-4 mt-4 w-full">
-              {runnerStats.map(s => (
+              {runnerStats.map((s: any) => (
                 <div key={s.label} className="text-center">
                   <div className="text-lg font-bold text-white">{s.value}</div>
                   <div className="text-xs text-[#6B7280]">{s.label}</div>
@@ -146,7 +152,7 @@ export default function OperationalEfficiencyPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.map(p => (
+              {payments.map((p: any) => (
                 <tr key={p.method} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#E5E7EB] font-medium">{p.method}</td>
                   <td className="py-2 text-right text-[#10B981]">{p.successRate}%</td>
@@ -164,7 +170,7 @@ export default function OperationalEfficiencyPage() {
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Notification-to-Action Rate by Hour</h2>
         <svg viewBox="0 0 800 200" className="w-full" preserveAspectRatio="xMidYMid meet">
-          {hourlyRates.map((h, i) => {
+          {hourlyRates.map((h: any, i: number) => {
             const barW = 28;
             const gap = 4;
             const x = 30 + i * (barW + gap);
@@ -176,7 +182,7 @@ export default function OperationalEfficiencyPage() {
               <g key={h.hour}>
                 <rect x={x} y={y} width={barW} height={barH} rx="2" fill={color} opacity="0.8" />
                 <text x={x + barW / 2} y={185} textAnchor="middle" fill="#6B7280" fontSize="8">
-                  {h.hour.toString().padStart(2, '0')}
+                  {String(h.hour).padStart(2, '0')}
                 </text>
               </g>
             );

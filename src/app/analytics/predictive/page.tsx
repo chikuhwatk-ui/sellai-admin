@@ -1,27 +1,30 @@
 'use client';
 
 import { useMemo } from 'react';
-import { generateMockTimeSeries } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 
 export default function PredictiveStrategicPage() {
+  const { data, loading } = useApi<any>('/api/admin/analytics/predictive');
+
+  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
+
   // Demand forecast
-  const actual = useMemo(() => generateMockTimeSeries(21, 90, 25), []);
-  const forecast = useMemo(() => {
-    const lastVal = actual[actual.length - 1].value;
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const value = lastVal + (Math.random() - 0.3) * 15 + i * 2;
-      return { date, value, upper: value + 15 + Math.random() * 10, lower: Math.max(0, value - 15 - Math.random() * 10) };
-    });
-  }, [actual]);
+  const actual = data?.forecast?.actual || [];
+  const forecast = data?.forecast?.predicted || [];
+  const confidence = data?.forecast?.confidence || forecast.map((d: any) => ({
+    date: d?.date,
+    upper: (d?.value || 0) + 15,
+    lower: Math.max(0, (d?.value || 0) - 15),
+  }));
 
   const allForecastVals = [
-    ...actual.map(d => d.value),
-    ...forecast.map(d => d.upper),
-    ...forecast.map(d => d.lower),
+    ...actual.map((d: any) => d.value),
+    ...confidence.map((d: any) => d.upper ?? d.value ?? 0),
+    ...confidence.map((d: any) => d.lower ?? d.value ?? 0),
+    ...forecast.map((d: any) => d.value),
   ];
-  const fMin = Math.min(...allForecastVals);
-  const fMax = Math.max(...allForecastVals);
+  const fMin = allForecastVals.length ? Math.min(...allForecastVals) : 0;
+  const fMax = allForecastVals.length ? Math.max(...allForecastVals) : 1;
   const fChartW = 800;
   const fChartH = 280;
   const fPad = { top: 20, right: 20, bottom: 35, left: 50 };
@@ -29,67 +32,33 @@ export default function PredictiveStrategicPage() {
   const fInnerH = fChartH - fPad.top - fPad.bottom;
   const totalPoints = actual.length + forecast.length;
 
-  function fX(i: number) { return fPad.left + (i / (totalPoints - 1)) * fInnerW; }
+  function fX(i: number) { return fPad.left + (i / (totalPoints - 1 || 1)) * fInnerW; }
   function fY(v: number) { return fPad.top + fInnerH - ((v - fMin) / (fMax - fMin || 1)) * fInnerH; }
 
-  const actualLine = actual.map((d, i) => `${fX(i)},${fY(d.value)}`).join(' ');
-  const forecastLine = forecast.map((d, i) => `${fX(actual.length + i)},${fY(d.value)}`).join(' ');
-  const connectorLine = `${fX(actual.length - 1)},${fY(actual[actual.length - 1].value)} ${fX(actual.length)},${fY(forecast[0].value)}`;
+  const actualLine = actual.length > 1 ? actual.map((d: any, i: number) => `${fX(i)},${fY(d.value)}`).join(' ') : '';
+  const forecastLine = forecast.length > 1 ? forecast.map((d: any, i: number) => `${fX(actual.length + i)},${fY(d.value)}`).join(' ') : '';
+  const connectorLine = actual.length && forecast.length
+    ? `${fX(actual.length - 1)},${fY(actual[actual.length - 1].value)} ${fX(actual.length)},${fY(forecast[0].value)}`
+    : '';
 
   // Confidence interval polygon
-  const ciTop = forecast.map((d, i) => `${fX(actual.length + i)},${fY(d.upper)}`).join(' ');
-  const ciBottom = [...forecast].reverse().map((d, i) => `${fX(actual.length + forecast.length - 1 - i)},${fY(d.lower)}`).join(' ');
-  const ciPolygon = `${ciTop} ${ciBottom}`;
+  const ciTop = confidence.map((d: any, i: number) => `${fX(actual.length + i)},${fY(d.upper ?? d.value ?? 0)}`).join(' ');
+  const ciBottom = [...confidence].reverse().map((d: any, i: number) => `${fX(actual.length + confidence.length - 1 - i)},${fY(d.lower ?? d.value ?? 0)}`).join(' ');
+  const ciPolygon = ciTop && ciBottom ? `${ciTop} ${ciBottom}` : '';
 
   // Churn risk
-  const names = ['Tatenda Moyo', 'Chipo Nyathi', 'Kudakwashe Dube', 'Rutendo Chigwedere', 'Farai Mupfumira'];
-  const churnSections = useMemo(() => [
-    {
-      segment: 'Buyers',
-      highRisk: 47,
-      color: '#EF4444',
-      users: names.map((n, i) => ({
-        name: n,
-        risk: 95 - i * 8,
-        lastActive: `${i + 1}d ago`,
-        action: i < 2 ? 'Send credit offer' : i < 4 ? 'Re-engagement push' : 'Winback email',
-      })),
-    },
-    {
-      segment: 'Sellers',
-      highRisk: 23,
-      color: '#F59E0B',
-      users: names.map((n, i) => ({
-        name: n,
-        risk: 88 - i * 10,
-        lastActive: `${i * 2 + 1}d ago`,
-        action: i < 2 ? 'Priority matching' : i < 4 ? 'Feature training' : 'Survey outreach',
-      })),
-    },
-    {
-      segment: 'Runners',
-      highRisk: 12,
-      color: '#8B5CF6',
-      users: names.map((n, i) => ({
-        name: n,
-        risk: 82 - i * 12,
-        lastActive: `${i * 3 + 2}d ago`,
-        action: i < 2 ? 'Bonus incentive' : i < 4 ? 'Zone reassignment' : 'Check-in call',
-      })),
-    },
-  ], []);
+  const churnRisk = data?.churnRisk || {};
+  const churnSections = [
+    { segment: 'Buyers', highRisk: churnRisk.buyers?.highRisk ?? 0, color: '#EF4444', users: churnRisk.buyers?.users || [] },
+    { segment: 'Sellers', highRisk: churnRisk.sellers?.highRisk ?? 0, color: '#F59E0B', users: churnRisk.sellers?.users || [] },
+    { segment: 'Runners', highRisk: churnRisk.runners?.highRisk ?? 0, color: '#8B5CF6', users: churnRisk.runners?.users || [] },
+  ];
 
   // Unfilled demand value
-  const unfilledTotal = 28450;
-  const unfilledCategories = useMemo(() => [
-    { name: 'Electronics', value: 8200 },
-    { name: 'Vehicles', value: 6800 },
-    { name: 'Professional Services', value: 5100 },
-    { name: 'Construction', value: 4800 },
-    { name: 'Home Services', value: 3550 },
-  ], []);
+  const unfilledCategories = data?.unfilledDemand?.byCategory || [];
+  const unfilledTotal = data?.unfilledDemand?.total || unfilledCategories.reduce((s: number, c: any) => s + (c.value || 0), 0) || 1;
 
-  // Network effects
+  // Network effects - keep hardcoded (no backend model for this yet)
   const networkMetrics = useMemo(() => [
     { label: 'Active Buyers', value: '3,247', trend: '+12%', color: '#10B981' },
     { label: 'Active Sellers', value: '1,842', trend: '+8%', color: '#06B6D4' },
@@ -126,16 +95,20 @@ export default function PredictiveStrategicPage() {
             );
           })}
           {/* Divider line between actual and forecast */}
-          <line x1={fX(actual.length - 1)} y1={fPad.top} x2={fX(actual.length - 1)} y2={fPad.top + fInnerH} stroke="#2A2D37" strokeWidth="1" strokeDasharray="4,4" />
-          <text x={fX(actual.length)} y={fPad.top - 5} fill="#06B6D4" fontSize="9">Forecast</text>
+          {actual.length > 0 && (
+            <>
+              <line x1={fX(actual.length - 1)} y1={fPad.top} x2={fX(actual.length - 1)} y2={fPad.top + fInnerH} stroke="#2A2D37" strokeWidth="1" strokeDasharray="4,4" />
+              <text x={fX(actual.length)} y={fPad.top - 5} fill="#06B6D4" fontSize="9">Forecast</text>
+            </>
+          )}
           {/* Confidence interval */}
-          <polygon points={ciPolygon} fill="#06B6D4" opacity="0.1" />
+          {ciPolygon && <polygon points={ciPolygon} fill="#06B6D4" opacity="0.1" />}
           {/* Actual line */}
-          <polyline points={actualLine} fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinejoin="round" />
+          {actualLine && <polyline points={actualLine} fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinejoin="round" />}
           {/* Connector */}
-          <polyline points={connectorLine} fill="none" stroke="#06B6D4" strokeWidth="2" strokeDasharray="6,3" />
+          {connectorLine && <polyline points={connectorLine} fill="none" stroke="#06B6D4" strokeWidth="2" strokeDasharray="6,3" />}
           {/* Forecast line */}
-          <polyline points={forecastLine} fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeDasharray="6,3" strokeLinejoin="round" />
+          {forecastLine && <polyline points={forecastLine} fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeDasharray="6,3" strokeLinejoin="round" />}
         </svg>
       </div>
 
@@ -161,7 +134,7 @@ export default function PredictiveStrategicPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {section.users.map((user, i) => (
+                  {(section.users || []).map((user: any, i: number) => (
                     <tr key={i} className="border-b border-[#2A2D37]/50">
                       <td className="py-2 text-[#E5E7EB]">{user.name}</td>
                       <td className="py-2">
@@ -170,12 +143,12 @@ export default function PredictiveStrategicPage() {
                             <div
                               className="h-full rounded"
                               style={{
-                                width: `${user.risk}%`,
-                                backgroundColor: user.risk > 80 ? '#EF4444' : user.risk > 60 ? '#F59E0B' : '#10B981',
+                                width: `${user.risk || 0}%`,
+                                backgroundColor: (user.risk || 0) > 80 ? '#EF4444' : (user.risk || 0) > 60 ? '#F59E0B' : '#10B981',
                               }}
                             />
                           </div>
-                          <span className="text-xs text-[#6B7280]">{user.risk}</span>
+                          <span className="text-xs text-[#6B7280]">{user.risk || 0}</span>
                         </div>
                       </td>
                       <td className="py-2 text-[#6B7280]">{user.lastActive}</td>
@@ -196,16 +169,16 @@ export default function PredictiveStrategicPage() {
           <p className="text-[#6B7280] text-xs mb-4">Expired unmatched demands this month</p>
           <div className="text-4xl font-bold text-[#EF4444] mb-6">${unfilledTotal.toLocaleString()}</div>
           <div className="space-y-3">
-            {unfilledCategories.map(cat => (
+            {unfilledCategories.map((cat: any) => (
               <div key={cat.name} className="flex items-center gap-3">
                 <span className="w-36 text-sm text-[#E5E7EB] truncate">{cat.name}</span>
                 <div className="flex-1 h-4 bg-[#0F1117] rounded overflow-hidden">
                   <div
                     className="h-full rounded bg-[#EF4444]"
-                    style={{ width: `${(cat.value / unfilledTotal) * 100}%`, opacity: 0.7 }}
+                    style={{ width: `${((cat.value || 0) / unfilledTotal) * 100}%`, opacity: 0.7 }}
                   />
                 </div>
-                <span className="text-sm text-[#6B7280] w-16 text-right">${cat.value.toLocaleString()}</span>
+                <span className="text-sm text-[#6B7280] w-16 text-right">${(cat.value || 0).toLocaleString()}</span>
               </div>
             ))}
           </div>

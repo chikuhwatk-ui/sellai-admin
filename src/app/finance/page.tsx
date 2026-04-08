@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card } from '@/components/ui/Card';
 import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/Badge';
 import { StatusPill } from '@/components/ui/StatusPill';
-import { generateMockTimeSeries } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 
 // ── Stacked Area Chart ──
 function StackedAreaChart({
@@ -130,35 +130,29 @@ function BundleBarChart({ data }: { data: { name: string; sales: number }[] }) {
 }
 
 export default function FinancePage() {
-  const creditSeries = useMemo(() => generateMockTimeSeries(30, 180, 80), []);
-  const walletSeries = useMemo(() => generateMockTimeSeries(30, 120, 60), []);
+  const { data: overview, loading } = useApi<any>('/api/admin/finance/overview?period=30');
+  const { data: txData } = useApi<any>('/api/admin/finance/transactions?page=1&limit=10');
 
-  const paymentMethods = [
-    { label: 'EcoCash', value: 62, color: '#10B981' },
-    { label: 'Visa', value: 24, color: '#3B82F6' },
-    { label: 'Mastercard', value: 14, color: '#8B5CF6' },
+  if (loading) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text-muted">Loading financial data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const creditSeries = overview?.creditTimeSeries || [];
+  const walletSeries = overview?.walletTimeSeries || [];
+  const paymentMethods = overview?.paymentMethods || [
+    { label: 'EcoCash', value: 0, color: '#10B981' },
+    { label: 'Visa', value: 0, color: '#3B82F6' },
+    { label: 'Mastercard', value: 0, color: '#8B5CF6' },
   ];
-
-  const bundles = [
-    { name: 'Starter\n5 credits', sales: 145 },
-    { name: 'Basic\n15 credits', sales: 312 },
-    { name: 'Pro\n30 credits', sales: 187 },
-    { name: 'Business\n60 credits', sales: 89 },
-    { name: 'Enterprise\n150 credits', sales: 34 },
-  ];
-
-  const recentTransactions = [
-    { id: 'txn-001', user: 'Tatenda Moyo', type: 'Credit Purchase', amount: 15.00, method: 'EcoCash', status: 'COMPLETED', time: '12 min ago' },
-    { id: 'txn-002', user: 'Chipo Nyathi', type: 'Wallet Top-up', amount: 50.00, method: 'Visa', status: 'COMPLETED', time: '25 min ago' },
-    { id: 'txn-003', user: 'Farai Mupfumira', type: 'Credit Purchase', amount: 30.00, method: 'EcoCash', status: 'PENDING', time: '38 min ago' },
-    { id: 'txn-004', user: 'Nyasha Gumbo', type: 'Wallet Top-up', amount: 20.00, method: 'Mastercard', status: 'COMPLETED', time: '1h ago' },
-    { id: 'txn-005', user: 'Blessing Mutasa', type: 'Credit Purchase', amount: 75.00, method: 'EcoCash', status: 'COMPLETED', time: '1h ago' },
-    { id: 'txn-006', user: 'Tendai Chirwa', type: 'Wallet Top-up', amount: 100.00, method: 'Visa', status: 'COMPLETED', time: '2h ago' },
-    { id: 'txn-007', user: 'Rumbidzai Ncube', type: 'Credit Purchase', amount: 15.00, method: 'EcoCash', status: 'CANCELLED', time: '2h ago' },
-    { id: 'txn-008', user: 'Tariro Banda', type: 'Credit Purchase', amount: 30.00, method: 'EcoCash', status: 'COMPLETED', time: '3h ago' },
-  ];
-
-  const totalRevenue = creditSeries.reduce((s, d) => s + d.value, 0) + walletSeries.reduce((s, d) => s + d.value, 0);
+  const bundles = overview?.bundles || [];
+  const recentTransactions = txData?.data || [];
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -172,30 +166,30 @@ export default function FinancePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           title="Total Revenue (30d)"
-          value={totalRevenue}
+          value={overview?.revenue ?? 0}
           prefix="$"
-          change={18.4}
-          trend={creditSeries.slice(-7).map(d => d.value)}
+          change={overview?.revenueChange}
+          trend={creditSeries.slice(-7).map((d: any) => d.value)}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
         />
         <KPICard
           title="Credit Sales"
-          value={creditSeries.reduce((s, d) => s + d.value, 0)}
+          value={overview?.creditSales ?? 0}
           prefix="$"
-          change={14.2}
+          change={overview?.creditSalesChange}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></svg>}
         />
         <KPICard
           title="Wallet Top-ups"
-          value={walletSeries.reduce((s, d) => s + d.value, 0)}
+          value={overview?.walletTopUps ?? 0}
           prefix="$"
-          change={22.1}
+          change={overview?.walletTopUpsChange}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" /></svg>}
         />
         <KPICard
           title="Failed Payments"
-          value={7}
-          change={-25.0}
+          value={overview?.failedPayments ?? 0}
+          change={overview?.failedPaymentsChange}
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
         />
       </div>
@@ -205,14 +199,18 @@ export default function FinancePage() {
         {/* Revenue Chart */}
         <Card>
           <h3 className="text-sm font-semibold text-text mb-4">Revenue Breakdown (30 Days)</h3>
-          <StackedAreaChart
-            data1={creditSeries}
-            data2={walletSeries}
-            label1="Credit Sales"
-            label2="Wallet Top-ups"
-            color1="#10B981"
-            color2="#3B82F6"
-          />
+          {creditSeries.length > 0 && walletSeries.length > 0 ? (
+            <StackedAreaChart
+              data1={creditSeries}
+              data2={walletSeries}
+              label1="Credit Sales"
+              label2="Wallet Top-ups"
+              color1="#10B981"
+              color2="#3B82F6"
+            />
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">No chart data available</div>
+          )}
         </Card>
 
         {/* Payment Methods */}
@@ -221,7 +219,7 @@ export default function FinancePage() {
           <HorizontalBarChart data={paymentMethods} />
           <div className="mt-4 pt-4 border-t border-border">
             <div className="text-xs text-text-muted">Total transactions this month</div>
-            <div className="text-lg font-bold text-text mt-1">2,847</div>
+            <div className="text-lg font-bold text-text mt-1">{overview?.totalTransactions?.toLocaleString() ?? '--'}</div>
           </div>
         </Card>
       </div>
@@ -231,7 +229,11 @@ export default function FinancePage() {
         {/* Bundle Popularity */}
         <Card>
           <h3 className="text-sm font-semibold text-text mb-4">Bundle Popularity</h3>
-          <BundleBarChart data={bundles} />
+          {bundles.length > 0 ? (
+            <BundleBarChart data={bundles} />
+          ) : (
+            <div className="h-[180px] flex items-center justify-center text-sm text-text-muted">No bundle data</div>
+          )}
         </Card>
 
         {/* Recent Transactions */}
@@ -253,21 +255,29 @@ export default function FinancePage() {
                 </tr>
               </thead>
               <tbody>
-                {recentTransactions.map(txn => (
-                  <tr key={txn.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                    <td className="px-6 py-3 font-mono text-xs text-primary">{txn.id}</td>
-                    <td className="px-4 py-3 text-text font-medium">{txn.user}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={txn.type === 'Credit Purchase' ? 'primary' : 'info'}>
-                        {txn.type}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-text font-medium">${txn.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-text-muted">{txn.method}</td>
-                    <td className="px-4 py-3"><StatusPill status={txn.status} /></td>
-                    <td className="px-6 py-3 text-text-muted text-xs">{txn.time}</td>
+                {recentTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-text-muted">No transactions found</td>
                   </tr>
-                ))}
+                ) : (
+                  recentTransactions.map((txn: any) => (
+                    <tr key={txn.id} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                      <td className="px-6 py-3 font-mono text-xs text-primary">{txn.id}</td>
+                      <td className="px-4 py-3 text-text font-medium">{txn.user || txn.userName || '--'}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={txn.type === 'Credit Purchase' ? 'primary' : 'info'}>
+                          {txn.type}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-text font-medium">${(txn.amount ?? 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-text-muted">{txn.method || txn.paymentMethod || '--'}</td>
+                      <td className="px-4 py-3"><StatusPill status={txn.status} /></td>
+                      <td className="px-6 py-3 text-text-muted text-xs">
+                        {txn.time || (txn.createdAt ? new Date(txn.createdAt).toLocaleString('en', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : '--')}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

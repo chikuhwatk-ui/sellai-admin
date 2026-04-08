@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { KPICard } from '@/components/ui/KPICard';
-import { generateMockVerifications } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
+import { api } from '@/lib/api';
 
 interface Verification {
   id: string;
   userId: string;
   fullName: string;
   idNumber: string;
-  status: 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'VERIFIED';
   isPriority: boolean;
   submittedAt: string;
   phoneNumber: string;
@@ -32,25 +33,82 @@ function getTimeAgo(isoDate: string): string {
 export default function VerificationPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const pending = useMemo(() => {
-    const items = generateMockVerifications(8) as Verification[];
-    return items.map(v => ({ ...v, status: 'PENDING' as const }));
-  }, []);
+  // Track items claimed locally for the "In Review" column
+  const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
 
-  const inReview = useMemo<Verification[]>(() => [
-    { id: 'ver-r1', userId: 'user-201', fullName: 'Tadiwanashe Moyo', idNumber: '63-2004521Z77', status: 'IN_REVIEW', isPriority: false, submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), phoneNumber: '+263771234567', reviewedBy: 'Admin Sarah' },
-    { id: 'ver-r2', userId: 'user-202', fullName: 'Rudo Mapfumo', idNumber: '63-1987654Z33', status: 'IN_REVIEW', isPriority: true, submittedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), phoneNumber: '+263772345678', reviewedBy: 'Admin John' },
-  ], []);
+  const { data: pendingItems, loading: pendingLoading, refetch: refetchPending } = useApi<Verification[]>('/api/verification/queue?status=PENDING');
+  const { data: processedItems, loading: processedLoading, refetch: refetchProcessed } = useApi<Verification[]>('/api/verification/queue?status=VERIFIED');
+  const { data: stats } = useApi<any>('/api/admin/verification/stats');
 
-  const processed = useMemo<Verification[]>(() => [
-    { id: 'ver-p1', userId: 'user-301', fullName: 'Tinotenda Chigwedere', idNumber: '63-3001234Z88', status: 'APPROVED', isPriority: false, submittedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), processedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), phoneNumber: '+263773456789', reviewedBy: 'Admin Sarah' },
-    { id: 'ver-p2', userId: 'user-302', fullName: 'Kudzai Banda', idNumber: '63-4005678Z55', status: 'REJECTED', isPriority: false, submittedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), processedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), phoneNumber: '+263774567890', reviewedBy: 'Admin John', rejectionReason: 'Blurry ID photo' },
-    { id: 'ver-p3', userId: 'user-303', fullName: 'Fadzai Mutasa', idNumber: '63-5009012Z22', status: 'APPROVED', isPriority: false, submittedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), processedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(), phoneNumber: '+263775678901', reviewedBy: 'Admin Sarah' },
-    { id: 'ver-p4', userId: 'user-304', fullName: 'Tatenda Nyathi', idNumber: '63-6003456Z99', status: 'APPROVED', isPriority: false, submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), processedAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(), phoneNumber: '+263776789012', reviewedBy: 'Admin John' },
-  ], []);
+  const allPending = pendingItems || [];
+  // Split pending into truly pending vs claimed (in review)
+  const pending = allPending.filter(v => !claimedIds.has(v.id));
+  const inReview = allPending.filter(v => claimedIds.has(v.id));
+  const processed = processedItems || [];
 
-  const expanded = expandedId ? [...pending, ...inReview, ...processed].find(v => v.id === expandedId) : null;
+  const allItems = [...allPending, ...processed];
+  const expanded = expandedId ? allItems.find(v => v.id === expandedId) : null;
+
+  const handleClaim = (id: string) => {
+    setClaimedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
+  const handleApprove = async (id: string) => {
+    setActionLoading(true);
+    try {
+      await api.post(`/api/verification/${id}/approve`, { adminId: 'admin' });
+      setClaimedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setExpandedId(null);
+      refetchPending();
+      refetchProcessed();
+    } catch (err) {
+      console.error('Approve failed:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!rejectionReason) return;
+    setActionLoading(true);
+    try {
+      await api.post(`/api/verification/${id}/reject`, { reason: rejectionReason, note: '' });
+      setClaimedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setExpandedId(null);
+      setRejectionReason('');
+      refetchPending();
+      refetchProcessed();
+    } catch (err) {
+      console.error('Reject failed:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (pendingLoading) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-text-muted">Loading verification queue...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -62,16 +120,16 @@ export default function VerificationPage() {
 
       {/* Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard title="Total Pending" value={pending.length + inReview.length} icon={
+        <KPICard title="Total Pending" value={stats?.totalPending ?? (pending.length + inReview.length)} icon={
           <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
         } />
-        <KPICard title="Avg Processing Time" value="47m" subtitle="Target: 1h" icon={
+        <KPICard title="Avg Processing Time" value={stats?.avgProcessingTime || '--'} subtitle="Target: 1h" icon={
           <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
         } />
-        <KPICard title="Approval Rate" value="87%" change={2.1} icon={
+        <KPICard title="Approval Rate" value={stats?.approvalRate ? `${stats.approvalRate}%` : '--'} change={stats?.approvalRateChange} icon={
           <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="M22 4L12 14.01l-3-3" /></svg>
         } />
-        <KPICard title="Rejected Today" value={1} icon={
+        <KPICard title="Rejected Today" value={stats?.rejectedToday ?? 0} icon={
           <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
         } />
       </div>
@@ -104,7 +162,7 @@ export default function VerificationPage() {
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-xs text-text-muted">Waiting {getTimeAgo(v.submittedAt)}</span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); }}
+                      onClick={(e) => { e.stopPropagation(); handleClaim(v.id); }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                     >
                       Claim
@@ -113,6 +171,9 @@ export default function VerificationPage() {
                 </div>
               </Card>
             ))}
+            {pending.length === 0 && (
+              <div className="text-center py-8 text-sm text-text-muted">No pending items</div>
+            )}
           </div>
         </div>
 
@@ -140,12 +201,15 @@ export default function VerificationPage() {
                     {v.isPriority && <Badge variant="danger">Priority</Badge>}
                   </div>
                   <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-text-muted">By {v.reviewedBy}</span>
+                    <span className="text-xs text-text-muted">Claimed by you</span>
                     <Badge variant="info">Reviewing</Badge>
                   </div>
                 </div>
               </Card>
             ))}
+            {inReview.length === 0 && (
+              <div className="text-center py-8 text-sm text-text-muted">No items in review</div>
+            )}
           </div>
         </div>
 
@@ -170,12 +234,12 @@ export default function VerificationPage() {
                       <div className="text-sm font-medium text-text">{v.fullName}</div>
                       <div className="text-xs text-text-muted mt-0.5">{v.idNumber}</div>
                     </div>
-                    <Badge variant={v.status === 'APPROVED' ? 'primary' : 'danger'}>
-                      {v.status === 'APPROVED' ? 'Approved' : 'Rejected'}
+                    <Badge variant={v.status === 'APPROVED' || v.status === 'VERIFIED' ? 'primary' : 'danger'}>
+                      {v.status === 'APPROVED' || v.status === 'VERIFIED' ? 'Approved' : 'Rejected'}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-text-muted">By {v.reviewedBy}</span>
+                    <span className="text-xs text-text-muted">{v.reviewedBy ? `By ${v.reviewedBy}` : ''}</span>
                     <span className="text-xs text-text-muted">{v.processedAt ? getTimeAgo(v.processedAt) + ' ago' : ''}</span>
                   </div>
                   {v.rejectionReason && (
@@ -186,6 +250,9 @@ export default function VerificationPage() {
                 </div>
               </Card>
             ))}
+            {processed.length === 0 && (
+              <div className="text-center py-8 text-sm text-text-muted">No processed items yet</div>
+            )}
           </div>
         </div>
       </div>
@@ -241,7 +308,7 @@ export default function VerificationPage() {
             </div>
 
             {/* Actions */}
-            {expanded.status === 'PENDING' || expanded.status === 'IN_REVIEW' ? (
+            {expanded.status === 'PENDING' || expanded.status === 'IN_REVIEW' || claimedIds.has(expanded.id) ? (
               <div className="space-y-4 pt-4 border-t border-border">
                 <div>
                   <label className="text-xs text-text-muted mb-2 block">Rejection Reason (if rejecting)</label>
@@ -259,18 +326,26 @@ export default function VerificationPage() {
                   </select>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors">
-                    Approve
+                  <button
+                    onClick={() => handleApprove(expanded.id)}
+                    disabled={actionLoading}
+                    className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Processing...' : 'Approve'}
                   </button>
-                  <button className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors">
-                    Reject
+                  <button
+                    onClick={() => handleReject(expanded.id)}
+                    disabled={actionLoading || !rejectionReason}
+                    className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Processing...' : 'Reject'}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="pt-4 border-t border-border">
                 <div className="flex items-center gap-2">
-                  <Badge variant={expanded.status === 'APPROVED' ? 'primary' : 'danger'}>
+                  <Badge variant={expanded.status === 'APPROVED' || expanded.status === 'VERIFIED' ? 'primary' : 'danger'}>
                     {expanded.status}
                   </Badge>
                   {expanded.reviewedBy && <span className="text-xs text-text-muted">by {expanded.reviewedBy}</span>}
