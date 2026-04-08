@@ -171,7 +171,7 @@ export default function DashboardPage() {
   const { data: kpis, loading: kpiLoading } = useApi<any>('/api/admin/dashboard/kpis');
   const { data: timeSeries, loading: tsLoading } = useApi<any>('/api/admin/dashboard/time-series?period=30');
   const { data: funnel, loading: funnelLoading } = useApi<any>('/api/admin/dashboard/funnel?period=30');
-  const { data: verifications } = useApi<any[]>('/api/verification/queue?status=PENDING');
+  const { data: verifications } = useApi<any>('/api/verification/queue?status=PENDING');
 
   const systemAlerts = [
     { title: 'Failed Payment - Order #1247', subtitle: 'EcoCash timeout after 3 retries', time: '12m ago', severity: 'danger' as const },
