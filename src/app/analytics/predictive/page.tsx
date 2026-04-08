@@ -32,7 +32,7 @@ export default function PredictiveStrategicPage() {
   const fInnerH = fChartH - fPad.top - fPad.bottom;
   const totalPoints = actual.length + forecast.length;
 
-  function fX(i: number) { return fPad.left + (i / (totalPoints - 1 || 1)) * fInnerW; }
+  function fX(i: number) { return fPad.left + (i / Math.max(totalPoints - 1, 1)) * fInnerW; }
   function fY(v: number) { return fPad.top + fInnerH - ((v - fMin) / (fMax - fMin || 1)) * fInnerH; }
 
   const actualLine = actual.length > 1 ? actual.map((d: any, i: number) => `${fX(i)},${fY(d.value)}`).join(' ') : '';
@@ -82,6 +82,9 @@ export default function PredictiveStrategicPage() {
             <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-[#06B6D4] inline-block border-dashed" style={{ borderTop: '2px dashed #06B6D4', height: 0 }} /> Forecast</span>
           </div>
         </div>
+        {actual.length === 0 && forecast.length === 0 ? (
+          <div className="text-sm text-[#6B7280] p-4 text-center">No forecast data available</div>
+        ) : (
         <svg viewBox={`0 0 ${fChartW} ${fChartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
           {/* Grid */}
           {[0, 0.25, 0.5, 0.75, 1].map(f => {
@@ -110,6 +113,7 @@ export default function PredictiveStrategicPage() {
           {/* Forecast line */}
           {forecastLine && <polyline points={forecastLine} fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeDasharray="6,3" strokeLinejoin="round" />}
         </svg>
+        )}
       </div>
 
       {/* Churn Risk */}
@@ -134,6 +138,9 @@ export default function PredictiveStrategicPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {(section.users || []).length === 0 && (
+                    <tr><td colSpan={4} className="py-4 text-center text-sm text-[#6B7280]">No at-risk users</td></tr>
+                  )}
                   {(section.users || []).map((user: any, i: number) => (
                     <tr key={i} className="border-b border-[#2A2D37]/50">
                       <td className="py-2 text-[#E5E7EB]">{user.name}</td>

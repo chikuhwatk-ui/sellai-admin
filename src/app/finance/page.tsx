@@ -23,19 +23,22 @@ function StackedAreaChart({
   color1: string;
   color2: string;
 }) {
+  if (!data1.length || !data2.length || data1.length < 2) {
+    return <div className="text-sm text-[#6B7280] p-4">No data available</div>;
+  }
   const stacked = data1.map((d, i) => ({
     date: d.date,
     v1: d.value,
     v2: d.value + (data2[i]?.value || 0),
   }));
-  const maxVal = Math.max(...stacked.map(d => d.v2)) * 1.1;
+  const maxVal = Math.max(...stacked.map(d => d.v2), 1) * 1.1;
   const w = 500;
   const h = 200;
   const pad = { t: 10, r: 10, b: 30, l: 50 };
   const cw = w - pad.l - pad.r;
   const ch = h - pad.t - pad.b;
 
-  const toX = (i: number) => pad.l + (i / (stacked.length - 1)) * cw;
+  const toX = (i: number) => pad.l + (i / Math.max(stacked.length - 1, 1)) * cw;
   const toY = (v: number) => pad.t + ch - (v / maxVal) * ch;
 
   const area1 = `M${toX(0)},${toY(0)} ${stacked.map((d, i) => `L${toX(i)},${toY(d.v1)}`).join(' ')} L${toX(stacked.length - 1)},${toY(0)} Z`;
@@ -89,7 +92,8 @@ function StackedAreaChart({
 
 // ── Horizontal Bar Chart ──
 function HorizontalBarChart({ data }: { data: { label: string; value: number; color: string }[] }) {
-  const max = Math.max(...data.map(d => d.value));
+  if (!data.length) return <div className="text-sm text-[#6B7280] p-4">No data available</div>;
+  const max = Math.max(...data.map(d => d.value), 1);
   return (
     <div className="space-y-3">
       {data.map(item => (
@@ -112,7 +116,8 @@ function HorizontalBarChart({ data }: { data: { label: string; value: number; co
 
 // ── Bundle Bar Chart ──
 function BundleBarChart({ data }: { data: { name: string; sales: number }[] }) {
-  const max = Math.max(...data.map(d => d.sales));
+  if (!data.length) return <div className="text-sm text-[#6B7280] p-4">No data available</div>;
+  const max = Math.max(...data.map(d => d.sales), 1);
   return (
     <div className="flex items-end gap-2 h-[180px]">
       {data.map(item => (

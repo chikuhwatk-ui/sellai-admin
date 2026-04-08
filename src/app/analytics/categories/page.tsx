@@ -78,6 +78,9 @@ export default function CategoryIntelligencePage() {
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-2">Category Performance Matrix</h2>
         <p className="text-[#6B7280] text-xs mb-4">X: Demand Volume | Y: Conversion Rate | Bubble Size: Revenue</p>
+        {categories.length === 0 ? (
+          <div className="text-sm text-[#6B7280] p-4 text-center">No category data available</div>
+        ) : (
         <svg viewBox={`0 0 ${scW} ${scH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
           {/* Grid */}
           {[0, 0.25, 0.5, 0.75, 1].map(f => {
@@ -116,6 +119,7 @@ export default function CategoryIntelligencePage() {
             );
           })}
         </svg>
+        )}
       </div>
 
       {/* Category Trends with Sparklines */}
@@ -128,6 +132,9 @@ export default function CategoryIntelligencePage() {
             <span className="text-right">Demands</span>
             <span className="text-right">Change</span>
           </div>
+          {sparklines.length === 0 && (
+            <div className="py-4 text-sm text-[#6B7280] text-center">No category trend data</div>
+          )}
           {sparklines.map((cat: any, idx: number) => {
             const trendValues = (cat.trend || []).map((t: any) => t.value ?? t);
             const tMin = trendValues.length ? Math.min(...trendValues) : 0;
@@ -172,6 +179,9 @@ export default function CategoryIntelligencePage() {
               </tr>
             </thead>
             <tbody>
+              {priceData.length === 0 && (
+                <tr><td colSpan={4} className="py-8 text-center text-sm text-[#6B7280]">No price data available</td></tr>
+              )}
               {priceData.map((row: any) => {
                 const gapColor = Math.abs(row.gap) > 30 ? '#EF4444' : Math.abs(row.gap) > 15 ? '#F59E0B' : '#10B981';
                 return (

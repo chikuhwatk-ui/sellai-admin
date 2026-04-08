@@ -70,6 +70,9 @@ export default function MarketplaceHealthPage() {
             <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#06B6D4]" /> Offers</span>
           </div>
         </div>
+        {demands.length < 2 && offers.length < 2 ? (
+          <div className="text-sm text-[#6B7280] p-4 text-center">No data available</div>
+        ) : (
         <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map(f => {
@@ -85,7 +88,7 @@ export default function MarketplaceHealthPage() {
           {/* X-axis labels */}
           {demands.filter((_: any, i: number) => i % Math.max(1, Math.floor(demands.length / 6)) === 0).map((d: any, idx: number) => {
             const i = demands.indexOf(d);
-            const x = pad.left + (i / (demands.length - 1)) * innerW;
+            const x = pad.left + (i / Math.max(demands.length - 1, 1)) * innerW;
             return (
               <text key={idx} x={x} y={chartH - 5} textAnchor="middle" fill="#6B7280" fontSize="10">
                 {d.date?.slice(5)}
@@ -95,6 +98,7 @@ export default function MarketplaceHealthPage() {
           <polyline points={toPoints(demands)} fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinejoin="round" />
           <polyline points={toPoints(offers)} fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeLinejoin="round" />
         </svg>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -104,7 +108,8 @@ export default function MarketplaceHealthPage() {
           <div className="space-y-3">
             {funnel.map((stage: any, i: number) => {
               const widthPct = (stage.value / maxFunnel) * 100;
-              const dropOff = i > 0 ? Math.round(((funnel[i - 1].value - stage.value) / funnel[i - 1].value) * 100) : 0;
+              const prevValue = i > 0 ? (funnel[i - 1]?.value || 0) : 0;
+              const dropOff = i > 0 && prevValue > 0 ? Math.round(((prevValue - stage.value) / prevValue) * 100) : 0;
               return (
                 <div key={stage.label}>
                   {i > 0 && (
@@ -131,6 +136,9 @@ export default function MarketplaceHealthPage() {
         {/* Time to First Offer */}
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Time to First Offer</h2>
+          {histogramBins.length === 0 ? (
+            <div className="text-sm text-[#6B7280] p-4 text-center">No data available</div>
+          ) : (
           <svg viewBox="0 0 400 250" className="w-full" preserveAspectRatio="xMidYMid meet">
             {histogramBins.map((bin: any, i: number) => {
               const barW = 50;
@@ -147,6 +155,7 @@ export default function MarketplaceHealthPage() {
               );
             })}
           </svg>
+          )}
         </div>
       </div>
 
@@ -164,6 +173,9 @@ export default function MarketplaceHealthPage() {
               </tr>
             </thead>
             <tbody>
+              {categories.length === 0 && (
+                <tr><td colSpan={4} className="py-8 text-center text-sm text-[#6B7280]">No category data available</td></tr>
+              )}
               {categories.map((cat: any) => {
                 const pct = Math.round((cat.fillRate || 0) * 100);
                 const color = pct < 30 ? '#EF4444' : pct < 60 ? '#F59E0B' : '#10B981';

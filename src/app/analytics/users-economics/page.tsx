@@ -50,6 +50,9 @@ export default function UserEconomicsPage() {
               </tr>
             </thead>
             <tbody>
+              {cohorts.length === 0 && (
+                <tr><td colSpan={8} className="py-8 text-center text-sm text-[#6B7280]">No cohort data available</td></tr>
+              )}
               {cohorts.map((c: any) => (
                 <tr key={c.cohort} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#E5E7EB] font-medium">{c.cohort}</td>
@@ -79,6 +82,9 @@ export default function UserEconomicsPage() {
       {/* Buyer LTV Chart */}
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Buyer LTV by Cohort</h2>
+        {ltvData.length === 0 ? (
+          <div className="text-sm text-[#6B7280] p-4 text-center">No LTV data available</div>
+        ) : (
         <svg viewBox="0 0 600 250" className="w-full" preserveAspectRatio="xMidYMid meet">
           {ltvData.map((d: any, i: number) => {
             const barW = 60;
@@ -106,6 +112,7 @@ export default function UserEconomicsPage() {
             );
           })}
         </svg>
+        )}
       </div>
 
       {/* Seller Segments */}
@@ -134,6 +141,9 @@ export default function UserEconomicsPage() {
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Runner Earnings Distribution</h2>
         <div className="space-y-3">
+          {earningsBands.length === 0 && (
+            <div className="text-sm text-[#6B7280] p-4 text-center">No earnings data available</div>
+          )}
           {earningsBands.map((band: any) => (
             <div key={band.band} className="flex items-center gap-4">
               <div className="w-24 text-sm text-[#E5E7EB]">{band.band}</div>

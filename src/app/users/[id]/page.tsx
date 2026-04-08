@@ -53,7 +53,8 @@ export default function UserDetailPage() {
 
   const isSeller = user.role === 'SELLER';
   const isRunner = user.role === 'DELIVERY_PARTNER';
-  const avatarColor = getAvatarColor(user.name);
+  const userName = user.name || 'Unknown';
+  const avatarColor = getAvatarColor(userName);
 
   const sellerProfile = user.sellerProfile;
   const sellerMetrics = sellerProfile?.metrics;
@@ -125,11 +126,11 @@ export default function UserDetailPage() {
             className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shrink-0"
             style={{ backgroundColor: avatarColor }}
           >
-            {getInitials(user.name)}
+            {getInitials(userName)}
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h1 className="text-xl font-bold text-text">{user.name}</h1>
+              <h1 className="text-xl font-bold text-text">{userName}</h1>
               <RoleBadge role={user.role} />
               <StatusPill status={user.verificationStatus} />
             </div>
@@ -138,7 +139,7 @@ export default function UserDetailPage() {
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72" />
                 </svg>
-                {user.phoneNumber}
+                {user.phoneNumber || '--'}
               </span>
               <span className="flex items-center gap-1.5">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -150,7 +151,7 @@ export default function UserDetailPage() {
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                Member since {new Date(user.createdAt).toLocaleDateString('en', { month: 'short', year: 'numeric' })}
+                Member since {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en', { month: 'short', year: 'numeric' }) : '--'}
               </span>
             </div>
           </div>

@@ -95,6 +95,9 @@ export default function OperationalEfficiencyPage() {
         {/* Wave Effectiveness */}
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Wave Effectiveness</h2>
+          {waves.length === 0 ? (
+            <div className="text-sm text-[#6B7280] p-4 text-center">No wave data available</div>
+          ) : (
           <svg viewBox="0 0 400 220" className="w-full" preserveAspectRatio="xMidYMid meet">
             {waves.map((w: any, i: number) => {
               const barW = 65;
@@ -111,6 +114,7 @@ export default function OperationalEfficiencyPage() {
               );
             })}
           </svg>
+          )}
         </div>
 
         {/* Runner Utilization Gauge */}
@@ -152,6 +156,9 @@ export default function OperationalEfficiencyPage() {
               </tr>
             </thead>
             <tbody>
+              {payments.length === 0 && (
+                <tr><td colSpan={5} className="py-8 text-center text-sm text-[#6B7280]">No payment data available</td></tr>
+              )}
               {payments.map((p: any) => (
                 <tr key={p.method} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#E5E7EB] font-medium">{p.method}</td>
@@ -169,6 +176,9 @@ export default function OperationalEfficiencyPage() {
       {/* Notification Timing */}
       <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Notification-to-Action Rate by Hour</h2>
+        {hourlyRates.length === 0 ? (
+          <div className="text-sm text-[#6B7280] p-4 text-center">No notification data available</div>
+        ) : (
         <svg viewBox="0 0 800 200" className="w-full" preserveAspectRatio="xMidYMid meet">
           {hourlyRates.map((h: any, i: number) => {
             const barW = 28;
@@ -188,6 +198,7 @@ export default function OperationalEfficiencyPage() {
             );
           })}
         </svg>
+        )}
       </div>
     </div>
   );

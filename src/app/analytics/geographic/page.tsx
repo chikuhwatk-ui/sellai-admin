@@ -32,6 +32,9 @@ export default function GeographicIntelligencePage() {
             />
             <text x="50" y="95" textAnchor="middle" fill="#2A2D37" fontSize="3">ZIMBABWE</text>
             {/* City hotspots */}
+            {cities.length === 0 && (
+              <text x="50" y="50" textAnchor="middle" fill="#6B7280" fontSize="4">No city data available</text>
+            )}
             {cities.map((city: any) => (
               <g key={city.name}>
                 <circle cx={city.x} cy={city.y} r={city.r} fill="#10B981" opacity="0.15" />
@@ -81,6 +84,9 @@ export default function GeographicIntelligencePage() {
               </tr>
             </thead>
             <tbody>
+              {routes.length === 0 && (
+                <tr><td colSpan={6} className="py-8 text-center text-sm text-[#6B7280]">No route data available</td></tr>
+              )}
               {routes.map((r: any, i: number) => (
                 <tr key={i} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#6B7280]">{i + 1}</td>
@@ -111,6 +117,9 @@ export default function GeographicIntelligencePage() {
               </tr>
             </thead>
             <tbody>
+              {expansion.length === 0 && (
+                <tr><td colSpan={5} className="py-8 text-center text-sm text-[#6B7280]">No expansion data available</td></tr>
+              )}
               {expansion.map((city: any) => {
                 const scoreColor = (city.score || 0) >= 70 ? '#10B981' : (city.score || 0) >= 50 ? '#F59E0B' : '#EF4444';
                 return (

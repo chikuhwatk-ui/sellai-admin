@@ -80,10 +80,10 @@ export default function UsersPage() {
       render: (u) => (
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-            {u.name.split(' ').map(n => n[0]).join('')}
+            {(u.name || '?').split(' ').map(n => n[0]).join('')}
           </div>
           <div>
-            <div className="font-medium text-text">{u.name}</div>
+            <div className="font-medium text-text">{u.name || 'Unknown'}</div>
             <div className="text-xs text-text-muted">{u.phoneNumber}</div>
           </div>
         </div>
