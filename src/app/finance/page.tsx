@@ -138,6 +138,7 @@ export default function FinancePage() {
   const [txPage, setTxPage] = useState(1);
   const { data: overview, loading } = useApi<any>('/api/admin/finance/overview?period=30');
   const { data: txData } = useApi<any>(`/api/admin/finance/transactions?page=${txPage}&limit=10`);
+  const { data: revRecog } = useApi<any>('/api/admin/accounting/reports/revenue-recognition');
 
   if (loading) {
     return (
@@ -207,6 +208,28 @@ export default function FinancePage() {
           icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>}
         />
       </div>
+
+      {/* Accounting KPIs (IFRS 15) */}
+      {revRecog?.summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-4">
+            <div className="text-xs text-[#6B7280]">Recognized Revenue</div>
+            <div className="text-xl font-bold text-[#10B981] mt-1">${revRecog.summary.totalRecognized?.toFixed(2)}</div>
+          </div>
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-4">
+            <div className="text-xs text-[#6B7280]">Deferred Revenue</div>
+            <div className="text-xl font-bold text-[#F59E0B] mt-1">${revRecog.summary.totalDeferred?.toFixed(2)}</div>
+          </div>
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-4">
+            <div className="text-xs text-[#6B7280]">Credit Rev. Deferred</div>
+            <div className="text-xl font-bold text-[#3B82F6] mt-1">${revRecog.summary.totalCreditDeferred?.toFixed(2)}</div>
+          </div>
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-4">
+            <div className="text-xs text-[#6B7280]">Slot Rev. Deferred</div>
+            <div className="text-xl font-bold text-[#8B5CF6] mt-1">${revRecog.summary.totalSlotDeferred?.toFixed(2)}</div>
+          </div>
+        </div>
+      )}
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
