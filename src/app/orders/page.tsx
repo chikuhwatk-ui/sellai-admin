@@ -32,8 +32,7 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState('ALL');
 
   const { data, loading } = useApi<{ data: Order[]; total: number; counts: Record<string, number> }>(
-    `/api/admin/orders?page=${page}&limit=10&status=${activeTab === 'ALL' ? '' : activeTab}`,
-    [page, activeTab]
+    `/api/admin/orders?page=${page}&limit=10&status=${activeTab === 'ALL' ? '' : activeTab}`
   );
 
   const orders = data?.data || [];

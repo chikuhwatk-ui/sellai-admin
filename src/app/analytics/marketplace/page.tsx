@@ -5,7 +5,7 @@ import { useApi } from '@/hooks/useApi';
 
 export default function MarketplaceHealthPage() {
   const [period, setPeriod] = useState<7 | 30 | 90>(30);
-  const { data, loading } = useApi<any>(`/api/admin/analytics/marketplace?period=${period}`, [period]);
+  const { data, loading } = useApi<any>(`/api/admin/analytics/marketplace?period=${period}`);
 
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 

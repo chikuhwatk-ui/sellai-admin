@@ -75,9 +75,9 @@ function DualLineChart({
           );
         })}
         {/* X-axis labels */}
-        {data1.filter((_, i) => i % 7 === 0).map((d, i) => {
+        {safeData1.length > 1 && safeData1.filter((_, i) => i % 7 === 0).map((d, i) => {
           const idx = i * 7;
-          const x = pad.l + (idx / (data1.length - 1)) * cw;
+          const x = pad.l + (idx / (safeData1.length - 1)) * cw;
           return (
             <text key={i} x={x} y={h - 5} textAnchor="middle" fill="#6B7280" fontSize="9">
               {new Date(d.date).toLocaleDateString('en', { day: 'numeric', month: 'short' })}

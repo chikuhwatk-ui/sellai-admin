@@ -35,8 +35,7 @@ export default function UsersPage() {
   }, [search]);
 
   const { data, loading } = useApi<{ data: User[]; total: number }>(
-    `/api/admin/users?page=${page}&limit=12&search=${debouncedSearch}&role=${roleFilter}&status=${statusFilter}`,
-    [page, debouncedSearch, roleFilter, statusFilter]
+    `/api/admin/users?page=${page}&limit=12&search=${debouncedSearch}&role=${roleFilter}&status=${statusFilter}`
   );
 
   const users = data?.data || [];

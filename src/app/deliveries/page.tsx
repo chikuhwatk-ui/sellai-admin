@@ -109,8 +109,7 @@ export default function DeliveriesPage() {
   const [activeTab, setActiveTab] = useState('ALL');
 
   const { data, loading } = useApi<{ data: Delivery[]; total: number; counts: Record<string, number> }>(
-    `/api/admin/deliveries?page=${page}&limit=10&status=${activeTab === 'ALL' ? '' : activeTab}`,
-    [page, activeTab]
+    `/api/admin/deliveries?page=${page}&limit=10&status=${activeTab === 'ALL' ? '' : activeTab}`
   );
 
   const deliveries = data?.data || [];
