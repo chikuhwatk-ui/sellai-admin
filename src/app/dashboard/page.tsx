@@ -311,6 +311,7 @@ export default function DashboardPage() {
                 badgeVariant="danger"
                 action="Review"
                 time={getTimeAgo(v.submittedAt)}
+                href="/verification"
               />
             ))}
           </div>

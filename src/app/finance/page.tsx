@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/Badge';
@@ -135,8 +135,9 @@ function BundleBarChart({ data }: { data: { name: string; sales: number }[] }) {
 }
 
 export default function FinancePage() {
+  const [txPage, setTxPage] = useState(1);
   const { data: overview, loading } = useApi<any>('/api/admin/finance/overview?period=30');
-  const { data: txData } = useApi<any>('/api/admin/finance/transactions?page=1&limit=10');
+  const { data: txData } = useApi<any>(`/api/admin/finance/transactions?page=${txPage}&limit=10`);
 
   if (loading) {
     return (
@@ -168,6 +169,8 @@ export default function FinancePage() {
     sales: b.count || 0,
   }));
   const recentTransactions = txData?.data || [];
+  const txTotal = txData?.total || 0;
+  const txTotalPages = Math.ceil(txTotal / 10);
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -292,6 +295,27 @@ export default function FinancePage() {
               </tbody>
             </table>
           </div>
+          {txTotalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-border">
+              <button
+                onClick={() => setTxPage(p => Math.max(1, p - 1))}
+                disabled={txPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Prev
+              </button>
+              <span className="text-xs text-text-muted">
+                Page {txPage} of {txTotalPages}
+              </span>
+              <button
+                onClick={() => setTxPage(p => Math.min(txTotalPages, p + 1))}
+                disabled={txPage >= txTotalPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </Card>
       </div>
     </div>
