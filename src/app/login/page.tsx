@@ -44,6 +44,9 @@ function LoginForm() {
       localStorage.setItem('adminToken', data.access_token);
       localStorage.setItem('adminRefreshToken', data.refresh_token);
       localStorage.setItem('adminUser', JSON.stringify(data.user));
+      // Store RBAC info from login response
+      if (data.adminRole) localStorage.setItem('adminRole', data.adminRole);
+      if (data.permissions) localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
       document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
 
       router.push('/dashboard');

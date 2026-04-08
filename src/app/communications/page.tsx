@@ -2,9 +2,13 @@
 
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 
 export default function CommunicationsPage() {
+  const { hasPermission } = useAuth();
+  const canBroadcast = hasPermission('COMMUNICATIONS_BROADCAST');
+  const canManageTemplates = hasPermission('COMMUNICATIONS_TEMPLATES');
   const [selectedSegment, setSelectedSegment] = useState('all');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -179,14 +183,17 @@ export default function CommunicationsPage() {
             <div className="flex gap-3 items-center">
               <button
                 onClick={handleSend}
-                disabled={sending}
+                disabled={sending || !canBroadcast}
                 className={`px-6 py-3 font-semibold rounded-lg transition-colors ${
-                  sending
-                    ? 'bg-[#10B981]/40 text-white/60 cursor-wait'
-                    : 'bg-[#10B981] hover:bg-[#059669] text-white'
+                  !canBroadcast
+                    ? 'bg-[#2A2D37] text-[#6B7280] cursor-not-allowed'
+                    : sending
+                      ? 'bg-[#10B981]/40 text-white/60 cursor-wait'
+                      : 'bg-[#10B981] hover:bg-[#059669] text-white'
                 }`}
+                title={!canBroadcast ? 'You do not have permission to send broadcasts' : undefined}
               >
-                {sending ? 'Sending...' : 'Send Now'}
+                {!canBroadcast ? 'No Permission' : sending ? 'Sending...' : 'Send Now'}
               </button>
             </div>
           </div>

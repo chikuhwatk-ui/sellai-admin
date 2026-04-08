@@ -8,7 +8,36 @@ interface AdminUser {
   name: string;
   phoneNumber: string;
   role: string;
+  adminRole?: string;
+  permissions?: string[];
 }
+
+// Mirrors backend ROLE_PERMISSIONS for client-side UI gating
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  SUPER_ADMIN: [
+    'DASHBOARD_VIEW', 'USERS_VIEW', 'USERS_UPDATE', 'USERS_BULK_ACTION',
+    'ORDERS_VIEW', 'DELIVERIES_VIEW', 'VERIFICATION_VIEW', 'VERIFICATION_REVIEW',
+    'FINANCE_VIEW', 'ANALYTICS_VIEW', 'AUDIT_LOGS_VIEW',
+    'COMMUNICATIONS_VIEW', 'COMMUNICATIONS_BROADCAST', 'COMMUNICATIONS_TEMPLATES',
+    'CHAT_VIEW_MESSAGES', 'ADMIN_MANAGE', 'APPROVAL_REVIEW',
+  ],
+  ADMIN_MANAGER: [
+    'DASHBOARD_VIEW', 'USERS_VIEW', 'USERS_UPDATE', 'USERS_BULK_ACTION',
+    'ORDERS_VIEW', 'DELIVERIES_VIEW', 'VERIFICATION_VIEW', 'VERIFICATION_REVIEW',
+    'FINANCE_VIEW', 'ANALYTICS_VIEW', 'AUDIT_LOGS_VIEW',
+    'COMMUNICATIONS_VIEW', 'COMMUNICATIONS_BROADCAST', 'COMMUNICATIONS_TEMPLATES',
+    'CHAT_VIEW_MESSAGES',
+  ],
+  SUPPORT_AGENT: [
+    'DASHBOARD_VIEW', 'USERS_VIEW', 'USERS_UPDATE',
+    'ORDERS_VIEW', 'DELIVERIES_VIEW', 'VERIFICATION_VIEW', 'VERIFICATION_REVIEW',
+    'ANALYTICS_VIEW', 'COMMUNICATIONS_VIEW', 'CHAT_VIEW_MESSAGES',
+  ],
+  ADMIN_VIEWER: [
+    'DASHBOARD_VIEW', 'USERS_VIEW', 'ORDERS_VIEW', 'DELIVERIES_VIEW',
+    'VERIFICATION_VIEW', 'ANALYTICS_VIEW', 'COMMUNICATIONS_VIEW',
+  ],
+};
 
 export function useAuth() {
   const [user, setUser] = useState<AdminUser | null>(null);
@@ -19,6 +48,8 @@ export function useAuth() {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminRefreshToken');
     localStorage.removeItem('adminUser');
+    localStorage.removeItem('adminRole');
+    localStorage.removeItem('adminPermissions');
     document.cookie = 'adminToken=;path=/;max-age=0';
     setUser(null);
     router.push('/login');
@@ -29,7 +60,11 @@ export function useAuth() {
     const userData = localStorage.getItem('adminUser');
     if (token && userData) {
       try {
-        setUser(JSON.parse(userData));
+        const parsed = JSON.parse(userData);
+        // Restore adminRole and permissions from localStorage
+        const adminRole = localStorage.getItem('adminRole') || parsed.adminRole || 'SUPER_ADMIN';
+        const permissions = ROLE_PERMISSIONS[adminRole] || [];
+        setUser({ ...parsed, adminRole, permissions });
       } catch {
         logout();
       }
@@ -37,5 +72,22 @@ export function useAuth() {
     setLoading(false);
   }, [logout]);
 
-  return { user, loading, logout, isAuthenticated: !!user };
+  const hasPermission = useCallback(
+    (permission: string): boolean => {
+      if (!user) return false;
+      const role = user.adminRole || 'SUPER_ADMIN';
+      const perms = ROLE_PERMISSIONS[role] || [];
+      return perms.includes(permission);
+    },
+    [user],
+  );
+
+  return {
+    user,
+    loading,
+    logout,
+    isAuthenticated: !!user,
+    adminRole: user?.adminRole || null,
+    hasPermission,
+  };
 }
