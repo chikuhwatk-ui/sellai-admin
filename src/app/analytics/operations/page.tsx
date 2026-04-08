@@ -7,6 +7,18 @@ export default function OperationalEfficiencyPage() {
   const [period, setPeriod] = useState(30);
   const { data, loading } = useApi<any>(`/api/admin/analytics/operations?period=${period}`);
 
+  // Notification hourly data — must call useMemo before any early return (Rules of Hooks)
+  const notifications = data?.notifications || null;
+  const hourlyRates = useMemo(() => {
+    if (notifications) return notifications;
+    return Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      rate: h >= 6 && h <= 22
+        ? 15 + Math.sin((h - 6) / 16 * Math.PI) * 35 + Math.random() * 10
+        : 5 + Math.random() * 8,
+    }));
+  }, [notifications]);
+
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
   const matchingRaw = data?.matching || {};
@@ -36,7 +48,6 @@ export default function OperationalEfficiencyPage() {
   }));
   // Runner utilization — backend returns { utilizationRate, onlinePartners, activeDeliveries, totalPartners }
   const runnerData = data?.runnerUtilization || {};
-  const notifications = data?.notifications || null;
 
   const maxWave = waves.length ? Math.max(...waves.map((w: any) => w.rate)) : 1;
 
@@ -46,17 +57,6 @@ export default function OperationalEfficiencyPage() {
     { label: 'Active Deliveries', value: runnerData.activeDeliveries ?? 0 },
     { label: 'Total Partners', value: runnerData.totalPartners ?? 0 },
   ];
-
-  // Hourly notification data - use API data if available, otherwise generate from pattern
-  const hourlyRates = useMemo(() => {
-    if (notifications) return notifications;
-    return Array.from({ length: 24 }, (_, h) => ({
-      hour: h,
-      rate: h >= 6 && h <= 22
-        ? 15 + Math.sin((h - 6) / 16 * Math.PI) * 35 + Math.random() * 10
-        : 5 + Math.random() * 8,
-    }));
-  }, [notifications]);
   const maxHourly = hourlyRates.length ? Math.max(...hourlyRates.map((h: any) => h.rate)) : 1;
 
   // SVG arc for gauge

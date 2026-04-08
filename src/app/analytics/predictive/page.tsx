@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 
-// Deep-sanitize any value to ensure no objects/BigInts leak into React rendering
 function toNum(v: unknown): number {
   if (v === null || v === undefined) return 0;
   return Number(v) || 0;
@@ -17,11 +16,19 @@ function toStr(v: unknown): string {
 export default function PredictiveStrategicPage() {
   const { data, loading, error } = useApi<any>('/api/admin/analytics/predictive');
 
+  // ALL hooks must be called before any early return
+  const networkMetrics = useMemo(() => [
+    { label: 'Active Buyers', value: '3,247', trend: '+12%', color: '#10B981' },
+    { label: 'Active Sellers', value: '1,842', trend: '+8%', color: '#06B6D4' },
+    { label: 'Avg Offers/Demand', value: '3.2', trend: '+0.4', color: '#F59E0B' },
+    { label: 'Buyer Satisfaction', value: '4.3/5', trend: '+0.2', color: '#8B5CF6' },
+  ], []);
+
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
   if (error) return <div className="p-8 text-[#EF4444]">Error: {String(error)}</div>;
   if (!data) return <div className="p-8 text-[#6B7280]">No data available</div>;
 
-  // Demand forecast — backend returns { date, count }
+  // Demand forecast
   const actual = (data?.forecast?.actual || []).map((d: any) => ({
     date: toStr(d.date),
     value: toNum(d.count ?? d.value),
@@ -67,12 +74,11 @@ export default function PredictiveStrategicPage() {
     ? `${fX(actual.length - 1)},${fY(toNum(actual[actual.length - 1].value))} ${fX(actual.length)},${fY(toNum(forecast[0].value))}`
     : '';
 
-  // Confidence interval polygon
   const ciTop = confidence.map((d: any, i: number) => `${fX(actual.length + i)},${fY(toNum(d.upper))}`).join(' ');
   const ciBottom = [...confidence].reverse().map((d: any, i: number) => `${fX(actual.length + confidence.length - 1 - i)},${fY(toNum(d.lower))}`).join(' ');
   const ciPolygon = ciTop && ciBottom ? `${ciTop} ${ciBottom}` : '';
 
-  // Churn risk — backend returns flat arrays with string risk levels
+  // Churn risk
   const churnRisk = data?.churnRisk || {};
   const mapChurnUsers = (users: any[]) => (Array.isArray(users) ? users : []).map((u: any) => ({
     name: toStr(u.name) || 'Unknown',
@@ -89,25 +95,17 @@ export default function PredictiveStrategicPage() {
     { segment: 'Runners', highRisk: runnerUsers.filter((u: any) => u.risk === 'high').length, color: '#8B5CF6', users: mapChurnUsers(runnerUsers) },
   ];
 
-  // Unfilled demand — backend returns { categoryId, count }
+  // Unfilled demand
   const unfilledCategories = (data?.unfilledDemand?.byCategory || []).map((c: any) => ({
     name: toStr(c.name || c.categoryId) || 'Uncategorized',
     value: toNum(c.value ?? c.count),
   }));
   const unfilledTotal = toNum(data?.unfilledDemand?.total) || unfilledCategories.reduce((s: number, c: any) => s + toNum(c.value), 0) || 1;
 
-  // Network effects - hardcoded (no backend model yet)
-  const networkMetrics = useMemo(() => [
-    { label: 'Active Buyers', value: '3,247', trend: '+12%', color: '#10B981' },
-    { label: 'Active Sellers', value: '1,842', trend: '+8%', color: '#06B6D4' },
-    { label: 'Avg Offers/Demand', value: '3.2', trend: '+0.4', color: '#F59E0B' },
-    { label: 'Buyer Satisfaction', value: '4.3/5', trend: '+0.2', color: '#8B5CF6' },
-  ], []);
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Predictive &amp; Strategic</h1>
+        <h1 className="text-2xl font-bold text-white mb-1">{'Predictive & Strategic'}</h1>
         <p className="text-[#6B7280] text-sm">Forecasts, churn risk, lost opportunity, and network effects</p>
       </div>
 
@@ -124,7 +122,6 @@ export default function PredictiveStrategicPage() {
           <div className="text-sm text-[#6B7280] p-4 text-center">No forecast data available</div>
         ) : (
         <svg viewBox={`0 0 ${fChartW} ${fChartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
-          {/* Grid */}
           {[0, 0.25, 0.5, 0.75, 1].map(f => {
             const y = fPad.top + fInnerH * (1 - f);
             const val = Math.round(fMin + (fMax - fMin) * f);
@@ -135,20 +132,15 @@ export default function PredictiveStrategicPage() {
               </g>
             );
           })}
-          {/* Divider line between actual and forecast */}
           {actual.length > 0 && (
             <>
               <line x1={fX(actual.length - 1)} y1={fPad.top} x2={fX(actual.length - 1)} y2={fPad.top + fInnerH} stroke="#2A2D37" strokeWidth="1" strokeDasharray="4,4" />
               <text x={fX(actual.length)} y={fPad.top - 5} fill="#06B6D4" fontSize="9">Forecast</text>
             </>
           )}
-          {/* Confidence interval */}
           {ciPolygon && <polygon points={ciPolygon} fill="#06B6D4" opacity="0.1" />}
-          {/* Actual line */}
           {actualLine && <polyline points={actualLine} fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinejoin="round" />}
-          {/* Connector */}
           {connectorLine && <polyline points={connectorLine} fill="none" stroke="#06B6D4" strokeWidth="2" strokeDasharray="6,3" />}
-          {/* Forecast line */}
           {forecastLine && <polyline points={forecastLine} fill="none" stroke="#06B6D4" strokeWidth="2.5" strokeDasharray="6,3" strokeLinejoin="round" />}
         </svg>
         )}
