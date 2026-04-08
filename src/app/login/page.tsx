@@ -25,7 +25,7 @@ export default function LoginPage() {
       const res = await fetch(`${API_BASE}/api/auth/login-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: fullPhone, otp }),
+        body: JSON.stringify({ phoneNumber: fullPhone, otp, firebaseUid: 'admin-dashboard' }),
       });
 
       if (!res.ok) {
