@@ -102,28 +102,34 @@ export default function CommunicationsPage() {
 
             {sendStatus && (
               <div className={`mb-3 text-sm px-4 py-2 rounded-lg ${
-                sendStatus === 'sent' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-[#EF4444]/10 text-[#EF4444]'
+                sendStatus === 'error' ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
               }`}>
-                {sendStatus === 'sent' ? 'Broadcast notification feature coming soon. Message composed successfully.' : sendStatus}
+                {sendStatus === 'error' ? 'Please fill in both title and message body' : sendStatus}
               </div>
             )}
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
               <button
                 onClick={() => {
                   if (!title.trim() || !body.trim()) {
-                    setSendStatus('Please fill in both title and message body');
+                    setSendStatus('error');
+                    setTimeout(() => setSendStatus(null), 3000);
                     return;
                   }
-                  setSendStatus('sent');
-                  setTimeout(() => setSendStatus(null), 3000);
+                  setSendStatus('Push notification broadcast is not yet integrated. This will send to ' + (SEGMENTS.find(s => s.id === selectedSegment)?.count || 0).toLocaleString() + ' users once connected.');
+                  setTimeout(() => setSendStatus(null), 5000);
                 }}
-                className="px-6 py-3 bg-[#10B981] text-white font-semibold rounded-lg hover:bg-[#059669] transition-colors"
+                className="px-6 py-3 bg-[#10B981]/60 text-white font-semibold rounded-lg cursor-not-allowed"
+                title="Broadcast API not yet integrated"
               >
                 Send Now
               </button>
-              <button className="px-6 py-3 bg-[#1A1D27] border border-[#2A2D37] text-white rounded-lg hover:bg-[#2A2D37] transition-colors">
+              <button
+                className="px-6 py-3 bg-[#1A1D27] border border-[#2A2D37] text-[#6B7280] rounded-lg cursor-not-allowed"
+                title="Scheduling not yet available"
+              >
                 Schedule
               </button>
+              <span className="text-xs text-[#6B7280]">Broadcast integration pending</span>
             </div>
           </div>
 

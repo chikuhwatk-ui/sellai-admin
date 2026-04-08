@@ -28,17 +28,32 @@ const TABS = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
-// Mock map dots
 function LiveMapPlaceholder({ deliveries }: { deliveries: Delivery[] }) {
   const activeCount = deliveries.filter(d =>
     ['PICKED_UP', 'EN_ROUTE', 'BID_ACCEPTED'].includes(d.status)
   ).length;
 
+  // Compute bounding box from real coordinates
+  const points = deliveries.slice(0, 20).flatMap((d: any) => {
+    const pts: { lat: number; lng: number; status: string; id: string }[] = [];
+    if (d.deliveryLat && d.deliveryLng) pts.push({ lat: d.deliveryLat, lng: d.deliveryLng, status: d.status, id: d.id + '-d' });
+    else if (d.pickupLat && d.pickupLng) pts.push({ lat: d.pickupLat, lng: d.pickupLng, status: d.status, id: d.id + '-p' });
+    return pts;
+  });
+
+  // Fallback bounds for Zimbabwe if no coordinates
+  const lats = points.map(p => p.lat);
+  const lngs = points.map(p => p.lng);
+  const minLat = lats.length ? Math.min(...lats) - 0.01 : -20.5;
+  const maxLat = lats.length ? Math.max(...lats) + 0.01 : -17.5;
+  const minLng = lngs.length ? Math.min(...lngs) - 0.01 : 29.5;
+  const maxLng = lngs.length ? Math.max(...lngs) + 0.01 : 31.5;
+  const latRange = maxLat - minLat || 1;
+  const lngRange = maxLng - minLng || 1;
+
   return (
     <div className="relative bg-surface border border-border rounded-xl overflow-hidden h-[280px]">
-      {/* Dark map background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0d0f14] via-[#131620] to-[#0d0f14]">
-        {/* Grid lines simulating map */}
         <svg className="absolute inset-0 w-full h-full opacity-10">
           {Array.from({ length: 12 }, (_, i) => (
             <line key={`h${i}`} x1="0" y1={`${(i + 1) * 8}%`} x2="100%" y2={`${(i + 1) * 8}%`} stroke="#2A2D37" strokeWidth="1" />
@@ -48,20 +63,19 @@ function LiveMapPlaceholder({ deliveries }: { deliveries: Delivery[] }) {
           ))}
         </svg>
 
-        {/* Mock delivery dots */}
-        {deliveries.slice(0, 15).map((d, i) => {
-          const x = 10 + (Math.sin(i * 2.5) * 0.5 + 0.5) * 80;
-          const y = 10 + (Math.cos(i * 3.7) * 0.5 + 0.5) * 80;
+        {points.map((p) => {
+          const x = 5 + ((p.lng - minLng) / lngRange) * 90;
+          const y = 5 + ((maxLat - p.lat) / latRange) * 90; // invert lat (north = top)
           const statusColor =
-            d.status === 'EN_ROUTE' ? '#10B981' :
-            d.status === 'PICKED_UP' ? '#3B82F6' :
-            d.status === 'BID_ACCEPTED' ? '#F59E0B' :
-            d.status === 'ARRIVED' ? '#8B5CF6' :
-            d.status === 'REQUESTED' ? '#EF4444' : '#6B7280';
+            p.status === 'EN_ROUTE' ? '#10B981' :
+            p.status === 'PICKED_UP' ? '#3B82F6' :
+            p.status === 'BID_ACCEPTED' ? '#F59E0B' :
+            p.status === 'ARRIVED' ? '#8B5CF6' :
+            p.status === 'REQUESTED' ? '#EF4444' : '#6B7280';
 
           return (
             <div
-              key={d.id}
+              key={p.id}
               className="absolute"
               style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
             >
@@ -72,9 +86,14 @@ function LiveMapPlaceholder({ deliveries }: { deliveries: Delivery[] }) {
             </div>
           );
         })}
+
+        {points.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-text-muted">
+            No delivery coordinates available
+          </div>
+        )}
       </div>
 
-      {/* Overlay info */}
       <div className="absolute top-4 left-4 flex items-center gap-2">
         <div className="px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-lg">
           <span className="text-xs font-medium text-text">Live Delivery Map</span>
@@ -85,7 +104,6 @@ function LiveMapPlaceholder({ deliveries }: { deliveries: Delivery[] }) {
         </div>
       </div>
 
-      {/* Legend */}
       <div className="absolute bottom-4 right-4 flex items-center gap-3 px-3 py-2 bg-black/60 backdrop-blur-sm rounded-lg">
         {[
           { color: '#10B981', label: 'En Route' },

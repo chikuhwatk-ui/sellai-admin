@@ -10,13 +10,8 @@ export default function OperationalEfficiencyPage() {
   // Notification hourly data — must call useMemo before any early return (Rules of Hooks)
   const notifications = data?.notifications || null;
   const hourlyRates = useMemo(() => {
-    if (notifications) return notifications;
-    return Array.from({ length: 24 }, (_, h) => ({
-      hour: h,
-      rate: h >= 6 && h <= 22
-        ? 15 + Math.sin((h - 6) / 16 * Math.PI) * 35 + Math.random() * 10
-        : 5 + Math.random() * 8,
-    }));
+    if (notifications && Array.isArray(notifications) && notifications.length > 0) return notifications;
+    return [];
   }, [notifications]);
 
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;

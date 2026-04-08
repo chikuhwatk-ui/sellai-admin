@@ -1,31 +1,42 @@
 'use client';
 
 import { useState } from 'react';
-
-const AUDIT_LOGS = [
-  { id: 1, admin: 'Admin Chiku', action: 'VERIFY_USER', target: 'Tatenda Moyo', reason: 'ID verification approved', time: '2 min ago' },
-  { id: 2, admin: 'Admin Chiku', action: 'REJECT_VERIFICATION', target: 'Memory Chipunza', reason: 'Blurry ID photo', time: '15 min ago' },
-  { id: 3, admin: 'Admin Sarah', action: 'ADJUST_CREDITS', target: 'ProDeals Store', reason: 'Compensation for system error (+10 credits)', time: '1h ago' },
-  { id: 4, admin: 'Admin Chiku', action: 'SUSPEND_USER', target: 'Fake Account 123', reason: 'Fraudulent activity detected', time: '2h ago' },
-  { id: 5, admin: 'Admin Sarah', action: 'VIEW_CHAT', target: 'Chat #452', reason: 'Dispute investigation — buyer reported wrong item', time: '3h ago' },
-  { id: 6, admin: 'Admin Chiku', action: 'OVERRIDE_STATUS', target: 'Order #1089', reason: 'Manually marked as completed per buyer request', time: '5h ago' },
-  { id: 7, admin: 'Admin System', action: 'CRON_CLEANUP', target: 'Expired Intents', reason: 'Auto-expired 45 intents older than 24h', time: '6h ago' },
-  { id: 8, admin: 'Admin Sarah', action: 'BROADCAST_SENT', target: 'All Sellers', reason: 'Weekend credit promotion notification', time: '1d ago' },
-];
+import { useApi } from '@/hooks/useApi';
 
 const ACTION_COLORS: Record<string, string> = {
-  VERIFY_USER: 'text-[#10B981] bg-[#10B981]/10',
-  REJECT_VERIFICATION: 'text-[#EF4444] bg-[#EF4444]/10',
-  ADJUST_CREDITS: 'text-[#F59E0B] bg-[#F59E0B]/10',
-  SUSPEND_USER: 'text-[#EF4444] bg-[#EF4444]/10',
-  VIEW_CHAT: 'text-[#3B82F6] bg-[#3B82F6]/10',
-  OVERRIDE_STATUS: 'text-[#8B5CF6] bg-[#8B5CF6]/10',
-  CRON_CLEANUP: 'text-[#6B7280] bg-[#6B7280]/10',
-  BROADCAST_SENT: 'text-[#06B6D4] bg-[#06B6D4]/10',
+  ADMIN_LOGIN_SUCCESS: 'text-[#10B981] bg-[#10B981]/10',
+  ADMIN_LOGIN_FAILED: 'text-[#EF4444] bg-[#EF4444]/10',
+  USER_UPDATE: 'text-[#F59E0B] bg-[#F59E0B]/10',
+  BULK_SUSPEND: 'text-[#EF4444] bg-[#EF4444]/10',
+  BULK_VERIFY: 'text-[#10B981] bg-[#10B981]/10',
+  BULK_REJECT: 'text-[#EF4444] bg-[#EF4444]/10',
+  DECRYPT_MESSAGES: 'text-[#3B82F6] bg-[#3B82F6]/10',
+  DISPUTE_FILED: 'text-[#8B5CF6] bg-[#8B5CF6]/10',
 };
+
+function formatAction(action: string): string {
+  return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return d.toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<'general' | 'roles' | 'audit'>('general');
+
+  // Fetch real audit logs for the audit tab
+  const { data: auditData, loading: auditLoading } = useApi<any>(
+    tab === 'audit' ? '/api/admin/audit-logs?page=1&limit=15' : null
+  );
+  const auditLogs = auditData?.data || [];
 
   return (
     <div className="p-8">
@@ -76,30 +87,30 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded-lg bg-[#0F1117] border border-[#10B981]/30">
                 <div className="flex items-center gap-3">
-                  <span className="text-xl">🇿🇼</span>
+                  <span className="text-xl">ZW</span>
                   <div>
                     <div className="text-sm font-medium text-white">Zimbabwe</div>
-                    <div className="text-xs text-[#6B7280]">ZW · USD · Africa/Harare</div>
+                    <div className="text-xs text-[#6B7280]">ZW - USD - Africa/Harare</div>
                   </div>
                 </div>
                 <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium">Active</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37] opacity-50">
                 <div className="flex items-center gap-3">
-                  <span className="text-xl">🇿🇦</span>
+                  <span className="text-xl">ZA</span>
                   <div>
                     <div className="text-sm font-medium text-white">South Africa</div>
-                    <div className="text-xs text-[#6B7280]">ZA · ZAR · Africa/Johannesburg</div>
+                    <div className="text-xs text-[#6B7280]">ZA - ZAR - Africa/Johannesburg</div>
                   </div>
                 </div>
                 <span className="text-xs text-[#6B7280] bg-[#6B7280]/10 px-2 py-1 rounded-full font-medium">Planned</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37] opacity-50">
                 <div className="flex items-center gap-3">
-                  <span className="text-xl">🇰🇪</span>
+                  <span className="text-xl">KE</span>
                   <div>
                     <div className="text-sm font-medium text-white">Kenya</div>
-                    <div className="text-xs text-[#6B7280]">KE · KES · Africa/Nairobi</div>
+                    <div className="text-xs text-[#6B7280]">KE - KES - Africa/Nairobi</div>
                   </div>
                 </div>
                 <span className="text-xs text-[#6B7280] bg-[#6B7280]/10 px-2 py-1 rounded-full font-medium">Planned</span>
@@ -109,19 +120,14 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold text-white mt-6 mb-4">Payment Methods</h2>
             <div className="space-y-2">
               {[
-                { name: 'EcoCash', status: 'active', volume: '68%' },
-                { name: 'Visa', status: 'active', volume: '18%' },
-                { name: 'Mastercard', status: 'active', volume: '11%' },
-                { name: 'Bank Transfer', status: 'active', volume: '3%' },
+                { name: 'EcoCash', status: 'active' },
+                { name: 'Visa', status: 'active' },
+                { name: 'Mastercard', status: 'active' },
+                { name: 'Bank Transfer', status: 'active' },
               ].map((pm) => (
                 <div key={pm.name} className="flex items-center justify-between p-2.5 rounded-lg bg-[#0F1117]">
                   <span className="text-sm text-white">{pm.name}</span>
-                  <div className="flex items-center gap-3">
-                    <div className="w-20 h-1.5 bg-[#2A2D37] rounded-full overflow-hidden">
-                      <div className="h-full bg-[#10B981] rounded-full" style={{ width: pm.volume }} />
-                    </div>
-                    <span className="text-xs text-[#6B7280] w-8">{pm.volume}</span>
-                  </div>
+                  <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium">Active</span>
                 </div>
               ))}
             </div>
@@ -135,7 +141,7 @@ export default function SettingsPage() {
                 { name: 'Starter', price: '$7', credits: 15, slots: 5 },
                 { name: 'Pro Dealer', price: '$20', credits: 50, slots: 15 },
                 { name: 'Market Mover', price: '$45', credits: 150, slots: 40 },
-                { name: 'Big Boss', price: '$120', credits: 500, slots: '∞' },
+                { name: 'Big Boss', price: '$120', credits: 500, slots: '\u221E' },
                 { name: 'Emergency 5', price: '$3', credits: 5, slots: '-' },
                 { name: 'Quick 20', price: '$10', credits: 20, slots: '-' },
                 { name: 'Power 100', price: '$40', credits: 100, slots: '-' },
@@ -187,9 +193,9 @@ export default function SettingsPage() {
                     {[row.super, row.ops, row.fin, row.analyst, row.support].map((v, i) => (
                       <td key={i} className="px-4 py-3 text-center">
                         {v ? (
-                          <span className="text-[#10B981]">✓</span>
+                          <span className="text-[#10B981]">{'\u2713'}</span>
                         ) : (
-                          <span className="text-[#2A2D37]">—</span>
+                          <span className="text-[#2A2D37]">{'\u2014'}</span>
                         )}
                       </td>
                     ))}
@@ -203,38 +209,43 @@ export default function SettingsPage() {
 
       {tab === 'audit' && (
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-[#2A2D37] flex items-center gap-3">
-            <input
-              type="text"
-              placeholder="Search audit logs..."
-              className="flex-1 bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-2 text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]"
-            />
-            <select className="bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-[#9CA3AF]">
-              <option>All Actions</option>
-              <option>Verifications</option>
-              <option>User Actions</option>
-              <option>Financial</option>
-              <option>System</option>
-            </select>
+          <div className="p-4 border-b border-[#2A2D37] flex items-center justify-between">
+            <span className="text-sm text-[#6B7280]">Recent activity (last 15 entries)</span>
+            <a
+              href="/settings/audit-log"
+              className="text-sm text-[#10B981] hover:text-[#059669] font-medium"
+            >
+              View Full Audit Log →
+            </a>
           </div>
           <div className="divide-y divide-[#2A2D37]/50">
-            {AUDIT_LOGS.map((log) => (
-              <div key={log.id} className="px-6 py-4 hover:bg-[#2A2D37]/20 transition-colors">
+            {auditLoading && (
+              <div className="px-6 py-8 text-center text-sm text-[#6B7280]">Loading audit logs...</div>
+            )}
+            {!auditLoading && auditLogs.length === 0 && (
+              <div className="px-6 py-8 text-center text-sm text-[#6B7280]">No audit log entries yet</div>
+            )}
+            {auditLogs.map((log: any) => (
+              <div key={String(log.id)} className="px-6 py-4 hover:bg-[#2A2D37]/20 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <span className={`text-xs font-mono px-2 py-1 rounded ${ACTION_COLORS[log.action] || 'text-[#6B7280] bg-[#6B7280]/10'}`}>
-                      {log.action}
+                      {formatAction(String(log.action || ''))}
                     </span>
                     <div>
                       <div className="text-sm text-white">
-                        <span className="font-medium">{log.admin}</span>
-                        <span className="text-[#6B7280]"> → </span>
-                        <span>{log.target}</span>
+                        <span className="font-medium">{String(log.admin?.name || 'System')}</span>
+                        {log.targetId && (
+                          <>
+                            <span className="text-[#6B7280]"> → </span>
+                            <span className="font-mono text-xs">{String(log.targetType || '')} {String(log.targetId || '').slice(0, 8)}</span>
+                          </>
+                        )}
                       </div>
-                      <div className="text-xs text-[#6B7280] mt-0.5">{log.reason}</div>
+                      {log.reason && <div className="text-xs text-[#6B7280] mt-0.5">{String(log.reason)}</div>}
                     </div>
                   </div>
-                  <span className="text-xs text-[#4B5563] whitespace-nowrap">{log.time}</span>
+                  <span className="text-xs text-[#4B5563] whitespace-nowrap">{formatDate(log.createdAt)}</span>
                 </div>
               </div>
             ))}
