@@ -23,9 +23,14 @@ function DualLineChart({
   color1: string;
   color2: string;
 }) {
-  const all = [...data1.map(d => d.value), ...data2.map(d => d.value)];
+  if (!data1?.length && !data2?.length) {
+    return <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">No data available</div>;
+  }
+  const safeData1 = data1?.length ? data1 : [{ date: new Date().toISOString(), value: 0 }];
+  const safeData2 = data2?.length ? data2 : [{ date: new Date().toISOString(), value: 0 }];
+  const all = [...safeData1.map(d => d.value), ...safeData2.map(d => d.value)];
   const min = Math.min(...all) * 0.9;
-  const max = Math.max(...all) * 1.1;
+  const max = Math.max(...all) * 1.1 || 1;
   const range = max - min || 1;
   const w = 500;
   const h = 200;
@@ -36,7 +41,7 @@ function DualLineChart({
   const toPoints = (data: { value: number }[]) =>
     data
       .map((d, i) => {
-        const x = pad.l + (i / (data.length - 1)) * cw;
+        const x = pad.l + (data.length > 1 ? (i / (data.length - 1)) * cw : cw / 2);
         const y = pad.t + ch - ((d.value - min) / range) * ch;
         return `${x},${y}`;
       })
@@ -192,10 +197,10 @@ export default function DashboardPage() {
     );
   }
 
-  const demands = timeSeries?.demands || [];
-  const offers = timeSeries?.offers || [];
-  const funnelData = funnel || [];
-  const verificationList = verifications || [];
+  const demands = Array.isArray(timeSeries?.demands) ? timeSeries.demands : [];
+  const offers = Array.isArray(timeSeries?.offers) ? timeSeries.offers : [];
+  const funnelData = Array.isArray(funnel) ? funnel : [];
+  const verificationList = Array.isArray(verifications) ? verifications : [];
 
   return (
     <div className="min-h-screen p-6 space-y-6">
