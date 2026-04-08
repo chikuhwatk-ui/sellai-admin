@@ -7,6 +7,7 @@ export default function PredictiveStrategicPage() {
   const { data, loading } = useApi<any>('/api/admin/analytics/predictive');
 
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
+  if (!data) return <div className="p-8 text-[#6B7280]">No data available</div>;
 
   // Demand forecast — backend returns { date, count } but we need { date, value }
   const actual = (data?.forecast?.actual || []).map((d: any) => ({ date: d.date, value: d.count ?? d.value ?? 0 }));
@@ -70,9 +71,12 @@ export default function PredictiveStrategicPage() {
     { segment: 'Runners', highRisk: runnerUsers.filter((u: any) => u.risk === 'high').length, color: '#8B5CF6', users: mapChurnUsers(runnerUsers) },
   ];
 
-  // Unfilled demand value
-  const unfilledCategories = data?.unfilledDemand?.byCategory || [];
-  const unfilledTotal = data?.unfilledDemand?.total || unfilledCategories.reduce((s: number, c: any) => s + (c.value || 0), 0) || 1;
+  // Unfilled demand value — backend returns { categoryId, count }, not { name, value }
+  const unfilledCategories = (data?.unfilledDemand?.byCategory || []).map((c: any) => ({
+    name: String(c.name || c.categoryId || 'Uncategorized'),
+    value: Number(c.value ?? c.count ?? 0),
+  }));
+  const unfilledTotal = Number(data?.unfilledDemand?.total || 0) || unfilledCategories.reduce((s: number, c: any) => s + c.value, 0) || 1;
 
   // Network effects - keep hardcoded (no backend model for this yet)
   const networkMetrics = useMemo(() => [
@@ -190,18 +194,18 @@ export default function PredictiveStrategicPage() {
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Unfilled Demand Value</h2>
           <p className="text-[#6B7280] text-xs mb-4">Expired unmatched demands this month</p>
-          <div className="text-4xl font-bold text-[#EF4444] mb-6">${unfilledTotal.toLocaleString()}</div>
+          <div className="text-4xl font-bold text-[#EF4444] mb-6">${String(unfilledTotal.toLocaleString())}</div>
           <div className="space-y-3">
-            {unfilledCategories.map((cat: any) => (
-              <div key={cat.name} className="flex items-center gap-3">
-                <span className="w-36 text-sm text-[#E5E7EB] truncate">{cat.name}</span>
+            {unfilledCategories.map((cat: any, idx: number) => (
+              <div key={idx} className="flex items-center gap-3">
+                <span className="w-36 text-sm text-[#E5E7EB] truncate">{String(cat.name)}</span>
                 <div className="flex-1 h-4 bg-[#0F1117] rounded overflow-hidden">
                   <div
                     className="h-full rounded bg-[#EF4444]"
-                    style={{ width: `${((cat.value || 0) / unfilledTotal) * 100}%`, opacity: 0.7 }}
+                    style={{ width: `${(Number(cat.value || 0) / unfilledTotal) * 100}%`, opacity: 0.7 }}
                   />
                 </div>
-                <span className="text-sm text-[#6B7280] w-16 text-right">${(cat.value || 0).toLocaleString()}</span>
+                <span className="text-sm text-[#6B7280] w-16 text-right">${String(Number(cat.value || 0).toLocaleString())}</span>
               </div>
             ))}
           </div>
