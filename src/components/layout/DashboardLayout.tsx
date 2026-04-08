@@ -3,6 +3,7 @@
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { usePathname } from "next/navigation";
+import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -30,6 +31,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const title = routeTitles[pathname] || "Sellai Admin";
+  useSessionTimeout();
 
   return (
     <div className="flex h-screen overflow-hidden">

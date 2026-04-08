@@ -22,7 +22,7 @@ async function tryRefreshToken(): Promise<boolean> {
     const data = await res.json();
     localStorage.setItem('adminToken', data.access_token);
     localStorage.setItem('adminRefreshToken', data.refresh_token);
-    document.cookie = `adminToken=${data.access_token};path=/;max-age=2592000;SameSite=Lax`;
+    document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
     return true;
   } catch {
     return false;

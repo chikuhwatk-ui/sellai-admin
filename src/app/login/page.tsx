@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const idleExpired = searchParams.get('reason') === 'idle';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -22,7 +24,7 @@ export default function LoginPage() {
       : `+263${phoneNumber.replace(/^0+/, '')}`;
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login-otp`, {
+      const res = await fetch(`${API_BASE}/api/auth/admin-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: fullPhone, otp, firebaseUid: 'admin-dashboard' }),
@@ -42,11 +44,17 @@ export default function LoginPage() {
       localStorage.setItem('adminToken', data.access_token);
       localStorage.setItem('adminRefreshToken', data.refresh_token);
       localStorage.setItem('adminUser', JSON.stringify(data.user));
-      document.cookie = `adminToken=${data.access_token};path=/;max-age=2592000;SameSite=Lax`;
+      document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
 
       router.push('/dashboard');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      // Don't show raw API errors that might leak info
+      if (message.includes('fetch') || message.includes('network') || message.includes('ECONNREFUSED')) {
+        setError('Unable to connect to server. Please try again.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -75,6 +83,26 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-[#E5E7EB]">Sellai Admin</h1>
           <p className="text-sm text-[#6B7280] mt-1">Sign in to the admin dashboard</p>
         </div>
+
+        {/* Idle timeout message */}
+        {idleExpired && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 mb-4">
+            <svg
+              className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-sm text-yellow-400">Session expired due to inactivity. Please sign in again.</p>
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-2xl p-8">
