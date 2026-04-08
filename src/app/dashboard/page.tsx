@@ -140,6 +140,7 @@ function QueueItem({
   badgeVariant,
   action,
   time,
+  href,
 }: {
   title: string;
   subtitle: string;
@@ -147,6 +148,7 @@ function QueueItem({
   badgeVariant?: 'danger' | 'warning' | 'info' | 'primary';
   action: string;
   time: string;
+  href?: string;
 }) {
   return (
     <div className="flex items-center justify-between py-3 px-4 border-b border-border/50 last:border-0 hover:bg-surface-hover transition-colors">
@@ -159,9 +161,15 @@ function QueueItem({
       </div>
       <div className="flex items-center gap-3 shrink-0 ml-3">
         <span className="text-xs text-text-muted">{time}</span>
-        <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-          {action}
-        </button>
+        {href ? (
+          <a href={href} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+            {action}
+          </a>
+        ) : (
+          <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary">
+            {action}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -172,19 +180,11 @@ export default function DashboardPage() {
   const { data: timeSeries, loading: tsLoading } = useApi<any>('/api/admin/dashboard/time-series?period=30');
   const { data: funnel, loading: funnelLoading } = useApi<any>('/api/admin/dashboard/funnel?period=30');
   const { data: verifications } = useApi<any>('/api/verification/queue?status=PENDING');
+  const { data: alertsData } = useApi<any>('/api/admin/dashboard/alerts');
+  const { data: flaggedData } = useApi<any>('/api/admin/dashboard/flagged-content');
 
-  const systemAlerts = [
-    { title: 'Failed Payment - Order #1247', subtitle: 'EcoCash timeout after 3 retries', time: '12m ago', severity: 'danger' as const },
-    { title: 'Stuck Delivery - DEL-089', subtitle: 'No status update for 2h 45m', time: '45m ago', severity: 'warning' as const },
-    { title: 'High API Latency', subtitle: 'Payment gateway avg 4.2s', time: '1h ago', severity: 'warning' as const },
-    { title: 'Low Credit Balance Alert', subtitle: 'Seller "TechMart" below 5 credits', time: '2h ago', severity: 'info' as const },
-  ];
-
-  const flaggedContent = [
-    { title: 'Dispute: Order #1203', subtitle: 'Buyer claims item not as described', time: '30m ago' },
-    { title: 'Reported Seller: ShopMax', subtitle: '3 reports in 24h - price gouging', time: '1h ago' },
-    { title: 'Flagged Listing: #4521', subtitle: 'Prohibited item detected (auto)', time: '3h ago' },
-  ];
+  const systemAlerts: any[] = Array.isArray(alertsData) ? alertsData : [];
+  const flaggedContent: any[] = Array.isArray(flaggedData) ? flaggedData : [];
 
   if (kpiLoading) {
     return (
@@ -323,13 +323,17 @@ export default function DashboardPage() {
             <Badge variant="danger">{flaggedContent.length} items</Badge>
           </div>
           <div className="max-h-[320px] overflow-y-auto">
-            {flaggedContent.map((item, i) => (
+            {flaggedContent.length === 0 && (
+              <div className="py-8 text-center text-sm text-text-muted">No flagged content</div>
+            )}
+            {flaggedContent.map((item: any, i: number) => (
               <QueueItem
                 key={i}
-                title={item.title}
-                subtitle={item.subtitle}
+                title={String(item.title || '')}
+                subtitle={String(item.subtitle || '')}
                 action="Investigate"
-                time={item.time}
+                time={String(item.time || '')}
+                href="/orders"
               />
             ))}
           </div>
@@ -342,15 +346,19 @@ export default function DashboardPage() {
             <Badge variant="warning">{systemAlerts.length} active</Badge>
           </div>
           <div className="max-h-[320px] overflow-y-auto">
-            {systemAlerts.map((alert, i) => (
+            {systemAlerts.length === 0 && (
+              <div className="py-8 text-center text-sm text-text-muted">No active alerts</div>
+            )}
+            {systemAlerts.map((alert: any, i: number) => (
               <QueueItem
                 key={i}
-                title={alert.title}
-                subtitle={alert.subtitle}
+                title={String(alert.title || '')}
+                subtitle={String(alert.subtitle || '')}
                 badge={alert.severity === 'danger' ? 'Critical' : alert.severity === 'warning' ? 'Warning' : 'Info'}
                 badgeVariant={alert.severity}
                 action="Resolve"
-                time={alert.time}
+                time={String(alert.time || '')}
+                href={String(alert.title || '').includes('Delivery') ? '/deliveries' : '/orders'}
               />
             ))}
           </div>

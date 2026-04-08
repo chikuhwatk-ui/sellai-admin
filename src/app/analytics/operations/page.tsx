@@ -149,15 +149,15 @@ export default function OperationalEfficiencyPage() {
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Runner Utilization</h2>
           <div className="flex flex-col items-center">
-            <svg viewBox="0 0 200 130" className="w-48 h-32">
+            <svg viewBox="0 0 220 140" className="w-56 h-36 mx-auto">
               {/* Background arc */}
-              <path d={describeArc(100, 100, 70, gaugeStart, gaugeEnd)} fill="none" stroke="#2A2D37" strokeWidth="12" strokeLinecap="round" />
+              <path d={describeArc(110, 110, 70, gaugeStart, gaugeEnd)} fill="none" stroke="#2A2D37" strokeWidth="12" strokeLinecap="round" />
               {/* Value arc */}
-              <path d={describeArc(100, 100, 70, gaugeStart, gaugeAngle)} fill="none" stroke="#10B981" strokeWidth="12" strokeLinecap="round" />
-              <text x="100" y="95" textAnchor="middle" fill="#E5E7EB" fontSize="24" fontWeight="bold">{utilization}%</text>
-              <text x="100" y="112" textAnchor="middle" fill="#6B7280" fontSize="10">Utilization</text>
+              <path d={describeArc(110, 110, 70, gaugeStart, gaugeAngle)} fill="none" stroke="#10B981" strokeWidth="12" strokeLinecap="round" />
+              <text x="110" y="105" textAnchor="middle" fill="#E5E7EB" fontSize="24" fontWeight="bold">{utilization}%</text>
+              <text x="110" y="122" textAnchor="middle" fill="#6B7280" fontSize="10">Utilization</text>
             </svg>
-            <div className="grid grid-cols-2 gap-4 mt-4 w-full">
+            <div className="grid grid-cols-3 gap-4 mt-4 w-full">
               {runnerStats.map((s: any) => (
                 <div key={String(s.label)} className="text-center">
                   <div className="text-lg font-bold text-white">{String(s.value ?? 0)}</div>

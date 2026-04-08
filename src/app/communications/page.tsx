@@ -1,15 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-
-const SEGMENTS = [
-  { id: 'all', label: 'All Users', count: 5247 },
-  { id: 'buyers', label: 'Buyers Only', count: 3120 },
-  { id: 'sellers', label: 'Sellers Only', count: 1450 },
-  { id: 'runners', label: 'Runners Only', count: 677 },
-  { id: 'inactive', label: 'Inactive (30d+)', count: 842 },
-  { id: 'unverified', label: 'Unverified Users', count: 1203 },
-];
+import { useApi } from '@/hooks/useApi';
 
 const TEMPLATES = [
   { id: 1, name: 'Welcome Back', body: "We miss you! There are new demands in your area. Open Sellai to check them out." },
@@ -18,18 +10,24 @@ const TEMPLATES = [
   { id: 4, name: 'Verification Reminder', body: "Complete your verification to start sending offers. It only takes 2 minutes!" },
 ];
 
-const HISTORY = [
-  { id: 1, title: 'Weekend Credit Promo', segment: 'Sellers Only', sent: 1450, delivered: 1380, opened: 620, date: '2026-04-05' },
-  { id: 2, title: 'New Delivery Feature', segment: 'All Users', sent: 5100, delivered: 4890, opened: 2100, date: '2026-04-03' },
-  { id: 3, title: 'Re-engagement', segment: 'Inactive (30d+)', sent: 842, delivered: 790, opened: 185, date: '2026-04-01' },
-  { id: 4, title: 'Verification Push', segment: 'Unverified Users', sent: 1203, delivered: 1150, opened: 430, date: '2026-03-28' },
-];
-
 export default function CommunicationsPage() {
   const [selectedSegment, setSelectedSegment] = useState('all');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tab, setTab] = useState<'compose' | 'history' | 'templates'>('compose');
+  const [sendStatus, setSendStatus] = useState<string | null>(null);
+
+  const { data: segmentsData } = useApi<any>('/api/admin/communications/segments');
+  const SEGMENTS = Array.isArray(segmentsData) && segmentsData.length > 0
+    ? segmentsData
+    : [
+        { id: 'all', label: 'All Users', count: 0 },
+        { id: 'buyers', label: 'Buyers Only', count: 0 },
+        { id: 'sellers', label: 'Sellers Only', count: 0 },
+        { id: 'runners', label: 'Runners Only', count: 0 },
+        { id: 'inactive', label: 'Inactive (30d+)', count: 0 },
+        { id: 'unverified', label: 'Unverified Users', count: 0 },
+      ];
 
   return (
     <div className="p-8">
@@ -102,8 +100,25 @@ export default function CommunicationsPage() {
               <div className="text-xs text-[#6B7280] mt-1">{body.length}/500 characters</div>
             </div>
 
+            {sendStatus && (
+              <div className={`mb-3 text-sm px-4 py-2 rounded-lg ${
+                sendStatus === 'sent' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-[#EF4444]/10 text-[#EF4444]'
+              }`}>
+                {sendStatus === 'sent' ? 'Broadcast notification feature coming soon. Message composed successfully.' : sendStatus}
+              </div>
+            )}
             <div className="flex gap-3">
-              <button className="px-6 py-3 bg-[#10B981] text-white font-semibold rounded-lg hover:bg-[#059669] transition-colors">
+              <button
+                onClick={() => {
+                  if (!title.trim() || !body.trim()) {
+                    setSendStatus('Please fill in both title and message body');
+                    return;
+                  }
+                  setSendStatus('sent');
+                  setTimeout(() => setSendStatus(null), 3000);
+                }}
+                className="px-6 py-3 bg-[#10B981] text-white font-semibold rounded-lg hover:bg-[#059669] transition-colors"
+              >
                 Send Now
               </button>
               <button className="px-6 py-3 bg-[#1A1D27] border border-[#2A2D37] text-white rounded-lg hover:bg-[#2A2D37] transition-colors">
@@ -147,29 +162,16 @@ export default function CommunicationsPage() {
                 <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Segment</th>
                 <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Sent</th>
                 <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Delivered</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Opened</th>
                 <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Open Rate</th>
                 <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Date</th>
               </tr>
             </thead>
             <tbody>
-              {HISTORY.map((h) => (
-                <tr key={h.id} className="border-b border-[#2A2D37]/50 hover:bg-[#2A2D37]/30 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-white">{h.title}</td>
-                  <td className="px-6 py-4 text-sm text-[#9CA3AF]">{h.segment}</td>
-                  <td className="px-6 py-4 text-sm text-[#9CA3AF]">{h.sent.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm text-[#9CA3AF]">{h.delivered.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm text-[#9CA3AF]">{h.opened.toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <span className={`text-sm font-medium ${
-                      (h.opened / h.delivered) > 0.3 ? 'text-[#10B981]' : (h.opened / h.delivered) > 0.2 ? 'text-[#F59E0B]' : 'text-[#EF4444]'
-                    }`}>
-                      {((h.opened / h.delivered) * 100).toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-[#6B7280]">{h.date}</td>
-                </tr>
-              ))}
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#6B7280]">
+                  No campaigns sent yet. Compose your first broadcast above.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>

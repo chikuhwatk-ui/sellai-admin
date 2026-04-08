@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useApi } from '@/hooks/useApi';
 
 function toNum(v: unknown): number {
@@ -16,17 +15,17 @@ function toStr(v: unknown): string {
 export default function PredictiveStrategicPage() {
   const { data, loading, error } = useApi<any>('/api/admin/analytics/predictive');
 
-  // ALL hooks must be called before any early return
-  const networkMetrics = useMemo(() => [
-    { label: 'Active Buyers', value: '3,247', trend: '+12%', color: '#10B981' },
-    { label: 'Active Sellers', value: '1,842', trend: '+8%', color: '#06B6D4' },
-    { label: 'Avg Offers/Demand', value: '3.2', trend: '+0.4', color: '#F59E0B' },
-    { label: 'Buyer Satisfaction', value: '4.3/5', trend: '+0.2', color: '#8B5CF6' },
-  ], []);
-
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
   if (error) return <div className="p-8 text-[#EF4444]">Error: {String(error)}</div>;
   if (!data) return <div className="p-8 text-[#6B7280]">No data available</div>;
+
+  // Network effects from backend
+  const ne = data?.networkEffects || {};
+  const networkMetrics = [
+    { label: 'Active Buyers', value: toNum(ne.activeBuyers).toLocaleString(), trend: `${ne.buyerChange >= 0 ? '+' : ''}${toNum(ne.buyerChange)}%`, color: '#10B981' },
+    { label: 'Active Sellers', value: toNum(ne.activeSellers).toLocaleString(), trend: `${ne.sellerChange >= 0 ? '+' : ''}${toNum(ne.sellerChange)}%`, color: '#06B6D4' },
+    { label: 'Avg Offers/Demand', value: String(toNum(ne.avgOffersPerDemand)), trend: '', color: '#F59E0B' },
+  ];
 
   // Demand forecast
   const actual = (data?.forecast?.actual || []).map((d: any) => ({
