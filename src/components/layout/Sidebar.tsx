@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface NavItem {
@@ -264,12 +264,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Save scroll position before navigation triggers re-render
-  useEffect(() => {
+  // Restore scroll position after navigation re-render
+  useLayoutEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
     nav.scrollTop = scrollPosRef.current;
-  }, [pathname]);
+  });
 
   const handleNavScroll = () => {
     if (navRef.current) {
