@@ -244,18 +244,30 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const scrollPosRef = useRef(0);
   const { hasPermission } = useAuth();
 
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    if (mobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   // Save scroll position before navigation triggers re-render
   useEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
-    // Restore saved scroll position after pathname change
     nav.scrollTop = scrollPosRef.current;
   }, [pathname]);
 
@@ -270,7 +282,7 @@ export default function Sidebar() {
     return pathname.startsWith(href);
   };
 
-  return (
+  const sidebarContent = (
     <aside
       className={`flex flex-col h-screen bg-background border-r border-border transition-all duration-300 ${
         collapsed ? "w-[68px]" : "w-[260px]"
@@ -288,6 +300,18 @@ export default function Sidebar() {
             </span>
           )}
         </div>
+        {/* Mobile close button */}
+        {mobileOpen && onMobileClose && (
+          <button
+            onClick={onMobileClose}
+            className="ml-auto lg:hidden p-1 rounded text-text-muted hover:text-text hover:bg-surface-hover"
+            aria-label="Close sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -340,8 +364,8 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="border-t border-border p-3 shrink-0">
+      {/* Collapse toggle — hidden on mobile */}
+      <div className="border-t border-border p-3 shrink-0 hidden lg:block">
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="flex items-center justify-center w-full py-2 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
@@ -365,5 +389,27 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar — always visible */}
+      <div className="hidden lg:block shrink-0">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile sidebar — overlay drawer */}
+      {mobileOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={onMobileClose}
+          />
+          <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
+            {sidebarContent}
+          </div>
+        </>
+      )}
+    </>
   );
 }

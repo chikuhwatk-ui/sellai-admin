@@ -5,21 +5,35 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface HeaderProps {
   title: string;
+  onMenuToggle?: () => void;
 }
 
-export default function Header({ title }: HeaderProps) {
+export default function Header({ title, onMenuToggle }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const { user, logout } = useAuth();
 
   return (
-    <header className="flex items-center justify-between h-16 px-6 bg-background border-b border-border shrink-0">
-      {/* Page title */}
-      <h1 className="text-xl font-semibold text-text">{title}</h1>
+    <header className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-6 bg-background border-b border-border shrink-0">
+      {/* Mobile menu button + Page title */}
+      <div className="flex items-center gap-2">
+        {onMenuToggle && (
+          <button
+            onClick={onMenuToggle}
+            className="lg:hidden p-2 -ml-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+            aria-label="Open menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+        )}
+        <h1 className="text-lg sm:text-xl font-semibold text-text truncate">{title}</h1>
+      </div>
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        {/* Search */}
-        <div className="relative">
+        {/* Search — hidden on mobile */}
+        <div className="relative hidden md:block">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
             fill="none"

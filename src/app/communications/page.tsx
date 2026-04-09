@@ -122,7 +122,7 @@ export default function CommunicationsPage() {
     if (!userSearch.trim()) return;
     setSearchingUsers(true);
     try {
-      const res = await api.get(`/api/admin/users?search=${encodeURIComponent(userSearch.trim())}&limit=5`);
+      const res: any = await api.get(`/api/admin/users?search=${encodeURIComponent(userSearch.trim())}&limit=5`);
       setUserResults(res.data || []);
     } catch { setUserResults([]); }
     finally { setSearchingUsers(false); }
