@@ -13,22 +13,23 @@ import { api } from '@/lib/api';
 
 interface DisputeStats {
   openCount: number;
-  avgResolutionTime: string;
+  avgResolutionHours: number;
   slaBreachRate: number;
-  escalatedCount: number;
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
 }
 
 interface DisputeUser {
   id: string;
   name: string;
-  phone?: string;
+  phoneNumber?: string;
 }
 
 interface Dispute {
   id: string;
   disputeNumber: string;
-  filedBy: DisputeUser;
-  against: DisputeUser;
+  filedByUser: DisputeUser | null;
+  againstUser: DisputeUser | null;
   reason: string;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   status: string;
@@ -171,7 +172,7 @@ export default function DisputesPage() {
         />
         <KPICard
           title="Avg Resolution Time"
-          value={statsLoading ? '...' : (stats?.avgResolutionTime ?? '--')}
+          value={statsLoading ? '...' : stats?.avgResolutionHours != null ? `${stats.avgResolutionHours}h` : '--'}
           icon={
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -189,7 +190,7 @@ export default function DisputesPage() {
         />
         <KPICard
           title="Escalated"
-          value={statsLoading ? '...' : (stats?.escalatedCount ?? 0)}
+          value={statsLoading ? '...' : (stats?.byStatus?.ESCALATED ?? 0)}
           icon={
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -259,8 +260,8 @@ export default function DisputesPage() {
                           {d.disputeNumber}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-text font-medium">{d.filedBy?.name || 'Unknown'}</td>
-                      <td className="px-4 py-3 text-text">{d.against?.name || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-text font-medium">{d.filedByUser?.name || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-text">{d.againstUser?.name || 'Unknown'}</td>
                       <td className="px-4 py-3">
                         <Badge variant="default">{d.reason?.replace(/_/g, ' ') || 'N/A'}</Badge>
                       </td>

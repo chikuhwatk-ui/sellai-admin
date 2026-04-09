@@ -14,14 +14,14 @@ import { api } from '@/lib/api';
 interface DisputeUser {
   id: string;
   name: string;
-  phone?: string;
+  phoneNumber?: string;
 }
 
 interface DisputeNote {
   id: string;
   content: string;
-  author: string;
-  authorName?: string;
+  authorId: string;
+  author: { id: string; name: string; phoneNumber: string } | null;
   isInternal: boolean;
   createdAt: string;
 }
@@ -33,8 +33,8 @@ interface DisputeDetail {
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   reason: string;
   description: string;
-  filedBy: DisputeUser;
-  against: DisputeUser;
+  filedByUser: DisputeUser | null;
+  againstUser: DisputeUser | null;
   chatId?: string;
   orderId?: string;
   deliveryId?: string;
@@ -50,7 +50,7 @@ interface DisputeDetail {
   resolution?: string;
   resolutionType?: string;
   refundAmount?: number;
-  creditAmount?: number;
+  creditRefund?: number;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ export default function DisputeDetailPage() {
     if (!noteText.trim()) return;
     setSubmittingNote(true);
     try {
-      await api.post(`/api/admin/disputes/${disputeId}/notes`, {
+      await api.post(`/api/admin/disputes/${disputeId}/note`, {
         content: noteText.trim(),
         isInternal: noteInternal,
       });
@@ -170,7 +170,7 @@ export default function DisputeDetailPage() {
         body.refundAmount = parseFloat(refundAmount);
       }
       if (resolutionType === 'CREDIT_REFUND' && creditAmount) {
-        body.creditAmount = parseFloat(creditAmount);
+        body.creditRefund = parseFloat(creditAmount);
       }
       await api.post(`/api/admin/disputes/${disputeId}/resolve`, body);
       refetch();
@@ -187,9 +187,9 @@ export default function DisputeDetailPage() {
       if (action === 'assign') {
         await api.patch(`/api/admin/disputes/${disputeId}/assign`, { adminId: user?.id });
       } else if (action === 'escalate') {
-        await api.patch(`/api/admin/disputes/${disputeId}/escalate`, {});
+        await api.patch(`/api/admin/disputes/${disputeId}/status`, { status: 'ESCALATED' });
       } else if (action === 'close') {
-        await api.patch(`/api/admin/disputes/${disputeId}/close`, {});
+        await api.patch(`/api/admin/disputes/${disputeId}/status`, { status: 'CLOSED' });
       }
       refetch();
     } catch (err: unknown) {
@@ -321,16 +321,16 @@ export default function DisputeDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-text-muted block mb-1">Filed By</span>
-                <span className="text-text font-medium">{dispute.filedBy?.name || 'Unknown'}</span>
-                {dispute.filedBy?.phone && (
-                  <span className="text-text-muted text-xs block">{dispute.filedBy.phone}</span>
+                <span className="text-text font-medium">{dispute.filedByUser?.name || 'Unknown'}</span>
+                {dispute.filedByUser?.phoneNumber && (
+                  <span className="text-text-muted text-xs block">{dispute.filedByUser.phoneNumber}</span>
                 )}
               </div>
               <div>
                 <span className="text-text-muted block mb-1">Against</span>
-                <span className="text-text font-medium">{dispute.against?.name || 'Unknown'}</span>
-                {dispute.against?.phone && (
-                  <span className="text-text-muted text-xs block">{dispute.against.phone}</span>
+                <span className="text-text font-medium">{dispute.againstUser?.name || 'Unknown'}</span>
+                {dispute.againstUser?.phoneNumber && (
+                  <span className="text-text-muted text-xs block">{dispute.againstUser.phoneNumber}</span>
                 )}
               </div>
               <div>
@@ -430,10 +430,10 @@ export default function DisputeDetailPage() {
                     <span className="text-text font-medium">${dispute.refundAmount.toFixed(2)}</span>
                   </div>
                 )}
-                {dispute.creditAmount != null && dispute.creditAmount > 0 && (
+                {dispute.creditRefund != null && dispute.creditRefund > 0 && (
                   <div>
-                    <span className="text-text-muted block mb-1">Credit Amount</span>
-                    <span className="text-text font-medium">${dispute.creditAmount.toFixed(2)}</span>
+                    <span className="text-text-muted block mb-1">Credit Refund</span>
+                    <span className="text-text font-medium">{dispute.creditRefund} credits</span>
                   </div>
                 )}
               </div>
@@ -457,7 +457,7 @@ export default function DisputeDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-text">{note.authorName || note.author}</span>
+                        <span className="text-sm font-medium text-text">{note.author?.name || 'Unknown'}</span>
                         <span className="text-xs text-text-muted">{formatDateTime(note.createdAt)}</span>
                         {note.isInternal && <Badge variant="warning">Internal</Badge>}
                       </div>
