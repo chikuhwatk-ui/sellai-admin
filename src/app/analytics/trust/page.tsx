@@ -7,26 +7,41 @@ export default function TrustQualityPage() {
 
   if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
 
-  const verificationData = data?.verificationFunnel || { submitted: 0, approved: 0, rejected: 0, reasons: [] };
+  // Backend returns [{ status, count }] — transform to counts
+  const funnelArr: { status: string; count: number }[] = data?.verificationFunnel || [];
+  const verificationData = {
+    submitted: funnelArr.reduce((s: number, r: any) => s + (r.count || 0), 0),
+    approved: funnelArr.find((r: any) => r.status === 'APPROVED')?.count || 0,
+    rejected: funnelArr.find((r: any) => r.status === 'REJECTED')?.count || 0,
+  };
+
+  // Backend returns [{ reason, count }] — add colors for pie chart
+  const PIE_COLORS = ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#10B981'];
+  const rejectionReasons: { reason: string; count: number; color: string }[] =
+    (data?.rejectionReasons || []).map((r: any, i: number) => ({
+      reason: r.reason || 'Unknown',
+      count: r.count || 0,
+      color: PIE_COLORS[i % PIE_COLORS.length],
+    }));
+
   const trustBins = data?.trustDistribution || [];
   const ratings = data?.ratingDistribution || [];
   const disputes = data?.disputeTrends || [];
-  const reviewStats = data?.reviewStats || [];
 
   const maxTrust = trustBins.length ? Math.max(...trustBins.map((b: any) => b.count)) : 1;
   const maxRating = ratings.length ? Math.max(...ratings.map((r: any) => r.count)) : 1;
-  const maxDispute = disputes.length ? Math.max(...disputes.map((d: any) => d.value)) : 1;
-  const minDispute = disputes.length ? Math.min(...disputes.map((d: any) => d.value)) : 0;
+  const maxDispute = disputes.length ? Math.max(...disputes.map((d: any) => d.count)) : 1;
+  const minDispute = disputes.length ? Math.min(...disputes.map((d: any) => d.count)) : 0;
 
   // Pie chart helpers
-  const totalRejected = (verificationData.reasons || []).reduce((s: number, r: any) => s + r.value, 0) || 1;
+  const totalRejected = rejectionReasons.reduce((s: number, r: any) => s + r.count, 0) || 1;
 
-  function pieSlices(pieData: { value: number; color: string }[]) {
-    const total = pieData.reduce((s, d) => s + d.value, 0);
+  function pieSlices(pieData: { count: number; color: string }[]) {
+    const total = pieData.reduce((s, d) => s + d.count, 0);
     if (total === 0) return [];
     let cumAngle = -90;
     return pieData.map(d => {
-      const angle = (d.value / total) * 360;
+      const angle = (d.count / total) * 360;
       const startAngle = cumAngle;
       const endAngle = cumAngle + angle;
       cumAngle = endAngle;
@@ -42,7 +57,7 @@ export default function TrustQualityPage() {
     });
   }
 
-  const slices = pieSlices(verificationData.reasons || []);
+  const slices = pieSlices(rejectionReasons);
 
   // Dispute line chart
   const dChartW = 600;
@@ -54,7 +69,7 @@ export default function TrustQualityPage() {
   const disputePoints = disputes.length > 1
     ? disputes.map((d: any, i: number) => {
         const x = dPad.left + (i / (disputes.length - 1)) * dInnerW;
-        const y = dPad.top + dInnerH - ((d.value - minDispute) / (maxDispute - minDispute || 1)) * dInnerH;
+        const y = dPad.top + dInnerH - ((d.count - minDispute) / (maxDispute - minDispute || 1)) * dInnerH;
         return `${x},${y}`;
       }).join(' ')
     : '';
@@ -109,11 +124,11 @@ export default function TrustQualityPage() {
               ))}
             </svg>
             <div className="space-y-2 flex-1">
-              {(verificationData.reasons || []).map((r: any) => (
-                <div key={r.label} className="flex items-center gap-2 text-sm">
+              {rejectionReasons.map((r: any) => (
+                <div key={r.reason} className="flex items-center gap-2 text-sm">
                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: r.color }} />
-                  <span className="text-[#E5E7EB] flex-1">{r.label}</span>
-                  <span className="text-[#6B7280]">{r.value} ({Math.round((r.value / totalRejected) * 100)}%)</span>
+                  <span className="text-[#E5E7EB] flex-1">{r.reason}</span>
+                  <span className="text-[#6B7280]">{r.count} ({Math.round((r.count / totalRejected) * 100)}%)</span>
                 </div>
               ))}
             </div>
@@ -136,10 +151,10 @@ export default function TrustQualityPage() {
               const barH = (bin.count / maxTrust) * 160;
               const y = 185 - barH;
               return (
-                <g key={bin.label}>
+                <g key={bin.range}>
                   <rect x={x} y={y} width={barW} height={barH} rx="3" fill="#06B6D4" opacity="0.8" />
                   <text x={x + barW / 2} y={y - 5} textAnchor="middle" fill="#E5E7EB" fontSize="9">{bin.count}</text>
-                  <text x={x + barW / 2} y={200} textAnchor="middle" fill="#6B7280" fontSize="7">{bin.label}</text>
+                  <text x={x + barW / 2} y={200} textAnchor="middle" fill="#6B7280" fontSize="7">{bin.range}</text>
                 </g>
               );
             })}
@@ -161,26 +176,16 @@ export default function TrustQualityPage() {
               const barH = (r.count / maxRating) * 160;
               const y = 185 - barH;
               return (
-                <g key={r.stars}>
+                <g key={r.rating}>
                   <rect x={x} y={y} width={barW} height={barH} rx="4" fill="#F59E0B" />
                   <text x={x + barW / 2} y={y - 6} textAnchor="middle" fill="#E5E7EB" fontSize="11">{r.count}</text>
-                  <text x={x + barW / 2} y={205} textAnchor="middle" fill="#6B7280" fontSize="12">{'★'.repeat(r.stars)}</text>
+                  <text x={x + barW / 2} y={205} textAnchor="middle" fill="#6B7280" fontSize="12">{'★'.repeat(r.rating)}</text>
                 </g>
               );
             })}
           </svg>
           )}
         </div>
-      </div>
-
-      {/* Review Integrity */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {reviewStats.map((stat: any) => (
-          <div key={stat.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 text-center">
-            <div className="text-[#6B7280] text-sm mb-2">{stat.label}</div>
-            <div className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</div>
-          </div>
-        ))}
       </div>
 
       {/* Dispute Trends */}
@@ -209,7 +214,7 @@ export default function TrustQualityPage() {
           {disputePoints && <polyline points={disputePoints} fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinejoin="round" />}
           {disputes.length > 1 && disputes.map((d: any, i: number) => {
             const x = dPad.left + (i / Math.max(disputes.length - 1, 1)) * dInnerW;
-            const y = dPad.top + dInnerH - ((d.value - minDispute) / (maxDispute - minDispute || 1)) * dInnerH;
+            const y = dPad.top + dInnerH - ((d.count - minDispute) / (maxDispute - minDispute || 1)) * dInnerH;
             return <circle key={i} cx={x} cy={y} r="3" fill="#EF4444" />;
           })}
           {disputes.length < 2 && (

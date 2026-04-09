@@ -249,11 +249,13 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
+// Module-level variable survives component unmount/remount across route changes
+let savedScrollPos = 0;
+
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const navRef = useRef<HTMLElement>(null);
-  const scrollPosRef = useRef(0);
   const { hasPermission } = useAuth();
 
   // Close mobile sidebar on navigation
@@ -264,16 +266,16 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Restore scroll position after navigation re-render
+  // Restore scroll position after navigation re-render or remount
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (!nav) return;
-    nav.scrollTop = scrollPosRef.current;
+    nav.scrollTop = savedScrollPos;
   });
 
   const handleNavScroll = () => {
     if (navRef.current) {
-      scrollPosRef.current = navRef.current.scrollTop;
+      savedScrollPos = navRef.current.scrollTop;
     }
   };
 

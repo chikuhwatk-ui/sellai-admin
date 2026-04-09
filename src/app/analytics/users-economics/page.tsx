@@ -9,23 +9,20 @@ export default function UserEconomicsPage() {
 
   const cohorts = data?.cohorts || [];
   const sellerSegments = data?.sellerSegments || [];
-  const creditStats = data?.creditStats || { totalPurchases: 0, totalRevenue: 0, avgPerSeller: 0, utilizationRate: 0 };
+  const creditStats = data?.creditStats || { totalPurchases: 0, totalRevenue: 0, totalCreditsSpent: 0 };
   const earningsBands = data?.runnerEarnings || [];
 
-  const ltvData = data?.buyerLTV || cohorts.map((c: any) => ({
-    cohort: c.cohort,
-    ltv: c.ltv || 0,
-  }));
+  // Backend doesn't return buyerLTV — not available yet
+  const ltvData: any[] = [];
 
   const maxLtv = ltvData.length ? Math.max(...ltvData.map((d: any) => d.ltv)) : 1;
   const maxEarnings = earningsBands.length ? Math.max(...earningsBands.map((b: any) => b.count)) : 1;
 
   // Map creditStats to display format
-  const creditDisplay = Array.isArray(creditStats) ? creditStats : [
-    { label: 'Credits Purchased', value: String(creditStats.totalPurchases ?? 0), sub: 'This month' },
+  const creditDisplay = [
+    { label: 'Credits Purchased', value: String(creditStats.totalPurchases ?? 0), sub: 'All time' },
     { label: 'Total Revenue', value: `$${creditStats.totalRevenue ?? 0}`, sub: 'From credits' },
-    { label: 'Avg per Seller', value: String(creditStats.avgPerSeller ?? 0), sub: 'Credits' },
-    { label: 'Utilization Rate', value: `${creditStats.utilizationRate ?? 0}%`, sub: 'Credits used' },
+    { label: 'Credits Spent', value: String(creditStats.totalCreditsSpent ?? 0), sub: 'By sellers' },
   ];
 
   return (
@@ -117,17 +114,27 @@ export default function UserEconomicsPage() {
 
       {/* Seller Segments */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {sellerSegments.map((seg: any) => (
-          <div key={seg.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 text-center">
-            <div className="text-3xl mb-2">{seg.icon}</div>
-            <div className="text-2xl font-bold text-white">{seg.count}</div>
-            <div className="text-sm mt-1" style={{ color: seg.color }}>{seg.label}</div>
-          </div>
-        ))}
+        {sellerSegments.map((seg: any) => {
+          const segConfig: Record<string, { icon: string; color: string }> = {
+            Power: { icon: '\u{1F451}', color: '#10B981' },
+            Growing: { icon: '\u{1F4C8}', color: '#3B82F6' },
+            Dormant: { icon: '\u{1F4A4}', color: '#F59E0B' },
+            Churned: { icon: '\u{26A0}\uFE0F', color: '#EF4444' },
+          };
+          const cfg = segConfig[seg.name] || { icon: '\u{1F4CA}', color: '#6B7280' };
+          return (
+            <div key={seg.name} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 text-center">
+              <div className="text-3xl mb-2">{cfg.icon}</div>
+              <div className="text-2xl font-bold text-white">{seg.count}</div>
+              <div className="text-xs text-[#6B7280] mt-0.5">{seg.percentage}% of total</div>
+              <div className="text-sm font-medium mt-1" style={{ color: cfg.color }}>{seg.name}</div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Credit ROI */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Credit Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {creditDisplay.map((stat: any) => (
           <div key={stat.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
             <div className="text-[#6B7280] text-sm mb-1">{stat.label}</div>

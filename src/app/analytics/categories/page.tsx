@@ -136,7 +136,7 @@ export default function CategoryIntelligencePage() {
             <div className="py-4 text-sm text-[#6B7280] text-center">No category trend data</div>
           )}
           {sparklines.map((cat: any, idx: number) => {
-            const trendValues = (cat.trend || []).map((t: any) => t.value ?? t);
+            const trendValues = (cat.trend || []).map((t: any) => t.count ?? t.value ?? t);
             const tMin = trendValues.length ? Math.min(...trendValues) : 0;
             const tMax = trendValues.length ? Math.max(...trendValues) : 1;
             const sparkW = 120;

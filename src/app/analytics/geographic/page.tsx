@@ -11,6 +11,19 @@ export default function GeographicIntelligencePage() {
   const routes = data?.corridors || [];
   const expansion = data?.expansion || [];
 
+  // Map city names to approximate SVG coordinates on the Zimbabwe outline
+  const cityCoords: Record<string, { x: number; y: number }> = {
+    Harare: { x: 55, y: 35 },
+    Bulawayo: { x: 35, y: 60 },
+    Mutare: { x: 75, y: 42 },
+    Gweru: { x: 42, y: 48 },
+    Masvingo: { x: 55, y: 60 },
+    Other: { x: 50, y: 75 },
+    Unknown: { x: 25, y: 30 },
+  };
+
+  const maxUsers = cities.length ? Math.max(...cities.map((c: any) => c.users || 1)) : 1;
+
   return (
     <div className="space-y-6">
       <div>
@@ -35,19 +48,23 @@ export default function GeographicIntelligencePage() {
             {cities.length === 0 && (
               <text x="50" y="50" textAnchor="middle" fill="#6B7280" fontSize="4">No city data available</text>
             )}
-            {cities.map((city: any) => (
-              <g key={city.name}>
-                <circle cx={city.x} cy={city.y} r={city.r} fill="#10B981" opacity="0.15" />
-                <circle cx={city.x} cy={city.y} r={(city.r || 10) * 0.6} fill="#10B981" opacity="0.3" />
-                <circle cx={city.x} cy={city.y} r={(city.r || 10) * 0.25} fill="#10B981" opacity="0.8" />
-                <text x={city.x} y={city.y - (city.r || 10) - 2} textAnchor="middle" fill="#E5E7EB" fontSize="3.5" fontWeight="bold">
-                  {city.name}
-                </text>
-                <text x={city.x} y={city.y + (city.r || 10) + 4} textAnchor="middle" fill="#6B7280" fontSize="2.5">
-                  {city.demands} demands
-                </text>
-              </g>
-            ))}
+            {cities.map((city: any) => {
+              const coords = cityCoords[city.name] || { x: 50, y: 50 };
+              const r = 4 + ((city.users || 0) / maxUsers) * 10;
+              return (
+                <g key={city.name}>
+                  <circle cx={coords.x} cy={coords.y} r={r} fill="#10B981" opacity="0.15" />
+                  <circle cx={coords.x} cy={coords.y} r={r * 0.6} fill="#10B981" opacity="0.3" />
+                  <circle cx={coords.x} cy={coords.y} r={r * 0.25} fill="#10B981" opacity="0.8" />
+                  <text x={coords.x} y={coords.y - r - 2} textAnchor="middle" fill="#E5E7EB" fontSize="3.5" fontWeight="bold">
+                    {city.name}
+                  </text>
+                  <text x={coords.x} y={coords.y + r + 4} textAnchor="middle" fill="#6B7280" fontSize="2.5">
+                    {city.intents} demands
+                  </text>
+                </g>
+              );
+            })}
           </svg>
         </div>
       </div>
@@ -59,10 +76,10 @@ export default function GeographicIntelligencePage() {
             <h3 className="text-white font-semibold mb-3">{city.name}</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-[#6B7280]">Users</span><span className="text-[#E5E7EB]">{(city.users || 0).toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Demands</span><span className="text-[#E5E7EB]">{(city.demands || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Demands</span><span className="text-[#E5E7EB]">{(city.intents || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Offers</span><span className="text-[#E5E7EB]">{(city.offers || 0).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="text-[#6B7280]">Fill Rate</span><span className="text-[#E5E7EB]">{city.fillRate || 0}%</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Revenue</span><span className="text-[#E5E7EB]">${(city.revenue || 0).toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-[#6B7280]">Growth</span><span className="text-[#10B981]">+{city.growth || 0}%</span></div>
+              <div className="flex justify-between"><span className="text-[#6B7280]">Deliveries</span><span className="text-[#E5E7EB]">{(city.deliveries || 0).toLocaleString()}</span></div>
             </div>
           </div>
         ))}
@@ -76,25 +93,19 @@ export default function GeographicIntelligencePage() {
             <thead>
               <tr className="border-b border-[#2A2D37]">
                 <th className="text-left py-2 text-[#6B7280] font-medium">#</th>
-                <th className="text-left py-2 text-[#6B7280] font-medium">Pickup</th>
-                <th className="text-left py-2 text-[#6B7280] font-medium"></th>
-                <th className="text-left py-2 text-[#6B7280] font-medium">Delivery</th>
+                <th className="text-left py-2 text-[#6B7280] font-medium">Corridor</th>
                 <th className="text-right py-2 text-[#6B7280] font-medium">Volume</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Avg Time</th>
               </tr>
             </thead>
             <tbody>
               {routes.length === 0 && (
-                <tr><td colSpan={6} className="py-8 text-center text-sm text-[#6B7280]">No route data available</td></tr>
+                <tr><td colSpan={3} className="py-8 text-center text-sm text-[#6B7280]">No route data available</td></tr>
               )}
               {routes.map((r: any, i: number) => (
                 <tr key={i} className="border-b border-[#2A2D37]/50">
                   <td className="py-2 text-[#6B7280]">{i + 1}</td>
-                  <td className="py-2 text-[#E5E7EB]">{r.from}</td>
-                  <td className="py-2 text-[#10B981]">→</td>
-                  <td className="py-2 text-[#E5E7EB]">{r.to}</td>
+                  <td className="py-2 text-[#E5E7EB]">{r.corridor}</td>
                   <td className="py-2 text-right text-[#E5E7EB]">{r.volume}</td>
-                  <td className="py-2 text-right text-[#06B6D4]">{r.avgTime}</td>
                 </tr>
               ))}
             </tbody>
@@ -111,31 +122,30 @@ export default function GeographicIntelligencePage() {
               <tr className="border-b border-[#2A2D37]">
                 <th className="text-left py-2 text-[#6B7280] font-medium">City</th>
                 <th className="text-left py-2 text-[#6B7280] font-medium">Readiness Score</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Population</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Mobile Money %</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Current Signups</th>
+                <th className="text-right py-2 text-[#6B7280] font-medium">Recent Signups</th>
+                <th className="text-right py-2 text-[#6B7280] font-medium">Category Interests</th>
               </tr>
             </thead>
             <tbody>
               {expansion.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-sm text-[#6B7280]">No expansion data available</td></tr>
+                <tr><td colSpan={4} className="py-8 text-center text-sm text-[#6B7280]">No expansion data available</td></tr>
               )}
               {expansion.map((city: any) => {
-                const scoreColor = (city.score || 0) >= 70 ? '#10B981' : (city.score || 0) >= 50 ? '#F59E0B' : '#EF4444';
+                const score = city.readinessScore || 0;
+                const scoreColor = score >= 70 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
                 return (
                   <tr key={city.city} className="border-b border-[#2A2D37]/50">
                     <td className="py-2 text-[#E5E7EB] font-medium">{city.city}</td>
                     <td className="py-2">
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-[#0F1117] rounded overflow-hidden">
-                          <div className="h-full rounded" style={{ width: `${city.score || 0}%`, backgroundColor: scoreColor }} />
+                          <div className="h-full rounded" style={{ width: `${score}%`, backgroundColor: scoreColor }} />
                         </div>
-                        <span style={{ color: scoreColor }} className="text-sm font-medium">{city.score || 0}</span>
+                        <span style={{ color: scoreColor }} className="text-sm font-medium">{score}</span>
                       </div>
                     </td>
-                    <td className="py-2 text-right text-[#E5E7EB]">{city.population}</td>
-                    <td className="py-2 text-right text-[#E5E7EB]">{city.mobileMoney || 0}%</td>
-                    <td className="py-2 text-right text-[#E5E7EB]">{city.signups || 0}</td>
+                    <td className="py-2 text-right text-[#E5E7EB]">{city.recentSignups || 0}</td>
+                    <td className="py-2 text-right text-[#E5E7EB]">{city.categoryInterests || 0}</td>
                   </tr>
                 );
               })}

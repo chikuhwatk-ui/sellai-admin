@@ -70,7 +70,8 @@ export default function OperationalEfficiencyPage() {
   const gaugeStart = -120;
   const gaugeEnd = 120;
   const gaugeRange = gaugeEnd - gaugeStart;
-  const gaugeAngle = gaugeStart + (utilization / 100) * gaugeRange;
+  const clampedUtilization = Math.min(Math.max(utilization, 0), 100);
+  const gaugeAngle = gaugeStart + (clampedUtilization / 100) * gaugeRange;
 
   // Normalize matching stats for display
   const matchingDisplay = [
@@ -144,13 +145,13 @@ export default function OperationalEfficiencyPage() {
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Runner Utilization</h2>
           <div className="flex flex-col items-center">
-            <svg viewBox="0 0 220 140" className="w-56 h-36 mx-auto">
+            <svg viewBox="0 0 220 155" className="w-56 h-40 mx-auto">
               {/* Background arc */}
-              <path d={describeArc(110, 110, 70, gaugeStart, gaugeEnd)} fill="none" stroke="#2A2D37" strokeWidth="12" strokeLinecap="round" />
+              <path d={describeArc(110, 90, 65, gaugeStart, gaugeEnd)} fill="none" stroke="#2A2D37" strokeWidth="12" strokeLinecap="round" />
               {/* Value arc */}
-              <path d={describeArc(110, 110, 70, gaugeStart, gaugeAngle)} fill="none" stroke="#10B981" strokeWidth="12" strokeLinecap="round" />
-              <text x="110" y="105" textAnchor="middle" fill="#E5E7EB" fontSize="24" fontWeight="bold">{utilization}%</text>
-              <text x="110" y="122" textAnchor="middle" fill="#6B7280" fontSize="10">Utilization</text>
+              <path d={describeArc(110, 90, 65, gaugeStart, gaugeAngle)} fill="none" stroke="#10B981" strokeWidth="12" strokeLinecap="round" />
+              <text x="110" y="88" textAnchor="middle" fill="#E5E7EB" fontSize="24" fontWeight="bold">{utilization}%</text>
+              <text x="110" y="105" textAnchor="middle" fill="#6B7280" fontSize="10">Utilization</text>
             </svg>
             <div className="grid grid-cols-3 gap-4 mt-4 w-full">
               {runnerStats.map((s: any) => (

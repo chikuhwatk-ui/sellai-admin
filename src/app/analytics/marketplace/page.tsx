@@ -18,7 +18,7 @@ export default function MarketplaceHealthPage() {
   const maxHistVal = Math.max(...(histogramBins.length ? histogramBins.map((b: any) => b.count) : [1]));
 
   // SVG line chart helpers
-  const allValues = [...demands.map((d: any) => d.value), ...offers.map((d: any) => d.value)];
+  const allValues = [...demands.map((d: any) => d.count), ...offers.map((d: any) => d.count)];
   const maxY = allValues.length ? Math.max(...allValues) : 1;
   const minY = allValues.length ? Math.min(...allValues) : 0;
   const chartW = 800;
@@ -27,11 +27,11 @@ export default function MarketplaceHealthPage() {
   const innerW = chartW - pad.left - pad.right;
   const innerH = chartH - pad.top - pad.bottom;
 
-  function toPoints(data: { date: string; value: number }[]) {
+  function toPoints(data: { date: string; count: number }[]) {
     if (data.length < 2) return '';
     return data.map((d, i) => {
       const x = pad.left + (i / (data.length - 1)) * innerW;
-      const y = pad.top + innerH - ((d.value - minY) / (maxY - minY || 1)) * innerH;
+      const y = pad.top + innerH - ((d.count - minY) / (maxY - minY || 1)) * innerH;
       return `${x},${y}`;
     }).join(' ');
   }
@@ -110,13 +110,14 @@ export default function MarketplaceHealthPage() {
               const widthPct = (stage.value / maxFunnel) * 100;
               const prevValue = i > 0 ? (funnel[i - 1]?.value || 0) : 0;
               const dropOff = i > 0 && prevValue > 0 ? Math.round(((prevValue - stage.value) / prevValue) * 100) : 0;
+              const convRate = i > 0 && prevValue > 0 ? Math.round((stage.value / prevValue) * 100) : 100;
               return (
-                <div key={stage.label}>
+                <div key={stage.step}>
                   {i > 0 && (
                     <div className="text-xs text-[#EF4444] text-center mb-1">-{dropOff}% drop-off</div>
                   )}
                   <div className="flex items-center gap-3">
-                    <div className="w-36 text-sm text-[#E5E7EB] truncate">{stage.label}</div>
+                    <div className="w-36 text-sm text-[#E5E7EB] truncate">{stage.step}</div>
                     <div className="flex-1 h-8 bg-[#0F1117] rounded overflow-hidden">
                       <div
                         className="h-full rounded bg-gradient-to-r from-[#10B981] to-[#059669] flex items-center justify-end pr-2"
@@ -125,7 +126,7 @@ export default function MarketplaceHealthPage() {
                         <span className="text-xs text-white font-medium">{stage.value}</span>
                       </div>
                     </div>
-                    <div className="w-12 text-right text-sm text-[#6B7280]">{stage.rate}%</div>
+                    <div className="w-12 text-right text-sm text-[#6B7280]">{convRate}%</div>
                   </div>
                 </div>
               );
@@ -147,10 +148,10 @@ export default function MarketplaceHealthPage() {
               const barH = (bin.count / maxHistVal) * 180;
               const y = 200 - barH;
               return (
-                <g key={bin.label}>
+                <g key={bin.bucket}>
                   <rect x={x} y={y} width={barW} height={barH} rx="4" fill="#10B981" opacity="0.85" />
                   <text x={x + barW / 2} y={y - 6} textAnchor="middle" fill="#E5E7EB" fontSize="11">{bin.count}</text>
-                  <text x={x + barW / 2} y={222} textAnchor="middle" fill="#6B7280" fontSize="10">{bin.label}</text>
+                  <text x={x + barW / 2} y={222} textAnchor="middle" fill="#6B7280" fontSize="10">{bin.bucket}</text>
                 </g>
               );
             })}
@@ -177,7 +178,7 @@ export default function MarketplaceHealthPage() {
                 <tr><td colSpan={4} className="py-8 text-center text-sm text-[#6B7280]">No category data available</td></tr>
               )}
               {categories.map((cat: any) => {
-                const pct = Math.round((cat.fillRate || 0) * 100);
+                const pct = Math.round(cat.fillRate || 0);
                 const color = pct < 30 ? '#EF4444' : pct < 60 ? '#F59E0B' : '#10B981';
                 return (
                   <tr key={cat.categoryId} className="border-b border-[#2A2D37]/50">
