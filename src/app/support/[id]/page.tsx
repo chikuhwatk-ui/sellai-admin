@@ -5,7 +5,6 @@ import { api } from '@/lib/api';
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/Badge';
 
 interface TicketResponse {
@@ -126,7 +125,6 @@ export default function TicketDetailPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Back link */}
         <Link
@@ -335,6 +333,5 @@ export default function TicketDetailPage() {
           </>
         ) : null}
       </div>
-    </DashboardLayout>
   );
 }

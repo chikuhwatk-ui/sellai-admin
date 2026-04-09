@@ -4,7 +4,6 @@ import { useApi } from '@/hooks/useApi';
 import { api } from '@/lib/api';
 import { useState } from 'react';
 import Link from 'next/link';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/Badge';
 
@@ -109,7 +108,6 @@ export default function SupportPage() {
   };
 
   return (
-    <DashboardLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
         <div>
@@ -370,6 +368,5 @@ export default function SupportPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
   );
 }
