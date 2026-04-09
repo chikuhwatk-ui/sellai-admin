@@ -31,7 +31,7 @@ interface RecentOffer {
   status: string;
   price: number;
   intentTitle?: string;
-  intent?: { title: string } | null;
+  intent?: { description: string } | null;
   createdAt: string;
 }
 
@@ -309,7 +309,7 @@ export default function SellerDetailPage() {
                         ${typeof offer.price === 'number' ? offer.price.toFixed(2) : offer.price}
                       </td>
                       <td className="px-4 py-3 text-gray-300 max-w-xs truncate">
-                        {offer.intentTitle || offer.intent?.title || '-'}
+                        {offer.intentTitle || offer.intent?.description || '-'}
                       </td>
                       <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                         {new Date(offer.createdAt).toLocaleDateString()}

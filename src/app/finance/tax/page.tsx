@@ -9,18 +9,16 @@ import { Card } from '@/components/ui/Card';
 interface ThresholdStatus {
   currentRevenue: number;
   threshold: number;
-  percentage: number;
+  percentageProgress: number | null;
+  isThresholdReached: boolean;
   estimatedCrossingDate: string | null;
-  currency: string;
 }
 
 interface VATProjection {
   projectedVAT: number;
   vatRate: number;
   totalRevenue: number;
-  periodStart: string;
-  periodEnd: string;
-  currency: string;
+  period: { startDate: string; endDate: string };
 }
 
 interface TaxConfig {
@@ -28,7 +26,7 @@ interface TaxConfig {
   name: string;
   rate: number;
   threshold: number;
-  active: boolean;
+  isActive: boolean;
   effectiveFrom: string | null;
 }
 
@@ -90,7 +88,7 @@ export default function TaxPage() {
         name: configForm.name,
         rate: configForm.rate,
         threshold: configForm.threshold,
-        active: configForm.active,
+        isActive: configForm.isActive,
         effectiveFrom: configForm.effectiveFrom,
       });
       refetchConfig();
@@ -101,8 +99,7 @@ export default function TaxPage() {
     }
   };
 
-  const thresholdPct = threshold ? Math.min(threshold.percentage, 100) : 0;
-  const currency = threshold?.currency || 'USD';
+  const thresholdPct = threshold?.percentageProgress != null ? Math.min(threshold.percentageProgress, 100) : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -142,7 +139,7 @@ export default function TaxPage() {
               </div>
               <div className="text-right">
                 <p className="text-sm text-[#6B7280]">
-                  {formatCurrency(threshold.currentRevenue, currency)} / {formatCurrency(threshold.threshold, currency)}
+                  {formatCurrency(threshold.currentRevenue)} / {formatCurrency(threshold.threshold)}
                 </p>
               </div>
             </div>
@@ -164,7 +161,7 @@ export default function TaxPage() {
 
             <div className="flex items-center justify-between text-xs text-[#6B7280]">
               <span>$0</span>
-              <span>{formatCurrency(threshold.threshold, currency)}</span>
+              <span>{formatCurrency(threshold.threshold)}</span>
             </div>
 
             {threshold.estimatedCrossingDate && (
@@ -228,17 +225,17 @@ export default function TaxPage() {
             <div className="bg-[#0F1117] rounded-lg p-4">
               <span className="text-xs text-[#6B7280] uppercase tracking-wider">Projected VAT</span>
               <p className="text-xl font-bold text-[#10B981] mt-1">
-                {formatCurrency(projection.projectedVAT, projection.currency)}
+                {formatCurrency(projection.projectedVAT)}
               </p>
             </div>
             <div className="bg-[#0F1117] rounded-lg p-4">
               <span className="text-xs text-[#6B7280] uppercase tracking-wider">VAT Rate</span>
-              <p className="text-xl font-bold text-white mt-1">{projection.vatRate}%</p>
+              <p className="text-xl font-bold text-white mt-1">{(projection.vatRate * 100).toFixed(1)}%</p>
             </div>
             <div className="bg-[#0F1117] rounded-lg p-4">
               <span className="text-xs text-[#6B7280] uppercase tracking-wider">Total Revenue (Period)</span>
               <p className="text-xl font-bold text-white mt-1">
-                {formatCurrency(projection.totalRevenue, projection.currency)}
+                {formatCurrency(projection.totalRevenue)}
               </p>
             </div>
           </div>
@@ -276,8 +273,8 @@ export default function TaxPage() {
                     step="0.01"
                     min="0"
                     max="100"
-                    value={configForm.rate}
-                    onChange={(e) => setConfigForm({ ...configForm, rate: parseFloat(e.target.value) || 0 })}
+                    value={configForm.rate * 100}
+                    onChange={(e) => setConfigForm({ ...configForm, rate: (parseFloat(e.target.value) || 0) / 100 })}
                     className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981]"
                   />
                 </div>
@@ -315,11 +312,11 @@ export default function TaxPage() {
                   <button
                     disabled
                     className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed opacity-60"
-                    style={{ backgroundColor: configForm.active ? '#10B981' : '#2A2D37' }}
+                    style={{ backgroundColor: configForm.isActive ? '#10B981' : '#2A2D37' }}
                   >
                     <span
                       className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
-                      style={{ transform: configForm.active ? 'translateX(22px)' : 'translateX(4px)' }}
+                      style={{ transform: configForm.isActive ? 'translateX(22px)' : 'translateX(4px)' }}
                     />
                   </button>
                 </div>
