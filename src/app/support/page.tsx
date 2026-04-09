@@ -8,21 +8,22 @@ import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/Badge';
 
 interface SupportStats {
-  openTickets: number;
-  avgResponseTime: string;
+  openCount: number;
+  avgResponseHours: number;
   avgSatisfaction: number;
-  totalTickets: number;
+  byCategoryCount: { category: string; _count: number }[];
+  byStatusCount: { status: string; _count: number }[];
 }
 
 interface Ticket {
   id: string;
-  ticketNumber: number;
+  ticketNumber: string;
   userName: string;
   category: string;
   subject: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   status: string;
-  sla: string;
+  slaDeadline: string | null;
   createdAt: string;
 }
 
@@ -59,8 +60,14 @@ const STATUS_VARIANTS: Record<string, 'default' | 'primary' | 'success' | 'dange
 
 const CANNED_CATEGORIES = ['GENERAL', 'ORDER_ISSUE', 'DELIVERY', 'PAYMENT', 'ACCOUNT', 'TECHNICAL'];
 
-function formatTicketNumber(num: number): string {
-  return `TKT-${String(num).padStart(5, '0')}`;
+function formatSLA(slaDeadline: string | null): string {
+  if (!slaDeadline) return '--';
+  const diff = new Date(slaDeadline).getTime() - Date.now();
+  if (diff <= 0) return 'Breached';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  return `${hours}h ${mins}m`;
 }
 
 export default function SupportPage() {
@@ -126,7 +133,7 @@ export default function SupportPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
               title="Open Tickets"
-              value={stats.openTickets}
+              value={stats.openCount}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -135,7 +142,7 @@ export default function SupportPage() {
             />
             <KPICard
               title="Avg Response Time"
-              value={stats.avgResponseTime}
+              value={`${stats.avgResponseHours}h`}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -144,7 +151,7 @@ export default function SupportPage() {
             />
             <KPICard
               title="Avg Satisfaction"
-              value={`${stats.avgSatisfaction}/5`}
+              value={`${Number(stats.avgSatisfaction).toFixed(1)}/5`}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -153,7 +160,7 @@ export default function SupportPage() {
             />
             <KPICard
               title="Total Tickets"
-              value={stats.totalTickets}
+              value={stats.byStatusCount?.reduce((sum, s) => sum + s._count, 0) ?? 0}
               icon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -207,7 +214,7 @@ export default function SupportPage() {
                     {tickets.map((ticket) => (
                       <tr key={ticket.id} className="border-b border-[#2A2D37]/30 hover:bg-[#1E2130] transition-colors">
                         <td className="px-6 py-4 text-sm font-mono text-[#10B981]">
-                          {formatTicketNumber(ticket.ticketNumber)}
+                          {ticket.ticketNumber}
                         </td>
                         <td className="px-6 py-4 text-sm text-white">{ticket.userName}</td>
                         <td className="px-6 py-4">
@@ -224,7 +231,7 @@ export default function SupportPage() {
                             {ticket.status.replace(/_/g, ' ')}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 text-sm text-[#6B7280]">{ticket.sla}</td>
+                        <td className="px-6 py-4 text-sm text-[#6B7280]">{formatSLA(ticket.slaDeadline)}</td>
                         <td className="px-6 py-4 text-sm text-[#6B7280]">
                           {new Date(ticket.createdAt).toLocaleDateString()}
                         </td>

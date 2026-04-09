@@ -17,7 +17,7 @@ interface TicketResponse {
 
 interface TicketDetail {
   id: string;
-  ticketNumber: number;
+  ticketNumber: string;
   status: string;
   priority: string;
   category: string;
@@ -54,10 +54,6 @@ const STATUS_VARIANTS: Record<string, 'default' | 'primary' | 'success' | 'dange
   RESOLVED: 'success',
   CLOSED: 'default',
 };
-
-function formatTicketNumber(num: number): string {
-  return `TKT-${String(num).padStart(5, '0')}`;
-}
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -108,7 +104,19 @@ export default function TicketDetailPage() {
   const handleStatusAction = async (action: string) => {
     setActionLoading(action);
     try {
-      await api.patch(`/api/admin/support/tickets/${ticketId}`, { action });
+      if (action === 'ASSIGN') {
+        await api.patch(`/api/admin/support/tickets/${ticketId}/assign`, {});
+      } else {
+        // IN_PROGRESS, RESOLVE → RESOLVED, CLOSE → CLOSED
+        const statusMap: Record<string, string> = {
+          IN_PROGRESS: 'IN_PROGRESS',
+          RESOLVE: 'RESOLVED',
+          CLOSE: 'CLOSED',
+        };
+        await api.patch(`/api/admin/support/tickets/${ticketId}/status`, {
+          status: statusMap[action] || action,
+        });
+      }
       refetch();
     } catch (err: any) {
       alert(err.message || 'Failed to update ticket');
@@ -152,7 +160,7 @@ export default function TicketDetailPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold text-white">
-                  {formatTicketNumber(ticket.ticketNumber)}
+                  {ticket.ticketNumber}
                 </h1>
                 <Badge variant={STATUS_VARIANTS[ticket.status] || 'default'}>
                   {ticket.status.replace(/_/g, ' ')}
