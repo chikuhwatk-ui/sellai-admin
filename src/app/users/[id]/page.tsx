@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Badge, RoleBadge } from '@/components/ui/Badge';
@@ -64,12 +64,86 @@ export default function UserDetailPage() {
   const recentIntents = user.intents || [];
   const verification = user.verificationSubmissions?.[0];
 
-  const handleAdminAction = async (action: string, payload: Record<string, unknown> = {}) => {
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Suspend form state
+  const [suspendDuration, setSuspendDuration] = useState('7');
+  const [suspendReason, setSuspendReason] = useState('');
+
+  // Credits form state
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('');
+
+  const handleOverrideVerification = async () => {
+    setActionLoading(true);
+    setActionMsg(null);
     try {
-      await api.patch(`/api/admin/users/${userId}`, { ...payload });
+      await api.patch(`/api/admin/users/${userId}`, { verificationStatus: 'VERIFIED' });
+      setActionMsg({ type: 'success', text: 'Verification overridden successfully.' });
       refetch();
     } catch (err) {
-      console.error('Admin action failed:', err);
+      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to override verification.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSuspend = async () => {
+    setActionLoading(true);
+    setActionMsg(null);
+    try {
+      await api.post(`/api/admin/users/${userId}/suspend`, {
+        duration: suspendDuration,
+        reason: suspendReason || undefined,
+      });
+      setActionMsg({ type: 'success', text: `User suspended${suspendDuration === 'permanent' ? ' permanently' : ` for ${suspendDuration} days`}.` });
+      setShowSuspendModal(false);
+      setSuspendDuration('7');
+      setSuspendReason('');
+      refetch();
+    } catch (err) {
+      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to suspend user.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnsuspend = async () => {
+    setActionLoading(true);
+    setActionMsg(null);
+    try {
+      await api.post(`/api/admin/users/${userId}/unsuspend`, {});
+      setActionMsg({ type: 'success', text: 'User unsuspended successfully.' });
+      refetch();
+    } catch (err) {
+      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to unsuspend user.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAdjustCredits = async () => {
+    const amount = parseInt(creditAmount, 10);
+    if (!amount || amount === 0) return;
+    setActionLoading(true);
+    setActionMsg(null);
+    try {
+      const result: any = await api.post(`/api/admin/users/${userId}/adjust-credits`, {
+        amount,
+        reason: creditReason || undefined,
+      });
+      setActionMsg({ type: 'success', text: `Credits adjusted: ${result.previousBalance} → ${result.newBalance}` });
+      setShowCreditsModal(false);
+      setCreditAmount('');
+      setCreditReason('');
+      refetch();
+    } catch (err) {
+      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to adjust credits.' });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -269,27 +343,179 @@ export default function UserDetailPage() {
           {/* Admin Actions */}
           <Card>
             <h3 className="text-sm font-semibold text-text mb-4">Admin Actions</h3>
+
+            {actionMsg && (
+              <div className={`mb-4 p-3 rounded-lg text-sm ${actionMsg.type === 'success' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-danger/10 text-danger border border-danger/20'}`}>
+                {actionMsg.text}
+              </div>
+            )}
+
+            {/* Suspension status banner */}
+            {user.isSuspended && (
+              <div className="mb-4 p-3 rounded-lg bg-danger/10 border border-danger/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-danger">User is suspended</p>
+                    {user.suspendedUntil && (
+                      <p className="text-xs text-danger/70 mt-0.5">Until {new Date(user.suspendedUntil).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    )}
+                    {!user.suspendedUntil && <p className="text-xs text-danger/70 mt-0.5">Permanent suspension</p>}
+                    {user.suspendedReason && <p className="text-xs text-text-muted mt-1">Reason: {user.suspendedReason}</p>}
+                  </div>
+                  <button
+                    onClick={handleUnsuspend}
+                    disabled={actionLoading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25 disabled:opacity-50 transition-colors"
+                  >
+                    Unsuspend
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => handleAdminAction('verify', { verificationStatus: 'VERIFIED' })}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+                onClick={handleOverrideVerification}
+                disabled={actionLoading}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 disabled:opacity-50 transition-colors"
               >
                 Override Verification
               </button>
-              <button
-                onClick={() => handleAdminAction('credits', {})}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-info/10 text-info hover:bg-info/20 border border-info/20 transition-colors"
-              >
-                Adjust Credits
-              </button>
-              <button
-                onClick={() => handleAdminAction('suspend', { verificationStatus: 'SUSPENDED' })}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors"
-              >
-                Suspend User
-              </button>
+              {isSeller && (
+                <button
+                  onClick={() => setShowCreditsModal(true)}
+                  className="px-4 py-2.5 rounded-xl text-sm font-medium bg-info/10 text-info hover:bg-info/20 border border-info/20 transition-colors"
+                >
+                  Adjust Credits
+                </button>
+              )}
+              {!user.isSuspended && (
+                <button
+                  onClick={() => setShowSuspendModal(true)}
+                  className="px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors"
+                >
+                  Suspend User
+                </button>
+              )}
             </div>
           </Card>
+
+          {/* ── Suspend Modal ── */}
+          {showSuspendModal && (
+            <>
+              <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowSuspendModal(false)} />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-lg font-semibold text-text mb-4">Suspend User</h3>
+                  <p className="text-sm text-text-muted mb-4">
+                    Suspending <strong className="text-text">{userName}</strong> will set their role to PENDING and block access.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text mb-2">Duration</label>
+                      <select
+                        value={suspendDuration}
+                        onChange={(e) => setSuspendDuration(e.target.value)}
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="1">1 day</option>
+                        <option value="3">3 days</option>
+                        <option value="7">7 days</option>
+                        <option value="14">14 days</option>
+                        <option value="30">30 days</option>
+                        <option value="90">90 days</option>
+                        <option value="permanent">Permanent</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text mb-2">Reason</label>
+                      <textarea
+                        value={suspendReason}
+                        onChange={(e) => setSuspendReason(e.target.value)}
+                        placeholder="Reason for suspension..."
+                        rows={3}
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setShowSuspendModal(false)}
+                      className="px-4 py-2 text-sm font-medium rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSuspend}
+                      disabled={actionLoading}
+                      className="px-4 py-2 text-sm font-medium rounded-lg bg-danger text-white hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                    >
+                      {actionLoading ? 'Suspending...' : 'Suspend User'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Credits Modal ── */}
+          {showCreditsModal && (
+            <>
+              <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowCreditsModal(false)} />
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-lg font-semibold text-text mb-4">Adjust Credits</h3>
+                  <p className="text-sm text-text-muted mb-1">
+                    Current balance: <strong className="text-text">{sellerProfile?.offerCredits ?? sellerProfile?.credits ?? 0} credits</strong>
+                  </p>
+                  <p className="text-xs text-text-muted mb-4">
+                    Use a positive number to add credits, negative to deduct.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text mb-2">Amount</label>
+                      <input
+                        type="number"
+                        value={creditAmount}
+                        onChange={(e) => setCreditAmount(e.target.value)}
+                        placeholder="e.g. 50 or -10"
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text mb-2">Reason</label>
+                      <input
+                        type="text"
+                        value={creditReason}
+                        onChange={(e) => setCreditReason(e.target.value)}
+                        placeholder="e.g. Bonus for good performance"
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => setShowCreditsModal(false)}
+                      className="px-4 py-2 text-sm font-medium rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAdjustCredits}
+                      disabled={actionLoading || !creditAmount || parseInt(creditAmount, 10) === 0}
+                      className="px-4 py-2 text-sm font-medium rounded-lg bg-info text-white hover:bg-info/90 disabled:opacity-50 transition-colors"
+                    >
+                      {actionLoading ? 'Adjusting...' : 'Adjust Credits'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Activity Timeline */}
