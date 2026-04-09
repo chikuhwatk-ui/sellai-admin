@@ -22,8 +22,7 @@ interface SellerMetrics {
 interface CreditSpend {
   id: string;
   amount: number;
-  type: string;
-  description: string | null;
+  reason: string;
   createdAt: string;
 }
 
@@ -38,9 +37,8 @@ interface RecentOffer {
 
 interface SellerCategory {
   id: string;
-  name?: string;
-  categoryName?: string;
-  subcategoryName?: string;
+  categoryId: string;
+  relevanceScore: number;
 }
 
 interface SellerDetail {
@@ -253,8 +251,7 @@ export default function SellerDetailPage() {
                 <thead className="sticky top-0 bg-[#1A1D27]">
                   <tr className="border-b border-[#2A2D37]">
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Amount</th>
-                    <th className="text-left text-gray-400 font-medium px-4 py-3">Type</th>
-                    <th className="text-left text-gray-400 font-medium px-4 py-3">Description</th>
+                    <th className="text-left text-gray-400 font-medium px-4 py-3">Reason</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Date</th>
                   </tr>
                 </thead>
@@ -267,10 +264,7 @@ export default function SellerDetailPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant="default">{cs.type?.replace(/_/g, ' ') || 'N/A'}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-gray-300 max-w-xs truncate">
-                        {cs.description || '-'}
+                        <Badge variant="default">{cs.reason?.replace(/_/g, ' ') || 'N/A'}</Badge>
                       </td>
                       <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
                         {new Date(cs.createdAt).toLocaleDateString()}
@@ -340,7 +334,7 @@ export default function SellerDetailPage() {
           <div className="flex flex-wrap gap-2">
             {seller.categories.map((cat) => (
               <Badge key={cat.id} variant="primary">
-                {cat.name || cat.subcategoryName || cat.categoryName || cat.id}
+                {cat.categoryId} (score: {Number(cat.relevanceScore).toFixed(0)})
               </Badge>
             ))}
           </div>
