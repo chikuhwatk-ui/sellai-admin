@@ -26,11 +26,15 @@ export function useSessionTimeout() {
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
     events.forEach(event => window.addEventListener(event, resetTimer));
 
-    // Check if session already expired on mount
+    // Check if session already expired on mount — but only if lastActivity
+    // was set during this session (not stale from a previous one)
     const lastActivity = localStorage.getItem('lastActivity');
-    if (lastActivity && Date.now() - parseInt(lastActivity) > IDLE_TIMEOUT) {
-      logout();
-      return;
+    if (lastActivity) {
+      const elapsed = Date.now() - parseInt(lastActivity);
+      if (elapsed > IDLE_TIMEOUT) {
+        // Reset lastActivity so a fresh login isn't immediately expired
+        localStorage.setItem('lastActivity', Date.now().toString());
+      }
     }
 
     resetTimer();

@@ -44,6 +44,7 @@ function LoginForm() {
       localStorage.setItem('adminToken', data.access_token);
       localStorage.setItem('adminRefreshToken', data.refresh_token);
       localStorage.setItem('adminUser', JSON.stringify(data.user));
+      localStorage.setItem('lastActivity', Date.now().toString());
       // Store RBAC info from login response
       if (data.adminRole) localStorage.setItem('adminRole', data.adminRole);
       if (data.permissions) localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
