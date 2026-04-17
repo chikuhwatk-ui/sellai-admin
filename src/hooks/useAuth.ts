@@ -2,18 +2,34 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import * as Sentry from '@sentry/nextjs';
+import { api } from '@/lib/api';
 
 interface AdminUser {
   id: string;
   name: string;
   phoneNumber: string;
-  role: string;
+  role?: string;
   adminRole?: string;
   permissions?: string[];
+  isActive?: boolean;
+  memberSince?: string;
 }
 
-// Mirrors backend ROLE_PERMISSIONS for client-side UI gating
-const ROLE_PERMISSIONS: Record<string, string[]> = {
+interface AdminMeResponse {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  adminRole: string;
+  isActive: boolean;
+  permissions: string[];
+  memberSince?: string;
+}
+
+// Fallback used only between mount and first /admin/me response, so the UI
+// doesn't flash "Access Denied" before permissions arrive. Server response
+// is the source of truth.
+const FALLBACK_PERMISSIONS_BY_ROLE: Record<string, string[]> = {
   SUPER_ADMIN: [
     'DASHBOARD_VIEW', 'USERS_VIEW', 'USERS_UPDATE', 'USERS_BULK_ACTION',
     'ORDERS_VIEW', 'DELIVERIES_VIEW', 'VERIFICATION_VIEW', 'VERIFICATION_REVIEW',
@@ -45,6 +61,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 export function useAuth() {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   const logout = useCallback(() => {
@@ -54,33 +71,77 @@ export function useAuth() {
     localStorage.removeItem('adminRole');
     localStorage.removeItem('adminPermissions');
     document.cookie = 'adminToken=;path=/;max-age=0';
+    Sentry.setUser(null);
     setUser(null);
     router.push('/login');
   }, [router]);
 
+  // Hydrate from localStorage immediately so the UI doesn't flash unauthorized,
+  // then re-verify against /admin/me which is the server's source of truth.
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
-    const userData = localStorage.getItem('adminUser');
-    if (token && userData) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    const stored = localStorage.getItem('adminUser');
+    const storedRole = localStorage.getItem('adminRole');
+    const storedPerms = localStorage.getItem('adminPermissions');
+    if (stored) {
       try {
-        const parsed = JSON.parse(userData);
-        // Restore adminRole and permissions from localStorage
-        const adminRole = localStorage.getItem('adminRole') || parsed.adminRole || 'SUPER_ADMIN';
-        const permissions = ROLE_PERMISSIONS[adminRole] || [];
-        setUser({ ...parsed, adminRole, permissions });
+        const parsed = JSON.parse(stored);
+        const role = storedRole || parsed.adminRole || 'ADMIN_VIEWER';
+        const perms = storedPerms ? JSON.parse(storedPerms) : (FALLBACK_PERMISSIONS_BY_ROLE[role] || []);
+        setUser({ ...parsed, adminRole: role, permissions: perms });
       } catch {
-        logout();
+        // bad cache — fall through to /admin/me fetch
       }
     }
     setLoading(false);
+
+    // Always re-verify against the server.
+    setRefreshing(true);
+    api.get<AdminMeResponse>('/api/admin/me')
+      .then((me) => {
+        const next: AdminUser = {
+          id: me.id,
+          name: me.name,
+          phoneNumber: me.phoneNumber,
+          adminRole: me.adminRole,
+          permissions: me.permissions || [],
+          isActive: me.isActive,
+          memberSince: me.memberSince,
+        };
+        setUser(next);
+        Sentry.setUser({ id: me.id, username: me.phoneNumber });
+        Sentry.setTag('admin_role', me.adminRole);
+        try {
+          localStorage.setItem('adminUser', JSON.stringify({ id: me.id, name: me.name, phoneNumber: me.phoneNumber }));
+          localStorage.setItem('adminRole', me.adminRole);
+          localStorage.setItem('adminPermissions', JSON.stringify(me.permissions || []));
+        } catch { /* quota / private mode */ }
+        if (me.isActive === false) {
+          logout();
+        }
+      })
+      .catch(() => {
+        // /admin/me failed — api.ts already redirects on 401.
+        // For 403/network, keep cached so the page renders.
+      })
+      .finally(() => setRefreshing(false));
   }, [logout]);
 
   const hasPermission = useCallback(
     (permission: string): boolean => {
       if (!user) return false;
-      const role = user.adminRole || 'SUPER_ADMIN';
-      const perms = ROLE_PERMISSIONS[role] || [];
-      return perms.includes(permission);
+      // Trust the live `permissions` list when available.
+      if (user.permissions && user.permissions.length > 0) {
+        return user.permissions.includes(permission);
+      }
+      // Cold-start fallback: derive from role.
+      const role = user.adminRole || 'ADMIN_VIEWER';
+      return (FALLBACK_PERMISSIONS_BY_ROLE[role] || []).includes(permission);
     },
     [user],
   );
@@ -88,6 +149,7 @@ export function useAuth() {
   return {
     user,
     loading,
+    refreshing,
     logout,
     isAuthenticated: !!user,
     adminRole: user?.adminRole || null,

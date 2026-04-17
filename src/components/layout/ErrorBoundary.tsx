@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import * as Sentry from "@sentry/nextjs";
 
 interface Props {
   children: React.ReactNode;
@@ -23,6 +24,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("[Sellai Admin] Layout error:", error, errorInfo);
+    Sentry.captureException(error, {
+      tags: { kind: "react-error-boundary", scope: "dashboard-layout" },
+      extra: { componentStack: errorInfo.componentStack },
+    });
   }
 
   render() {

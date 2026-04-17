@@ -32,6 +32,18 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# Sentry config files (do not contain secrets — DSN is public).
+# But Sentry's CLI sometimes drops a hidden auth file:
+.sentryclirc
+
+# Sentry build artifacts
+.sentry-build/
+
+# Tauri scratch (in case anyone shares this gitignore template)
+src-tauri/target/
+src-tauri/gen/
 
 # vercel
 .vercel

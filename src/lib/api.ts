@@ -59,7 +59,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(error.message || `API Error: ${res.status}`);
+    const err = new Error(error.message || `API Error: ${res.status}`);
+    if (typeof window !== 'undefined') {
+      import('@sentry/nextjs')
+        .then((Sentry) =>
+          Sentry.captureException(err, {
+            tags: { kind: 'api', status: String(res.status) },
+            extra: { path, method: options?.method || 'GET' },
+          }),
+        )
+        .catch(() => { /* sentry not initialized */ });
+    }
+    throw err;
   }
   return res.json();
 }
