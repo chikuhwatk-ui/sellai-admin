@@ -1,342 +1,243 @@
-'use client';
+"use client";
 
-import { useApi } from '@/hooks/useApi';
-import { api } from '@/lib/api';
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Card } from '@/components/ui/Card';
+import * as React from "react";
+import { AlertTriangle, Calendar } from "lucide-react";
+import { useApi } from "@/hooks/useApi";
+import { useAuth } from "@/hooks/useAuth";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { api } from "@/lib/api";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
+import { Field } from "@/components/ui/Label";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface ThresholdStatus {
-  currentRevenue: number;
-  threshold: number;
+  currentRevenue: number; threshold: number;
   percentageProgress: number | null;
   isThresholdReached: boolean;
   estimatedCrossingDate: string | null;
 }
-
 interface VATProjection {
-  projectedVAT: number;
-  vatRate: number;
-  totalRevenue: number;
+  projectedVAT: number; vatRate: number; totalRevenue: number;
   period: { startDate: string; endDate: string };
 }
-
 interface TaxConfig {
-  id: string;
-  name: string;
-  rate: number;
-  threshold: number;
-  isActive: boolean;
-  effectiveFrom: string | null;
+  id: string; name: string; rate: number; threshold: number;
+  isActive: boolean; effectiveFrom: string | null;
 }
 
-function formatCurrency(amount: number, currency: string = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
+function fmt(amount: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency", currency, minimumFractionDigits: 2,
   }).format(amount);
 }
 
-function getMonthRange(): { start: string; end: string } {
+function monthRange() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0],
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0],
   };
 }
 
 export default function TaxPage() {
   const { hasPermission } = useAuth();
-  const defaultRange = getMonthRange();
+  const defaultRange = React.useMemo(() => monthRange(), []);
 
-  const [startDate, setStartDate] = useState(defaultRange.start);
-  const [endDate, setEndDate] = useState(defaultRange.end);
-  const [projectionQuery, setProjectionQuery] = useState(
+  const [startDate, setStartDate] = React.useState(defaultRange.start);
+  const [endDate, setEndDate] = React.useState(defaultRange.end);
+  const [projectionQuery, setProjectionQuery] = React.useState(
     `/api/admin/accounting/tax/projection?start=${defaultRange.start}&end=${defaultRange.end}`
   );
-  const [configForm, setConfigForm] = useState<TaxConfig | null>(null);
-  const [savingConfig, setSavingConfig] = useState(false);
+  const [configForm, setConfigForm] = React.useState<TaxConfig | null>(null);
 
-  const { data: threshold, loading: thresholdLoading } = useApi<ThresholdStatus>(
-    '/api/admin/accounting/tax/threshold-status'
-  );
+  const { data: threshold, loading: thresholdLoading } = useApi<ThresholdStatus>("/api/admin/accounting/tax/threshold-status");
   const { data: projection, loading: projectionLoading } = useApi<VATProjection>(projectionQuery);
-  const { data: taxConfig, loading: configLoading, refetch: refetchConfig } = useApi<TaxConfig>(
-    '/api/admin/accounting/tax/config'
-  );
+  const { data: taxConfig, loading: configLoading, refetch: refetchConfig } = useApi<TaxConfig>("/api/admin/accounting/tax/config");
+  const { run } = useOptimisticAction();
 
-  useEffect(() => {
-    if (taxConfig && !configForm) {
-      setConfigForm({ ...taxConfig });
-    }
+  React.useEffect(() => {
+    if (taxConfig && !configForm) setConfigForm({ ...taxConfig });
   }, [taxConfig, configForm]);
 
-  const handleProjectionSearch = () => {
-    setProjectionQuery(
-      `/api/admin/accounting/tax/projection?start=${startDate}&end=${endDate}`
-    );
-  };
-
-  const handleSaveConfig = async () => {
+  const saveConfig = () => {
     if (!configForm) return;
-    setSavingConfig(true);
-    try {
-      await api.patch('/api/admin/accounting/tax/config', {
-        name: configForm.name,
-        rate: configForm.rate,
-        threshold: configForm.threshold,
-        isActive: configForm.isActive,
+    run({
+      action: () => api.patch("/api/admin/accounting/tax/config", {
+        name: configForm.name, rate: configForm.rate,
+        threshold: configForm.threshold, isActive: configForm.isActive,
         effectiveFrom: configForm.effectiveFrom,
-      });
-      refetchConfig();
-    } catch (err: any) {
-      alert(err.message || 'Failed to save tax config');
-    } finally {
-      setSavingConfig(false);
-    }
+      }),
+      label: "Tax configuration saved",
+      onSuccess: () => refetchConfig(),
+    });
   };
 
-  const thresholdPct = threshold?.percentageProgress != null ? Math.min(threshold.percentageProgress, 100) : 0;
+  const pct = threshold?.percentageProgress != null ? Math.min(threshold.percentageProgress, 100) : 0;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Status Banner */}
-      <div className="bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-xl px-6 py-4 flex items-center gap-3">
-        <svg className="w-5 h-5 text-[#F59E0B] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <div>
-          <p className="text-sm font-medium text-[#F59E0B]">Pre-Threshold</p>
-          <p className="text-xs text-[#D97706]">
-            VAT tracking is in monitoring mode. No active VAT posting.
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Tax Tracking"
+        description="ZIMRA threshold monitoring and VAT projections"
+      />
 
-      <div>
-        <h1 className="text-2xl font-bold text-white">Tax Tracking</h1>
-        <p className="text-sm text-[#6B7280] mt-1">ZIMRA threshold monitoring and VAT projections</p>
+      <div className="flex items-center gap-2 p-3 rounded-md bg-warning-bg border border-warning/20 text-warning">
+        <AlertTriangle className="h-4 w-4 shrink-0" />
+        <div>
+          <div className="text-sm font-medium">Pre-threshold</div>
+          <div className="text-xs">VAT tracking is in monitoring mode. No active VAT posting.</div>
+        </div>
       </div>
 
       {/* Threshold Progress */}
-      <Card>
-        <h2 className="text-sm font-semibold text-white mb-4">ZIMRA Threshold Progress</h2>
-        {thresholdLoading ? (
-          <div className="animate-pulse space-y-3">
-            <div className="h-6 bg-[#2A2D37] rounded w-1/3" />
-            <div className="h-4 bg-[#2A2D37] rounded-full" />
-            <div className="h-4 bg-[#2A2D37] rounded w-1/2" />
-          </div>
-        ) : threshold ? (
-          <div className="space-y-4">
-            <div className="flex items-end justify-between">
-              <div>
-                <span className="text-3xl font-bold text-white">{thresholdPct.toFixed(1)}%</span>
-                <span className="text-sm text-[#6B7280] ml-2">of threshold</span>
+      <Card padding={false}>
+        <CardHeader><CardTitle>ZIMRA threshold progress</CardTitle></CardHeader>
+        <CardContent>
+          {thresholdLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-1/3" />
+              <Skeleton className="h-3 rounded-full" />
+            </div>
+          ) : threshold ? (
+            <div className="space-y-3">
+              <div className="flex items-end justify-between">
+                <div>
+                  <span className="text-3xl font-semibold text-fg tabular">{pct.toFixed(1)}%</span>
+                  <span className="text-sm text-fg-muted ml-2">of threshold</span>
+                </div>
+                <div className="text-right text-xs text-fg-muted tabular">
+                  {fmt(threshold.currentRevenue)} / {fmt(threshold.threshold)}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-[#6B7280]">
-                  {formatCurrency(threshold.currentRevenue)} / {formatCurrency(threshold.threshold)}
-                </p>
+              <div className="relative h-2.5 bg-raised rounded-full overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full transition-all duration-slow ease-out"
+                  style={{
+                    width: `${pct}%`,
+                    background: pct >= 90
+                      ? "linear-gradient(90deg, var(--color-warning), var(--color-danger))"
+                      : pct >= 70
+                        ? "linear-gradient(90deg, var(--color-accent), var(--color-warning))"
+                        : "var(--color-accent)",
+                  }}
+                />
               </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="relative h-4 bg-[#2A2D37] rounded-full overflow-hidden">
-              <div
-                className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-                style={{
-                  width: `${thresholdPct}%`,
-                  background: thresholdPct >= 90
-                    ? 'linear-gradient(90deg, #F59E0B, #EF4444)'
-                    : thresholdPct >= 70
-                    ? 'linear-gradient(90deg, #10B981, #F59E0B)'
-                    : '#10B981',
-                }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-[#6B7280]">
-              <span>$0</span>
-              <span>{formatCurrency(threshold.threshold)}</span>
-            </div>
-
-            {threshold.estimatedCrossingDate && (
-              <div className="bg-[#0F1117] rounded-lg px-4 py-3 flex items-center gap-2">
-                <svg className="w-4 h-4 text-[#F59E0B]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm text-[#9CA3AF]">
-                  Estimated threshold crossing: <span className="text-white font-medium">
-                    {new Date(threshold.estimatedCrossingDate).toLocaleDateString('en-US', {
-                      year: 'numeric', month: 'long', day: 'numeric',
-                    })}
+              <div className="flex items-center justify-between text-2xs text-fg-subtle tabular">
+                <span>$0</span><span>{fmt(threshold.threshold)}</span>
+              </div>
+              {threshold.estimatedCrossingDate && (
+                <div className="flex items-center gap-2 rounded-md bg-raised px-3 py-2 text-xs">
+                  <Calendar className="h-3.5 w-3.5 text-warning" />
+                  <span className="text-fg-muted">
+                    Estimated threshold crossing:{" "}
+                    <span className="text-fg font-medium">
+                      {new Date(threshold.estimatedCrossingDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                    </span>
                   </span>
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-[#6B7280] text-sm">Unable to load threshold data</p>
-        )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-fg-muted">Unable to load threshold data</p>
+          )}
+        </CardContent>
       </Card>
 
       {/* VAT Projection */}
-      <Card>
-        <h2 className="text-sm font-semibold text-white mb-4">VAT Projection</h2>
-        <div className="flex flex-col sm:flex-row items-end gap-3 mb-6">
-          <div className="flex-1 w-full">
-            <label className="text-xs text-[#6B7280] uppercase tracking-wider mb-1 block">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981] [color-scheme:dark]"
-            />
+      <Card padding={false}>
+        <CardHeader><CardTitle>VAT projection</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-end gap-2 mb-4">
+            <Field label="Start date" htmlFor="start">
+              <Input id="start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </Field>
+            <Field label="End date" htmlFor="end">
+              <Input id="end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </Field>
+            <Button
+              variant="primary"
+              onClick={() => setProjectionQuery(`/api/admin/accounting/tax/projection?start=${startDate}&end=${endDate}`)}
+            >
+              Calculate
+            </Button>
           </div>
-          <div className="flex-1 w-full">
-            <label className="text-xs text-[#6B7280] uppercase tracking-wider mb-1 block">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981] [color-scheme:dark]"
-            />
-          </div>
-          <button
-            onClick={handleProjectionSearch}
-            className="px-4 py-2 bg-[#10B981] text-white text-sm font-medium rounded-lg hover:bg-[#059669] transition-colors whitespace-nowrap"
-          >
-            Calculate
-          </button>
-        </div>
 
-        {projectionLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-[#0F1117] rounded-lg p-4 animate-pulse h-20" />
-            ))}
-          </div>
-        ) : projection ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-[#0F1117] rounded-lg p-4">
-              <span className="text-xs text-[#6B7280] uppercase tracking-wider">Projected VAT</span>
-              <p className="text-xl font-bold text-[#10B981] mt-1">
-                {formatCurrency(projection.projectedVAT)}
-              </p>
+          {projectionLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[72px]" />)}
             </div>
-            <div className="bg-[#0F1117] rounded-lg p-4">
-              <span className="text-xs text-[#6B7280] uppercase tracking-wider">VAT Rate</span>
-              <p className="text-xl font-bold text-white mt-1">{(projection.vatRate * 100).toFixed(1)}%</p>
-            </div>
-            <div className="bg-[#0F1117] rounded-lg p-4">
-              <span className="text-xs text-[#6B7280] uppercase tracking-wider">Total Revenue (Period)</span>
-              <p className="text-xl font-bold text-white mt-1">
-                {formatCurrency(projection.totalRevenue)}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-[#6B7280] text-sm">Select a date range and click Calculate</p>
-        )}
-      </Card>
-
-      {/* Tax Configuration */}
-      {hasPermission('FINANCE_MANAGE') && (
-        <Card>
-          <h2 className="text-sm font-semibold text-white mb-4">Tax Configuration</h2>
-          {configLoading ? (
-            <div className="animate-pulse space-y-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-10 bg-[#2A2D37] rounded" />
-              ))}
-            </div>
-          ) : configForm ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-[#6B7280] uppercase tracking-wider mb-1 block">Tax Name</label>
-                  <input
-                    type="text"
-                    value={configForm.name}
-                    onChange={(e) => setConfigForm({ ...configForm, name: e.target.value })}
-                    className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[#6B7280] uppercase tracking-wider mb-1 block">Rate (%)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    value={configForm.rate * 100}
-                    onChange={(e) => setConfigForm({ ...configForm, rate: (parseFloat(e.target.value) || 0) / 100 })}
-                    className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[#6B7280] uppercase tracking-wider mb-1 block">Threshold Amount</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={configForm.threshold}
-                    onChange={(e) => setConfigForm({ ...configForm, threshold: parseFloat(e.target.value) || 0 })}
-                    className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981]"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[#6B7280] uppercase tracking-wider mb-1 block">Effective From</label>
-                  <input
-                    type="date"
-                    value={configForm.effectiveFrom || ''}
-                    onChange={(e) => setConfigForm({ ...configForm, effectiveFrom: e.target.value || null })}
-                    className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#10B981] [color-scheme:dark]"
-                  />
-                </div>
-              </div>
-
-              {/* Active Toggle */}
-              <div className="bg-[#0F1117] rounded-lg px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm text-white font-medium">Active</span>
-                    <p className="text-xs text-[#6B7280] mt-0.5">
-                      Activate when ZIMRA threshold is reached
-                    </p>
-                  </div>
-                  <button
-                    disabled
-                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed opacity-60"
-                    style={{ backgroundColor: configForm.isActive ? '#10B981' : '#2A2D37' }}
-                  >
-                    <span
-                      className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
-                      style={{ transform: configForm.isActive ? 'translateX(22px)' : 'translateX(4px)' }}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSaveConfig}
-                  disabled={savingConfig}
-                  className="px-5 py-2 bg-[#10B981] text-white text-sm font-medium rounded-lg hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {savingConfig ? 'Saving...' : 'Save Configuration'}
-                </button>
-              </div>
+          ) : projection ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <StatBlock label="Projected VAT" value={fmt(projection.projectedVAT)} />
+              <StatBlock label="VAT rate" value={`${(projection.vatRate * 100).toFixed(1)}%`} />
+              <StatBlock label="Total revenue" value={fmt(projection.totalRevenue)} />
             </div>
           ) : (
-            <p className="text-[#6B7280] text-sm">Unable to load tax configuration</p>
+            <p className="text-sm text-fg-muted">Select a date range and click Calculate</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Tax Config */}
+      {hasPermission("FINANCE_MANAGE") && (
+        <Card padding={false}>
+          <CardHeader><CardTitle>Tax configuration</CardTitle></CardHeader>
+          <CardContent>
+            {configLoading ? (
+              <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            ) : configForm ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field label="Tax name">
+                    <Input value={configForm.name} onChange={(e) => setConfigForm({ ...configForm, name: e.target.value })} />
+                  </Field>
+                  <Field label="Rate (%)">
+                    <Input type="number" step="0.01" min="0" max="100"
+                      value={configForm.rate * 100}
+                      onChange={(e) => setConfigForm({ ...configForm, rate: (parseFloat(e.target.value) || 0) / 100 })}
+                    />
+                  </Field>
+                  <Field label="Threshold amount">
+                    <Input type="number" step="0.01" min="0"
+                      value={configForm.threshold}
+                      onChange={(e) => setConfigForm({ ...configForm, threshold: parseFloat(e.target.value) || 0 })}
+                    />
+                  </Field>
+                  <Field label="Effective from">
+                    <Input type="date"
+                      value={configForm.effectiveFrom || ""}
+                      onChange={(e) => setConfigForm({ ...configForm, effectiveFrom: e.target.value || null })}
+                    />
+                  </Field>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md bg-raised px-3 py-2.5">
+                  <div>
+                    <div className="text-sm text-fg font-medium">Active</div>
+                    <div className="text-2xs text-fg-muted">Activate when ZIMRA threshold is reached</div>
+                  </div>
+                  <Switch
+                    checked={configForm.isActive}
+                    onCheckedChange={(v) => setConfigForm({ ...configForm, isActive: !!v })}
+                    disabled
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Button variant="primary" onClick={saveConfig}>Save configuration</Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-fg-muted">Unable to load tax configuration</p>
+            )}
+          </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

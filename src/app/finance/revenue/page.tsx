@@ -1,105 +1,115 @@
-'use client';
+"use client";
 
-import { useApi } from '@/hooks/useApi';
+import * as React from "react";
+import { useApi } from "@/hooks/useApi";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+
+interface Summary {
+  totalRecognized: number; totalDeferred: number;
+  totalCreditRecognized: number; totalCreditDeferred: number;
+  totalSlotRecognized: number; totalSlotDeferred: number;
+}
+
+interface Allocation {
+  id: string; bundleType: string;
+  totalPrice: number; creditAllocation: number; slotAllocation: number;
+  creditsUsed: number; totalCredits: number;
+  slotDaysAmortized: number; slotDays: number;
+  creditRevenueRecognized: number; slotRevenueRecognized: number;
+  fullyRecognized: boolean; createdAt: string;
+}
 
 export default function RevenueRecognitionPage() {
-  const { data, loading } = useApi<any>('/api/admin/accounting/reports/revenue-recognition');
+  const { data, loading } = useApi<{ summary: Summary; allocations: Allocation[] }>(
+    "/api/admin/accounting/reports/revenue-recognition"
+  );
   const summary = data?.summary;
   const allocations = data?.allocations || [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Revenue Recognition</h1>
-        <p className="text-sm text-[#6B7280] mt-1">IFRS 15 deferred vs. recognized revenue tracking</p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Revenue Recognition"
+        description="IFRS 15 — deferred vs. recognized revenue tracking"
+      />
 
       {loading ? (
-        <div className="text-center py-12 text-[#6B7280]">Loading...</div>
-      ) : (
-        <>
-          {/* Summary Cards */}
-          {summary && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {[
-                { label: 'Total Recognized', value: summary.totalRecognized, color: '#10B981' },
-                { label: 'Total Deferred', value: summary.totalDeferred, color: '#F59E0B' },
-                { label: 'Credit Revenue Recognized', value: summary.totalCreditRecognized, color: '#3B82F6' },
-                { label: 'Credit Revenue Deferred', value: summary.totalCreditDeferred, color: '#6B7280' },
-                { label: 'Slot Revenue Recognized', value: summary.totalSlotRecognized, color: '#8B5CF6' },
-                { label: 'Slot Revenue Deferred', value: summary.totalSlotDeferred, color: '#6B7280' },
-              ].map((card) => (
-                <div key={card.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-4">
-                  <div className="text-xs text-[#6B7280]">{card.label}</div>
-                  <div className="text-xl font-bold mt-1" style={{ color: card.color }}>
-                    ${card.value?.toFixed(2) || '0.00'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="grid grid-cols-3 gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[72px]" />)}</div>
+      ) : summary ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <StatBlock label="Total recognized" value={`$${summary.totalRecognized?.toFixed(2) || "0.00"}`} />
+          <StatBlock label="Total deferred" value={`$${summary.totalDeferred?.toFixed(2) || "0.00"}`} />
+          <StatBlock label="Credit recognized" value={`$${summary.totalCreditRecognized?.toFixed(2) || "0.00"}`} />
+          <StatBlock label="Credit deferred" value={`$${summary.totalCreditDeferred?.toFixed(2) || "0.00"}`} />
+          <StatBlock label="Slot recognized" value={`$${summary.totalSlotRecognized?.toFixed(2) || "0.00"}`} />
+          <StatBlock label="Slot deferred" value={`$${summary.totalSlotDeferred?.toFixed(2) || "0.00"}`} />
+        </div>
+      ) : null}
 
-          {/* Allocations Table */}
-          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#2A2D37]">
-              <h2 className="text-sm font-semibold text-white">Revenue Allocations (IFRS 15)</h2>
-              <p className="text-xs text-[#6B7280] mt-1">Each row represents a bundle purchase with its credit/slot obligation tracking</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#2A2D37]/50">
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-6 py-3">Bundle</th>
-                    <th className="text-right text-xs font-medium text-[#6B7280] uppercase px-3 py-3">Price</th>
-                    <th className="text-right text-xs font-medium text-[#6B7280] uppercase px-3 py-3">Credit $</th>
-                    <th className="text-center text-xs font-medium text-[#6B7280] uppercase px-3 py-3">Credits Used</th>
-                    <th className="text-right text-xs font-medium text-[#6B7280] uppercase px-3 py-3">Slot $</th>
-                    <th className="text-center text-xs font-medium text-[#6B7280] uppercase px-3 py-3">Days Amort.</th>
-                    <th className="text-center text-xs font-medium text-[#6B7280] uppercase px-3 py-3">Progress</th>
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-6 py-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allocations.length === 0 ? (
-                    <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-[#6B7280]">No revenue allocations yet</td></tr>
-                  ) : (
-                    allocations.map((a: any) => {
-                      const totalRecognized = a.creditRevenueRecognized + a.slotRevenueRecognized;
-                      const progressPct = a.totalPrice > 0 ? Math.round((totalRecognized / a.totalPrice) * 100) : 0;
-                      return (
-                        <tr key={a.id} className="border-b border-[#2A2D37]/30 hover:bg-[#1A1D27]/50">
-                          <td className="px-6 py-3">
-                            <span className="text-sm font-medium text-white">{a.bundleType}</span>
-                            {a.fullyRecognized && (
-                              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-[#10B981]/15 text-[#10B981]">DONE</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3 text-sm text-right text-white">${a.totalPrice.toFixed(2)}</td>
-                          <td className="px-3 py-3 text-sm text-right text-[#3B82F6]">${a.creditAllocation.toFixed(2)}</td>
-                          <td className="px-3 py-3 text-sm text-center text-white">{a.creditsUsed}/{a.totalCredits}</td>
-                          <td className="px-3 py-3 text-sm text-right text-[#8B5CF6]">${a.slotAllocation.toFixed(2)}</td>
-                          <td className="px-3 py-3 text-sm text-center text-white">{a.slotDaysAmortized}/{a.slotDays}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2 bg-[#2A2D37] rounded-full overflow-hidden">
-                                <div className="h-full bg-[#10B981] rounded-full transition-all" style={{ width: `${progressPct}%` }} />
-                              </div>
-                              <span className="text-xs text-[#6B7280] w-8 text-right">{progressPct}%</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 text-xs text-[#6B7280]">
-                            {new Date(a.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short' })}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+      <Card padding={false}>
+        <CardHeader className="px-5 py-4">
+          <div>
+            <CardTitle>Revenue allocations</CardTitle>
+            <CardDescription>Each row is a bundle purchase with its credit/slot obligation tracking</CardDescription>
           </div>
-        </>
-      )}
-    </div>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm-compact">
+            <thead>
+              <tr className="border-b border-muted bg-panel">
+                <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Bundle</th>
+                <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Price</th>
+                <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Credit $</th>
+                <th className="text-center h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Credits used</th>
+                <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Slot $</th>
+                <th className="text-center h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Days amort.</th>
+                <th className="text-center h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Progress</th>
+                <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[color:var(--color-border-muted)]">
+              {allocations.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-10 text-sm text-fg-subtle">No revenue allocations yet</td></tr>
+              ) : (
+                allocations.map((a) => {
+                  const recognized = a.creditRevenueRecognized + a.slotRevenueRecognized;
+                  const pct = a.totalPrice > 0 ? Math.round((recognized / a.totalPrice) * 100) : 0;
+                  return (
+                    <tr key={a.id} className="hover:bg-raised transition-colors">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm-compact text-fg font-medium">{a.bundleType}</span>
+                          {a.fullyRecognized && <Badge tone="success" size="sm">Done</Badge>}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular text-fg">${a.totalPrice.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right tabular text-info">${a.creditAllocation.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-center tabular text-fg">{a.creditsUsed}/{a.totalCredits}</td>
+                      <td className="px-3 py-2 text-right tabular text-pending">${a.slotAllocation.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-center tabular text-fg">{a.slotDaysAmortized}/{a.slotDays}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-raised rounded-full overflow-hidden">
+                            <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-2xs text-fg-muted tabular w-8 text-right">{pct}%</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-2xs text-fg-muted tabular">
+                        {new Date(a.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </PageContainer>
   );
 }

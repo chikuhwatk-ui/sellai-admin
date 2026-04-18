@@ -1,235 +1,185 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useApi } from '@/hooks/useApi';
+import * as React from "react";
+import { useApi } from "@/hooks/useApi";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { cn } from "@/lib/cn";
 
-type ReportTab = 'trial-balance' | 'income-statement' | 'balance-sheet';
+type ReportTab = "trial-balance" | "income-statement" | "balance-sheet";
 
-function formatDate(d: Date) {
-  return d.toISOString().split('T')[0];
+interface Account { code: string; name: string; totalDebit?: number; totalCredit?: number; balance?: number; amount?: number }
+interface TrialBalance { accounts: Account[]; totalDebits: number; totalCredits: number; isBalanced: boolean }
+interface IncomeStatement { revenue: Account[]; expenses: Account[]; totalRevenue: number; totalExpenses: number; netIncome: number }
+interface BalanceSheet {
+  assets: Account[]; liabilities: Account[]; equity: Account[];
+  totalAssets: number; totalLiabilities: number; totalEquity: number;
+  isBalanced: boolean;
 }
 
-function getMonthRange() {
+function monthRange() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: formatDate(start), end: formatDate(end) };
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0],
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0],
+  };
 }
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState<ReportTab>('trial-balance');
-  const range = getMonthRange();
-  const [startDate, setStartDate] = useState(range.start);
-  const [endDate, setEndDate] = useState(range.end);
+  const [tab, setTab] = React.useState<ReportTab>("trial-balance");
+  const range = React.useMemo(() => monthRange(), []);
+  const [startDate, setStartDate] = React.useState(range.start);
+  const [endDate, setEndDate] = React.useState(range.end);
 
-  const { data: tb, loading: tbLoading } = useApi<any>(
-    tab === 'trial-balance' ? `/api/admin/accounting/reports/trial-balance?startDate=${startDate}&endDate=${endDate}` : null
+  const { data: tb, loading: tbLoading } = useApi<TrialBalance>(
+    tab === "trial-balance" ? `/api/admin/accounting/reports/trial-balance?startDate=${startDate}&endDate=${endDate}` : null
   );
-  const { data: pl, loading: plLoading } = useApi<any>(
-    tab === 'income-statement' ? `/api/admin/accounting/reports/income-statement?startDate=${startDate}&endDate=${endDate}` : null
+  const { data: pl, loading: plLoading } = useApi<IncomeStatement>(
+    tab === "income-statement" ? `/api/admin/accounting/reports/income-statement?startDate=${startDate}&endDate=${endDate}` : null
   );
-  const { data: bs, loading: bsLoading } = useApi<any>(
-    tab === 'balance-sheet' ? `/api/admin/accounting/reports/balance-sheet?asOf=${endDate}` : null
+  const { data: bs, loading: bsLoading } = useApi<BalanceSheet>(
+    tab === "balance-sheet" ? `/api/admin/accounting/reports/balance-sheet?asOf=${endDate}` : null
   );
 
-  const isLoading = (tab === 'trial-balance' && tbLoading) || (tab === 'income-statement' && plLoading) || (tab === 'balance-sheet' && bsLoading);
+  const loading = (tab === "trial-balance" && tbLoading)
+    || (tab === "income-statement" && plLoading)
+    || (tab === "balance-sheet" && bsLoading);
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Financial Reports</h1>
-        <p className="text-sm text-[#6B7280] mt-1">IFRS-compliant financial statements</p>
+    <PageContainer>
+      <PageHeader
+        title="Financial Reports"
+        description="IFRS-compliant financial statements"
+      />
+
+      <div className="flex flex-wrap items-end gap-2">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as ReportTab)}>
+          <TabsList variant="pill">
+            <TabsTrigger value="trial-balance" variant="pill">Trial balance</TabsTrigger>
+            <TabsTrigger value="income-statement" variant="pill">Income statement</TabsTrigger>
+            <TabsTrigger value="balance-sheet" variant="pill">Balance sheet</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Field label="From"><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
+        <Field label="To"><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field>
       </div>
 
-      {/* Tab selector + date range */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex gap-1 bg-[#1A1D27] rounded-lg p-1">
-          {([
-            { key: 'trial-balance', label: 'Trial Balance' },
-            { key: 'income-statement', label: 'Income Statement' },
-            { key: 'balance-sheet', label: 'Balance Sheet' },
-          ] as const).map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                tab === t.key ? 'bg-[#10B981] text-white' : 'text-[#6B7280] hover:text-white'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-            className="px-3 py-2 bg-[#1A1D27] border border-[#2A2D37] rounded-lg text-sm text-white focus:outline-none focus:border-[#10B981]" />
-          <span className="text-[#6B7280] text-sm">to</span>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-            className="px-3 py-2 bg-[#1A1D27] border border-[#2A2D37] rounded-lg text-sm text-white focus:outline-none focus:border-[#10B981]" />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="text-center py-12 text-[#6B7280]">Loading report...</div>
+      {loading ? (
+        <Skeleton className="h-96" />
       ) : (
         <>
-          {/* Trial Balance */}
-          {tab === 'trial-balance' && tb && (
-            <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#2A2D37] flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Trial Balance</h2>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  tb.isBalanced ? 'bg-[#10B981]/15 text-[#10B981]' : 'bg-[#EF4444]/15 text-[#EF4444]'
-                }`}>
-                  {tb.isBalanced ? 'Balanced' : 'UNBALANCED'}
-                </span>
-              </div>
-              <table className="w-full">
+          {tab === "trial-balance" && tb && (
+            <Card padding={false}>
+              <CardHeader>
+                <CardTitle>Trial Balance</CardTitle>
+                <Badge tone={tb.isBalanced ? "success" : "danger"} size="sm">
+                  {tb.isBalanced ? "Balanced" : "Unbalanced"}
+                </Badge>
+              </CardHeader>
+              <table className="w-full text-sm-compact">
                 <thead>
-                  <tr className="border-b border-[#2A2D37]/50">
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-6 py-3">Code</th>
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-4 py-3">Account</th>
-                    <th className="text-right text-xs font-medium text-[#6B7280] uppercase px-4 py-3">Debit</th>
-                    <th className="text-right text-xs font-medium text-[#6B7280] uppercase px-6 py-3">Credit</th>
+                  <tr className="border-b border-muted bg-panel">
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Code</th>
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Account</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Debit</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Credit</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {(tb.accounts || []).map((a: any) => (
-                    <tr key={a.code} className="border-b border-[#2A2D37]/30">
-                      <td className="px-6 py-3 font-mono text-sm text-[#10B981]">{a.code}</td>
-                      <td className="px-4 py-3 text-sm text-white">{a.name}</td>
-                      <td className="px-4 py-3 text-sm text-right text-white">{a.totalDebit > 0 ? `$${a.totalDebit.toFixed(2)}` : ''}</td>
-                      <td className="px-6 py-3 text-sm text-right text-white">{a.totalCredit > 0 ? `$${a.totalCredit.toFixed(2)}` : ''}</td>
+                <tbody className="divide-y divide-[color:var(--color-border-muted)]">
+                  {(tb.accounts || []).map((a) => (
+                    <tr key={a.code} className="hover:bg-raised">
+                      <td className="px-3 py-2 font-mono text-xs text-accent tabular">{a.code}</td>
+                      <td className="px-3 py-2 text-fg">{a.name}</td>
+                      <td className="px-3 py-2 text-right tabular text-fg">{(a.totalDebit ?? 0) > 0 ? `$${a.totalDebit!.toFixed(2)}` : ""}</td>
+                      <td className="px-3 py-2 text-right tabular text-fg">{(a.totalCredit ?? 0) > 0 ? `$${a.totalCredit!.toFixed(2)}` : ""}</td>
                     </tr>
                   ))}
-                  <tr className="bg-[#0F1117] font-bold">
-                    <td className="px-6 py-3 text-sm text-white" colSpan={2}>TOTALS</td>
-                    <td className="px-4 py-3 text-sm text-right text-white">${tb.totalDebits?.toFixed(2)}</td>
-                    <td className="px-6 py-3 text-sm text-right text-white">${tb.totalCredits?.toFixed(2)}</td>
+                  <tr className="bg-raised font-semibold">
+                    <td colSpan={2} className="px-3 py-2 text-fg">Totals</td>
+                    <td className="px-3 py-2 text-right tabular text-fg">${tb.totalDebits?.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right tabular text-fg">${tb.totalCredits?.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>
-            </div>
+            </Card>
           )}
 
-          {/* Income Statement */}
-          {tab === 'income-statement' && pl && (
-            <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#2A2D37]">
-                <h2 className="text-sm font-semibold text-white">Income Statement (P&L)</h2>
-              </div>
-              <div className="p-6 space-y-6">
-                {/* Revenue */}
-                <div>
-                  <h3 className="text-xs font-semibold text-[#10B981] uppercase tracking-wider mb-3">Revenue</h3>
-                  {(pl.revenue || []).map((r: any) => (
-                    <div key={r.code} className="flex justify-between py-1.5 border-b border-[#2A2D37]/30">
-                      <span className="text-sm text-white"><span className="font-mono text-[#6B7280] mr-2">{r.code}</span>{r.name}</span>
-                      <span className="text-sm text-white font-medium">${r.amount.toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between py-2 mt-1 font-semibold">
-                    <span className="text-sm text-[#10B981]">Total Revenue</span>
-                    <span className="text-sm text-[#10B981]">${pl.totalRevenue?.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Expenses */}
-                <div>
-                  <h3 className="text-xs font-semibold text-[#EF4444] uppercase tracking-wider mb-3">Expenses</h3>
-                  {(pl.expenses || []).map((e: any) => (
-                    <div key={e.code} className="flex justify-between py-1.5 border-b border-[#2A2D37]/30">
-                      <span className="text-sm text-white"><span className="font-mono text-[#6B7280] mr-2">{e.code}</span>{e.name}</span>
-                      <span className="text-sm text-white font-medium">(${e.amount.toFixed(2)})</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between py-2 mt-1 font-semibold">
-                    <span className="text-sm text-[#EF4444]">Total Expenses</span>
-                    <span className="text-sm text-[#EF4444]">(${pl.totalExpenses?.toFixed(2)})</span>
-                  </div>
-                </div>
-
-                {/* Net Income */}
-                <div className="pt-4 border-t-2 border-[#2A2D37]">
-                  <div className="flex justify-between">
-                    <span className="text-lg font-bold text-white">Net Income</span>
-                    <span className={`text-lg font-bold ${pl.netIncome >= 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
-                      {pl.netIncome >= 0 ? '' : '-'}${Math.abs(pl.netIncome).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Balance Sheet */}
-          {tab === 'balance-sheet' && bs && (
-            <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-[#2A2D37] flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Balance Sheet as of {endDate}</h2>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  bs.isBalanced ? 'bg-[#10B981]/15 text-[#10B981]' : 'bg-[#EF4444]/15 text-[#EF4444]'
-                }`}>
-                  {bs.isBalanced ? 'Balanced (A = L + E)' : 'UNBALANCED'}
-                </span>
-              </div>
-              <div className="p-6 space-y-6">
-                {/* Assets */}
-                <div>
-                  <h3 className="text-xs font-semibold text-[#3B82F6] uppercase tracking-wider mb-3">Assets</h3>
-                  {(bs.assets || []).map((a: any) => (
-                    <div key={a.code} className="flex justify-between py-1.5 border-b border-[#2A2D37]/30">
-                      <span className="text-sm text-white"><span className="font-mono text-[#6B7280] mr-2">{a.code}</span>{a.name}</span>
-                      <span className="text-sm text-white font-medium">${a.balance.toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between py-2 mt-1 font-bold">
-                    <span className="text-sm text-[#3B82F6]">Total Assets</span>
-                    <span className="text-sm text-[#3B82F6]">${bs.totalAssets?.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Liabilities */}
-                <div>
-                  <h3 className="text-xs font-semibold text-[#F59E0B] uppercase tracking-wider mb-3">Liabilities</h3>
-                  {(bs.liabilities || []).map((l: any) => (
-                    <div key={l.code} className="flex justify-between py-1.5 border-b border-[#2A2D37]/30">
-                      <span className="text-sm text-white"><span className="font-mono text-[#6B7280] mr-2">{l.code}</span>{l.name}</span>
-                      <span className="text-sm text-white font-medium">${l.balance.toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between py-2 mt-1 font-bold">
-                    <span className="text-sm text-[#F59E0B]">Total Liabilities</span>
-                    <span className="text-sm text-[#F59E0B]">${bs.totalLiabilities?.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Equity */}
-                <div>
-                  <h3 className="text-xs font-semibold text-[#8B5CF6] uppercase tracking-wider mb-3">Equity</h3>
-                  {(bs.equity || []).map((e: any) => (
-                    <div key={e.code} className="flex justify-between py-1.5 border-b border-[#2A2D37]/30">
-                      <span className="text-sm text-white"><span className="font-mono text-[#6B7280] mr-2">{e.code}</span>{e.name}</span>
-                      <span className="text-sm text-white font-medium">${e.balance.toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between py-2 mt-1 font-bold">
-                    <span className="text-sm text-[#8B5CF6]">Total Equity</span>
-                    <span className="text-sm text-[#8B5CF6]">${bs.totalEquity?.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Equation */}
-                <div className="pt-4 border-t-2 border-[#2A2D37] text-center">
-                  <span className="text-sm text-[#6B7280]">
-                    Assets (${bs.totalAssets?.toFixed(2)}) = Liabilities (${bs.totalLiabilities?.toFixed(2)}) + Equity (${bs.totalEquity?.toFixed(2)})
+          {tab === "income-statement" && pl && (
+            <Card padding={false}>
+              <CardHeader><CardTitle>Income Statement (P&amp;L)</CardTitle></CardHeader>
+              <CardContent className="space-y-5">
+                <Section title="Revenue" tone="success" items={pl.revenue} total={pl.totalRevenue} />
+                <Section title="Expenses" tone="danger" items={pl.expenses} total={pl.totalExpenses} parens />
+                <div className="pt-3 border-t-2 border-muted flex items-center justify-between">
+                  <span className="text-lg font-semibold text-fg">Net Income</span>
+                  <span className={cn("text-lg font-bold tabular", pl.netIncome >= 0 ? "text-success" : "text-danger")}>
+                    {pl.netIncome >= 0 ? "" : "-"}${Math.abs(pl.netIncome).toFixed(2)}
                   </span>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === "balance-sheet" && bs && (
+            <Card padding={false}>
+              <CardHeader>
+                <CardTitle>Balance Sheet as of {endDate}</CardTitle>
+                <Badge tone={bs.isBalanced ? "success" : "danger"} size="sm">
+                  {bs.isBalanced ? "Balanced (A = L + E)" : "Unbalanced"}
+                </Badge>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <Section title="Assets" tone="info" items={bs.assets} total={bs.totalAssets} balanceField />
+                <Section title="Liabilities" tone="warning" items={bs.liabilities} total={bs.totalLiabilities} balanceField />
+                <Section title="Equity" tone="pending" items={bs.equity} total={bs.totalEquity} balanceField />
+                <div className="pt-3 border-t-2 border-muted text-center text-sm text-fg-muted tabular">
+                  Assets (${bs.totalAssets?.toFixed(2)}) = Liabilities (${bs.totalLiabilities?.toFixed(2)}) + Equity (${bs.totalEquity?.toFixed(2)})
+                </div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
+    </PageContainer>
+  );
+}
+
+function Section({ title, tone, items, total, parens, balanceField }: {
+  title: string;
+  tone: "success" | "danger" | "info" | "warning" | "pending";
+  items: Account[]; total: number;
+  parens?: boolean;
+  balanceField?: boolean;
+}) {
+  const toneFg = {
+    success: "text-success", danger: "text-danger",
+    info: "text-info", warning: "text-warning", pending: "text-pending",
+  }[tone];
+  return (
+    <div>
+      <h3 className={cn("text-2xs font-semibold uppercase tracking-wider mb-2", toneFg)}>{title}</h3>
+      {items.map((x) => {
+        const v = balanceField ? x.balance ?? 0 : x.amount ?? 0;
+        return (
+          <div key={x.code} className="flex justify-between py-1.5 border-b border-[color:var(--color-border-muted)]">
+            <span className="text-sm text-fg">
+              <span className="font-mono text-xs text-fg-subtle mr-2">{x.code}</span>{x.name}
+            </span>
+            <span className="text-sm font-medium text-fg tabular">{parens ? `($${v.toFixed(2)})` : `$${v.toFixed(2)}`}</span>
+          </div>
+        );
+      })}
+      <div className="flex justify-between py-2 mt-1">
+        <span className={cn("text-sm font-semibold", toneFg)}>Total {title}</span>
+        <span className={cn("text-sm font-semibold tabular", toneFg)}>
+          {parens ? `($${total?.toFixed(2)})` : `$${total?.toFixed(2)}`}
+        </span>
+      </div>
     </div>
   );
 }

@@ -1,161 +1,173 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useApi } from "@/hooks/useApi";
+import { useAuth } from "@/hooks/useAuth";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { api } from "@/lib/api";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { Table } from "@/components/ui/Table";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Label";
+import { Button } from "@/components/ui/Button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select";
 
 const EXPENSE_ACCOUNTS = [
-  { code: '5000', name: 'Payment Gateway Fees' },
-  { code: '5100', name: 'Hosting & Infrastructure' },
-  { code: '5200', name: 'Salaries & Wages' },
-  { code: '5300', name: 'Rent & Utilities' },
-  { code: '5400', name: 'Marketing & Advertising' },
-  { code: '5500', name: 'Professional Services' },
-  { code: '5600', name: 'Depreciation & Amortization' },
-  { code: '5900', name: 'General & Administrative' },
+  { code: "5000", name: "Payment Gateway Fees" },
+  { code: "5100", name: "Hosting & Infrastructure" },
+  { code: "5200", name: "Salaries & Wages" },
+  { code: "5300", name: "Rent & Utilities" },
+  { code: "5400", name: "Marketing & Advertising" },
+  { code: "5500", name: "Professional Services" },
+  { code: "5600", name: "Depreciation & Amortization" },
+  { code: "5900", name: "General & Administrative" },
 ];
+
+interface Expense {
+  id: string; date: string; accountCode: string;
+  amount: number; description: string; vendor?: string; reference?: string;
+}
 
 export default function ExpensesPage() {
   const { hasPermission } = useAuth();
-  const [page, setPage] = useState(1);
-  const { data, loading, refetch } = useApi<any>(`/api/admin/accounting/expenses?page=${page}`);
+  const [page, setPage] = React.useState(1);
+  const { data, loading, refetch } = useApi<{ data: Expense[]; totalPages: number }>(
+    `/api/admin/accounting/expenses?page=${page}`
+  );
   const expenses = data?.data || [];
   const totalPages = data?.totalPages || 1;
 
-  const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], accountCode: '5100', amount: '', description: '', vendor: '', reference: '' });
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = React.useState({
+    date: new Date().toISOString().split("T")[0],
+    accountCode: "5100",
+    amount: "",
+    description: "",
+    vendor: "",
+    reference: "",
+  });
+  const [submitting, setSubmitting] = React.useState(false);
+  const { run } = useOptimisticAction();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.amount || !form.description) return;
     setSubmitting(true);
     try {
-      await api.post('/api/admin/accounting/expenses', {
-        date: form.date,
-        accountCode: form.accountCode,
-        amount: parseFloat(form.amount),
-        description: form.description,
-        vendor: form.vendor || undefined,
-        reference: form.reference || undefined,
+      await api.post("/api/admin/accounting/expenses", {
+        date: form.date, accountCode: form.accountCode,
+        amount: parseFloat(form.amount), description: form.description,
+        vendor: form.vendor || undefined, reference: form.reference || undefined,
       });
-      setForm({ ...form, amount: '', description: '', vendor: '', reference: '' });
+      setForm({ ...form, amount: "", description: "", vendor: "", reference: "" });
       refetch();
-    } catch (err: any) {
-      alert(err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Expense Tracking</h1>
-        <p className="text-sm text-[#6B7280] mt-1">Record operational expenses with automatic journal entries</p>
-      </div>
-
-      {/* Expense Form */}
-      {hasPermission('FINANCE_MANAGE') && (
-        <form onSubmit={handleSubmit} className="bg-[#1A1D27] border border-[#10B981]/30 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-white mb-4">Record New Expense</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Date</label>
-              <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white focus:outline-none focus:border-[#10B981]" />
-            </div>
-            <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Category</label>
-              <select value={form.accountCode} onChange={(e) => setForm({ ...form, accountCode: e.target.value })}
-                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white focus:outline-none focus:border-[#10B981]">
-                {EXPENSE_ACCOUNTS.map((a) => <option key={a.code} value={a.code}>{a.code} - {a.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Amount (USD)</label>
-              <input type="number" step="0.01" min="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                placeholder="0.00"
-                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs text-[#6B7280] mb-1">Description</label>
-              <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="What was this expense for?"
-                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]" />
-            </div>
-            <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Vendor (optional)</label>
-              <input type="text" value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                placeholder="e.g. Railway, Google"
-                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]" />
-            </div>
-            <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Reference (optional)</label>
-              <input type="text" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })}
-                placeholder="Invoice # or receipt ID"
-                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]" />
-            </div>
-            <div className="flex items-end">
-              <button type="submit" disabled={submitting || !form.amount || !form.description}
-                className="px-6 py-2 bg-[#10B981] text-white text-sm font-medium rounded-lg hover:bg-[#059669] disabled:opacity-50">
-                {submitting ? 'Recording...' : 'Record Expense'}
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      {/* Expenses Table */}
-      {loading ? (
-        <div className="text-center py-12 text-[#6B7280]">Loading...</div>
-      ) : (
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#2A2D37]">
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-6 py-4">Date</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-4 py-4">Category</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-4 py-4">Description</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase px-4 py-4">Vendor</th>
-                <th className="text-right text-xs font-medium text-[#6B7280] uppercase px-6 py-4">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-[#6B7280]">No expenses recorded</td></tr>
-              ) : (
-                expenses.map((exp: any) => (
-                  <tr key={exp.id} className="border-b border-[#2A2D37]/50 hover:bg-[#1A1D27]/50">
-                    <td className="px-6 py-3 text-xs text-[#6B7280]">
-                      {new Date(exp.date).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs text-[#10B981]">{exp.accountCode}</span>
-                      <span className="text-xs text-[#6B7280] ml-1">
-                        {EXPENSE_ACCOUNTS.find((a) => a.code === exp.accountCode)?.name || ''}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-white">{exp.description}</td>
-                    <td className="px-4 py-3 text-sm text-[#6B7280]">{exp.vendor || '--'}</td>
-                    <td className="px-6 py-3 text-sm text-right font-medium text-[#EF4444]">${Number(exp.amount).toFixed(2)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+  const columns: ColumnDef<Expense>[] = [
+    {
+      id: "date",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-fg-muted tabular">
+          {new Date(row.original.date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+        </span>
+      ),
+    },
+    {
+      id: "category",
+      header: "Category",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-xs text-accent tabular">{row.original.accountCode}</span>
+          <span className="text-xs text-fg-muted">
+            {EXPENSE_ACCOUNTS.find((a) => a.code === row.original.accountCode)?.name || ""}
+          </span>
         </div>
+      ),
+    },
+    {
+      id: "description",
+      header: "Description",
+      cell: ({ row }) => <span className="text-sm-compact text-fg">{row.original.description}</span>,
+    },
+    {
+      id: "vendor",
+      header: "Vendor",
+      cell: ({ row }) => <span className="text-xs text-fg-muted">{row.original.vendor || "—"}</span>,
+    },
+    {
+      id: "amount",
+      header: () => <span className="block text-right">Amount</span>,
+      cell: ({ row }) => <span className="block text-right text-sm-compact font-medium text-danger tabular">${Number(row.original.amount).toFixed(2)}</span>,
+    },
+  ];
+
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Expenses"
+        description="Record operational expenses with automatic journal entries"
+      />
+
+      {hasPermission("FINANCE_MANAGE") && (
+        <Card padding={false}>
+          <CardHeader><CardTitle>Record new expense</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Field label="Date">
+                <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+              </Field>
+              <Field label="Category">
+                <Select value={form.accountCode} onValueChange={(v) => setForm({ ...form, accountCode: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_ACCOUNTS.map((a) => <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Amount (USD)">
+                <Input type="number" step="0.01" min="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Description">
+                  <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What was this expense for?" />
+                </Field>
+              </div>
+              <Field label="Vendor" hint="optional">
+                <Input value={form.vendor} onChange={(e) => setForm({ ...form, vendor: e.target.value })} placeholder="Railway, Google…" />
+              </Field>
+              <Field label="Reference" hint="optional">
+                <Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Invoice #, receipt ID" />
+              </Field>
+              <div className="flex items-end">
+                <Button type="submit" variant="primary" disabled={submitting || !form.amount || !form.description} loading={submitting}>
+                  Record expense
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
+
+      <Table<Expense>
+        columns={columns}
+        data={expenses}
+        loading={loading}
+        rowId={(e) => e.id}
+        emptyTitle="No expenses recorded yet"
+      />
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40">Prev</button>
-          <span className="text-xs text-[#6B7280]">Page {page} of {totalPages}</span>
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40">Next</button>
+        <div className="flex items-center justify-center gap-1">
+          <Button size="sm" variant="secondary" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+          <span className="px-3 text-2xs text-fg-subtle tabular">Page {page} of {totalPages}</span>
+          <Button size="sm" variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -1,109 +1,103 @@
-'use client';
+"use client";
 
-import { useApi } from '@/hooks/useApi';
-import { api } from '@/lib/api';
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import * as React from "react";
+import { useApi } from "@/hooks/useApi";
+import { useAuth } from "@/hooks/useAuth";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { api } from "@/lib/api";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { cn } from "@/lib/cn";
 
-const TYPE_COLORS: Record<string, string> = {
-  ASSET: '#3B82F6',
-  LIABILITY: '#F59E0B',
-  EQUITY: '#8B5CF6',
-  REVENUE: '#10B981',
-  EXPENSE: '#EF4444',
+const TYPE_TONE: Record<string, "info" | "warning" | "pending" | "accent" | "danger"> = {
+  ASSET: "info",
+  LIABILITY: "warning",
+  EQUITY: "pending",
+  REVENUE: "accent",
+  EXPENSE: "danger",
 };
+const TYPE_ORDER = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"];
 
-const TYPE_ORDER = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
+interface Account {
+  id: string; code: string; name: string; type: string;
+  normalBalance: "DEBIT" | "CREDIT"; description?: string;
+}
 
 export default function AccountsPage() {
-  const { data: accounts, loading, refetch } = useApi<any[]>('/api/admin/accounting/accounts');
+  const { data: accounts, loading, refetch } = useApi<Account[]>("/api/admin/accounting/accounts");
   const { hasPermission } = useAuth();
-  const [seeding, setSeeding] = useState(false);
-
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      const result = await api.post<any>('/api/admin/accounting/seed');
-      alert(`Seeded: ${result.created} created, ${result.existing} already existed`);
-      refetch();
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setSeeding(false);
-    }
-  };
+  const { run } = useOptimisticAction();
 
   const accountList = Array.isArray(accounts) ? accounts : [];
-
-  // Group by type
   const grouped = TYPE_ORDER.map((type) => ({
     type,
-    accounts: accountList.filter((a: any) => a.type === type),
+    accounts: accountList.filter((a) => a.type === type),
   })).filter((g) => g.accounts.length > 0);
 
+  const seed = () => {
+    run({
+      action: () => api.post<{ created: number; existing: number }>("/api/admin/accounting/seed"),
+      label: "Default accounts seeded",
+      onSuccess: () => refetch(),
+    });
+  };
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Chart of Accounts</h1>
-          <p className="text-sm text-[#6B7280] mt-1">IFRS-compliant account structure</p>
-        </div>
-        {hasPermission('FINANCE_MANAGE') && accountList.length === 0 && (
-          <button
-            onClick={handleSeed}
-            disabled={seeding}
-            className="px-4 py-2 bg-[#10B981] text-white text-sm font-medium rounded-lg hover:bg-[#059669] disabled:opacity-50"
-          >
-            {seeding ? 'Seeding...' : 'Seed Default Accounts'}
-          </button>
-        )}
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Chart of Accounts"
+        description="IFRS-compliant account structure"
+        actions={
+          hasPermission("FINANCE_MANAGE") && accountList.length === 0 ? (
+            <Button variant="primary" onClick={seed}>Seed default accounts</Button>
+          ) : null
+        }
+      />
 
       {loading ? (
-        <div className="text-center py-12 text-[#6B7280]">Loading...</div>
+        <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)}</div>
       ) : accountList.length === 0 ? (
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-12 text-center">
-          <p className="text-[#6B7280] mb-4">No accounts found. Seed the chart of accounts to get started.</p>
-        </div>
+        <Card variant="ghost" className="text-center !py-12">
+          <p className="text-sm text-fg-muted">No accounts yet. Seed the chart to get started.</p>
+        </Card>
       ) : (
-        <div className="space-y-6">
-          {grouped.map((group) => (
-            <div key={group.type} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-              <div className="px-6 py-3 border-b border-[#2A2D37] flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: TYPE_COLORS[group.type] }} />
-                <h2 className="text-sm font-semibold text-white">{group.type}</h2>
-                <span className="text-xs text-[#6B7280]">({group.accounts.length} accounts)</span>
+        <div className="space-y-4">
+          {grouped.map((g) => (
+            <Card key={g.type} padding={false}>
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-muted">
+                <span className={cn("w-2 h-2 rounded-full", `bg-${TYPE_TONE[g.type]}`)} />
+                <h2 className="text-sm font-semibold text-fg">{g.type}</h2>
+                <span className="text-2xs text-fg-subtle tabular">({g.accounts.length})</span>
               </div>
-              <table className="w-full">
+              <table className="w-full text-sm-compact">
                 <thead>
-                  <tr className="border-b border-[#2A2D37]/50">
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Code</th>
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Name</th>
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Normal Balance</th>
-                    <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Description</th>
+                  <tr className="border-b border-muted bg-panel">
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Code</th>
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Name</th>
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Normal balance</th>
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Description</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {group.accounts.map((acct: any) => (
-                    <tr key={acct.id} className="border-b border-[#2A2D37]/30 hover:bg-[#1A1D27]/50">
-                      <td className="px-6 py-3 font-mono text-sm text-[#10B981] font-medium">{acct.code}</td>
-                      <td className="px-6 py-3 text-sm text-white">{acct.name}</td>
-                      <td className="px-6 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          acct.normalBalance === 'DEBIT' ? 'bg-[#3B82F6]/15 text-[#3B82F6]' : 'bg-[#10B981]/15 text-[#10B981]'
-                        }`}>
-                          {acct.normalBalance}
-                        </span>
+                <tbody className="divide-y divide-[color:var(--color-border-muted)]">
+                  {g.accounts.map((a) => (
+                    <tr key={a.id} className="hover:bg-raised transition-colors">
+                      <td className="px-3 py-2 font-mono text-xs text-accent tabular font-medium">{a.code}</td>
+                      <td className="px-3 py-2 text-fg">{a.name}</td>
+                      <td className="px-3 py-2">
+                        <Badge tone={a.normalBalance === "DEBIT" ? "info" : "accent"} size="sm">{a.normalBalance}</Badge>
                       </td>
-                      <td className="px-6 py-3 text-xs text-[#6B7280]">{acct.description || '--'}</td>
+                      <td className="px-3 py-2 text-xs text-fg-muted">{a.description || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Card>
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
