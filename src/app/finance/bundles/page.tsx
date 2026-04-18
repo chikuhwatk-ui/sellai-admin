@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { History, Pencil, Save, X } from "lucide-react";
+import Link from "next/link";
+import { History, Pencil, Save, X, AlertCircle, Clock } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,11 +46,19 @@ interface PriceChange {
 }
 
 export default function BundlesPage() {
-  const { hasPermission } = useAuth();
-  const canEdit = hasPermission("FINANCE_MANAGE");
+  const { hasPermission, adminRole } = useAuth();
+  const canEdit = hasPermission("FINANCE_MANAGE") && adminRole === "SUPER_ADMIN";
   const { data: bundles, loading, refetch } = useApi<Bundle[]>("/admin/v2/bundles");
+  const { data: pending } = useApi<Array<{ id: string; bundleId: string }>>(
+    "/admin/v2/bundle-requests?status=PENDING",
+  );
   const [editing, setEditing] = React.useState<Bundle | null>(null);
   const [viewingHistory, setViewingHistory] = React.useState<Bundle | null>(null);
+  const pendingByBundle = React.useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of pending || []) m.set(r.bundleId, r.id);
+    return m;
+  }, [pending]);
 
   const combos = (bundles || []).filter((b) => !b.isRefill);
   const refills = (bundles || []).filter((b) => b.isRefill);
@@ -58,8 +67,30 @@ export default function BundlesPage() {
     <PageContainer>
       <PageHeader
         title="Bundle pricing"
-        description="Edit bundle prices, credits, and slots. Every change writes an audit row. Mobile app picks up edits on next app session — users already on the wallet screen keep old prices until they re-enter."
+        description="Bundle changes require approval from a second super-admin. Propose changes here; another super-admin reviews them under Pending Requests."
+        actions={
+          <Link href="/finance/bundles/pending" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-default bg-panel text-sm-compact text-fg-muted hover:border-strong hover:text-fg transition-colors">
+            <Clock className="h-3.5 w-3.5" />
+            Pending requests
+            {pending && pending.length > 0 && (
+              <span className="ml-1 h-4 min-w-4 px-1 rounded-full bg-warning/20 text-warning text-2xs font-semibold tabular inline-flex items-center justify-center">
+                {pending.length}
+              </span>
+            )}
+          </Link>
+        }
       />
+
+      {pending && pending.length > 0 && (
+        <div className="flex items-start gap-2 p-3 rounded-md bg-[var(--color-warning-bg)] border border-warning/20">
+          <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs">
+            <span className="text-warning font-medium">{pending.length} pending change{pending.length !== 1 ? "s" : ""} awaiting approval.</span>{" "}
+            <Link href="/finance/bundles/pending" className="text-warning underline hover:text-fg">Review them</Link>{" "}
+            <span className="text-fg-muted">— another super-admin must approve before they take effect.</span>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">
@@ -73,6 +104,7 @@ export default function BundlesPage() {
             subtitle="Slots (30-day access) + credits"
             bundles={combos}
             canEdit={canEdit}
+            pendingByBundle={pendingByBundle}
             onEdit={setEditing}
             onHistory={setViewingHistory}
           />
@@ -81,6 +113,7 @@ export default function BundlesPage() {
             subtitle="Credits only"
             bundles={refills}
             canEdit={canEdit}
+            pendingByBundle={pendingByBundle}
             onEdit={setEditing}
             onHistory={setViewingHistory}
           />
@@ -111,11 +144,12 @@ export default function BundlesPage() {
 }
 
 function Section({
-  title, subtitle, bundles, canEdit, onEdit, onHistory,
+  title, subtitle, bundles, canEdit, pendingByBundle, onEdit, onHistory,
 }: {
   title: string; subtitle: string;
   bundles: Bundle[];
   canEdit: boolean;
+  pendingByBundle: Map<string, string>;
   onEdit: (b: Bundle) => void;
   onHistory: (b: Bundle) => void;
 }) {
@@ -158,12 +192,15 @@ function Section({
                 </td>
                 <td className="px-3 py-2 text-right">
                   <div className="flex items-center justify-end gap-1">
+                    {pendingByBundle.has(b.id) && (
+                      <Badge tone="warning" size="sm">Pending</Badge>
+                    )}
                     <Button size="xs" variant="ghost" onClick={() => onHistory(b)}>
                       <History className="h-3 w-3" /> History
                     </Button>
-                    {canEdit && (
+                    {canEdit && !pendingByBundle.has(b.id) && (
                       <Button size="xs" variant="secondary" onClick={() => onEdit(b)}>
-                        <Pencil className="h-3 w-3" /> Edit
+                        <Pencil className="h-3 w-3" /> Propose
                       </Button>
                     )}
                   </div>
@@ -224,8 +261,8 @@ function EditForm({ bundle, onClose, onSaved }: { bundle: Bundle; onClose: () =>
   return (
     <>
       <SheetHeader
-        title={`Edit ${bundle.displayName || bundle.type}`}
-        subtitle={<span className="text-2xs font-mono">{bundle.type}</span>}
+        title={`Propose change to ${bundle.displayName || bundle.type}`}
+        subtitle={<span className="text-2xs font-mono">{bundle.type} · another super-admin must approve</span>}
       />
       <SheetBody>
         <div className="grid grid-cols-2 gap-3">
@@ -300,7 +337,7 @@ function EditForm({ bundle, onClose, onSaved }: { bundle: Bundle; onClose: () =>
           loading={submitting}
           leadingIcon={<Save className="h-3.5 w-3.5" />}
         >
-          Save changes
+          Submit for approval
         </Button>
       </SheetFooter>
     </>
