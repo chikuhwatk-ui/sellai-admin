@@ -8,19 +8,52 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loginMode, setLoginMode] = useState<'phone' | 'email'>('phone');
+  const [loginMode, setLoginMode] = useState<'phone' | 'email'>('email');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
+  const [otpRequestMessage, setOtpRequestMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const idleExpired = searchParams.get('reason') === 'idle';
+
+  async function handleRequestOtp() {
+    if (loginMode !== 'email') {
+      setError('OTP request is only supported for email login. Enter any 6-digit code for phone (dev: 123456).');
+      return;
+    }
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    setError('');
+    setSendingOtp(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/admin-request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+      if (!res.ok && res.status !== 204) {
+        const body = await res.json().catch(() => ({ message: 'Failed to send OTP' }));
+        throw new Error(body.message || `Failed to send OTP (${res.status})`);
+      }
+      setOtpRequestMessage('If that email is registered, an OTP has been sent. Check server logs in dev.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
+    } finally {
+      setSendingOtp(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    const isV2 = loginMode === 'email';
+    const endpoint = isV2 ? `${API_BASE}/auth/admin-login-v2` : `${API_BASE}/api/auth/admin-login`;
     const payload: any = { otp };
 
     if (loginMode === 'phone') {
@@ -38,7 +71,7 @@ function LoginForm() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/admin-login`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -51,17 +84,30 @@ function LoginForm() {
 
       const data = await res.json();
 
-      if (data.user?.role !== 'ADMIN') {
-        throw new Error('Access denied. Admin privileges required.');
+      // V2 response: { access_token, refresh_token, admin: {...} }
+      // V1 response: { access_token, refresh_token, user: {...}, adminRole, permissions }
+      if (isV2) {
+        if (!data.admin) {
+          throw new Error('Unexpected login response shape');
+        }
+        localStorage.setItem('adminToken', data.access_token);
+        localStorage.setItem('adminRefreshToken', data.refresh_token);
+        localStorage.setItem('adminUser', JSON.stringify(data.admin));
+        localStorage.setItem('adminRole', data.admin.adminRole);
+        localStorage.setItem('lastActivity', Date.now().toString());
+        document.cookie = `adminToken=${data.access_token};path=/;max-age=7200;SameSite=Strict;Secure`;
+      } else {
+        if (data.user?.role !== 'ADMIN') {
+          throw new Error('Access denied. Admin privileges required.');
+        }
+        localStorage.setItem('adminToken', data.access_token);
+        localStorage.setItem('adminRefreshToken', data.refresh_token);
+        localStorage.setItem('adminUser', JSON.stringify(data.user));
+        localStorage.setItem('lastActivity', Date.now().toString());
+        if (data.adminRole) localStorage.setItem('adminRole', data.adminRole);
+        if (data.permissions) localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
+        document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
       }
-
-      localStorage.setItem('adminToken', data.access_token);
-      localStorage.setItem('adminRefreshToken', data.refresh_token);
-      localStorage.setItem('adminUser', JSON.stringify(data.user));
-      localStorage.setItem('lastActivity', Date.now().toString());
-      if (data.adminRole) localStorage.setItem('adminRole', data.adminRole);
-      if (data.permissions) localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
-      document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
 
       router.push('/dashboard');
     } catch (err: unknown) {
@@ -165,15 +211,28 @@ function LoginForm() {
                 <label htmlFor="email" className="block text-sm font-medium text-[#E5E7EB] mb-2">
                   Email Address
                 </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@sellai.com"
-                  required
-                  className="w-full px-4 py-2.5 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-[#E5E7EB] placeholder-[#6B7280] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-colors"
-                />
+                <div className="flex gap-2">
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@sellai.com"
+                    required
+                    className="flex-1 px-4 py-2.5 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-[#E5E7EB] placeholder-[#6B7280] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRequestOtp}
+                    disabled={sendingOtp || !email.includes('@')}
+                    className="px-3 py-2.5 rounded-lg text-xs font-medium border border-[#10B981]/40 text-[#10B981] hover:bg-[#10B981]/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  >
+                    {sendingOtp ? 'Sending…' : 'Send code'}
+                  </button>
+                </div>
+                {otpRequestMessage && (
+                  <p className="mt-1.5 text-xs text-[#10B981]">{otpRequestMessage}</p>
+                )}
               </div>
             )}
 
