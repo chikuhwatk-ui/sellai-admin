@@ -99,6 +99,43 @@ export default function VerificationPage() {
     setRejecting(false);
   };
 
+  const handleClaim = React.useCallback((id: string) => {
+    setClaimedIds((prev) => new Set(prev).add(id));
+    toast("Claimed for review");
+  }, []);
+
+  const handleApprove = React.useCallback((id: string) => {
+    run({
+      action: () => api.post(`/api/verification/${id}/approve`, {}),
+      optimistic: () => {
+        setClaimedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        closeSheet();
+      },
+      label: "Verification approved",
+      description: "The user can now transact.",
+      onSuccess: () => { refetchPending(); refetchProcessed(); },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, refetchPending, refetchProcessed]);
+
+  const handleReject = React.useCallback((id: string) => {
+    if (!rejectionReason) {
+      toast.error("Select a rejection reason first");
+      return;
+    }
+    run({
+      action: () => api.post(`/api/verification/${id}/reject`, { reason: rejectionReason, note: rejectionNote || undefined }),
+      optimistic: () => {
+        setClaimedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        closeSheet();
+      },
+      label: "Verification rejected",
+      description: REJECTION_REASONS.find((r) => r.value === rejectionReason)?.label,
+      onSuccess: () => { refetchPending(); refetchProcessed(); refetchRejected(); },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, rejectionReason, rejectionNote, refetchPending, refetchProcessed, refetchRejected]);
+
   // Hotkeys bound to the selected verification (sheet open)
   useHotkeys("a", () => { if (selected) handleApprove(selected.id); }, { enabled: !!selected, enableOnFormTags: false });
   useHotkeys("r", () => { if (selected) setRejecting(true); }, { enabled: !!selected && !rejecting, enableOnFormTags: false });
@@ -115,41 +152,6 @@ export default function VerificationPage() {
     const id = queueIds[cursor];
     if (id) setSelectedId(id);
   }, { enabled: !selected, enableOnFormTags: false });
-
-  const handleClaim = (id: string) => {
-    setClaimedIds((prev) => new Set(prev).add(id));
-    toast("Claimed for review");
-  };
-
-  const handleApprove = (id: string) => {
-    run({
-      action: () => api.post(`/api/verification/${id}/approve`, {}),
-      optimistic: () => {
-        setClaimedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-        closeSheet();
-      },
-      label: "Verification approved",
-      description: "The user can now transact.",
-      onSuccess: () => { refetchPending(); refetchProcessed(); },
-    });
-  };
-
-  const handleReject = (id: string) => {
-    if (!rejectionReason) {
-      toast.error("Select a rejection reason first");
-      return;
-    }
-    run({
-      action: () => api.post(`/api/verification/${id}/reject`, { reason: rejectionReason, note: rejectionNote || undefined }),
-      optimistic: () => {
-        setClaimedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-        closeSheet();
-      },
-      label: "Verification rejected",
-      description: REJECTION_REASONS.find((r) => r.value === rejectionReason)?.label,
-      onSuccess: () => { refetchPending(); refetchProcessed(); refetchRejected(); },
-    });
-  };
 
   return (
     <>
