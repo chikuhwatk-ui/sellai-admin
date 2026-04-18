@@ -108,6 +108,50 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// Fetches a binary file (PDF / XLSX) with auth, 401-refresh, and retry
+// matching `request()`. Triggers a browser save using the server-provided
+// Content-Disposition filename, or `fallbackFilename` if absent.
+async function downloadFile(path: string, fallbackFilename: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  let res = await fetchWithRetry(`${API_BASE}${path}`, { headers });
+
+  if (res.status === 401) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      const newHeaders = await getAuthHeaders();
+      res = await fetchWithRetry(`${API_BASE}${path}`, { headers: newHeaders });
+    } else {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminRefreshToken');
+        localStorage.removeItem('adminUser');
+        document.cookie = 'adminToken=;path=/;max-age=0';
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired');
+    }
+  }
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(error.message || `Download failed: ${res.status}`);
+  }
+
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || fallbackFilename;
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
@@ -117,4 +161,5 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  download: (path: string, fallbackFilename: string) => downloadFile(path, fallbackFilename),
 };
