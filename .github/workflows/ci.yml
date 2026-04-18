@@ -20,10 +20,16 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
 
       - name: Type check
         run: npm run typecheck
+
+      - name: Tests
+        run: npm test
 
       - name: Build
         env:

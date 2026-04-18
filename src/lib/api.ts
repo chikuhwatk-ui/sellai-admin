@@ -42,8 +42,7 @@ function sleep(ms: number): Promise<void> {
 async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
   const isIdempotent = !init.method || init.method === 'GET';
   let attempt = 0;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  for (;;) {
     try {
       const res = await fetch(url, init);
       if (isIdempotent && RETRY_STATUSES.has(res.status) && attempt < MAX_RETRIES) {

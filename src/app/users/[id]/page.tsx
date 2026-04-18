@@ -26,6 +26,15 @@ export default function UserDetailPage() {
 
   const { data: user, loading, refetch } = useApi<any>(`/api/admin/users/${userId}`);
 
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [suspendDuration, setSuspendDuration] = useState('7');
+  const [suspendReason, setSuspendReason] = useState('');
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('');
+
   if (loading) {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
@@ -63,19 +72,6 @@ export default function UserDetailPage() {
   const recentOrders = user.orders || [];
   const recentIntents = user.intents || [];
   const verification = user.verificationSubmissions?.[0];
-
-  const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Suspend form state
-  const [suspendDuration, setSuspendDuration] = useState('7');
-  const [suspendReason, setSuspendReason] = useState('');
-
-  // Credits form state
-  const [creditAmount, setCreditAmount] = useState('');
-  const [creditReason, setCreditReason] = useState('');
 
   const handleOverrideVerification = async () => {
     setActionLoading(true);
