@@ -8,7 +8,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [loginMode, setLoginMode] = useState<'phone' | 'email'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,15 +21,27 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    const fullPhone = phoneNumber.startsWith('+263')
-      ? phoneNumber
-      : `+263${phoneNumber.replace(/^0+/, '')}`;
+    const payload: any = { otp };
+
+    if (loginMode === 'phone') {
+      const fullPhone = phoneNumber.startsWith('+263')
+        ? phoneNumber
+        : `+263${phoneNumber.replace(/^0+/, '')}`;
+      payload.phoneNumber = fullPhone;
+    } else {
+      if (!email.includes('@')) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+      payload.email = email.toLowerCase().trim();
+    }
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/admin-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: fullPhone, otp }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -45,7 +59,6 @@ function LoginForm() {
       localStorage.setItem('adminRefreshToken', data.refresh_token);
       localStorage.setItem('adminUser', JSON.stringify(data.user));
       localStorage.setItem('lastActivity', Date.now().toString());
-      // Store RBAC info from login response
       if (data.adminRole) localStorage.setItem('adminRole', data.adminRole);
       if (data.permissions) localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
       document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
@@ -53,7 +66,6 @@ function LoginForm() {
       router.push('/dashboard');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      // Don't show raw API errors that might leak info
       if (message.includes('fetch') || message.includes('network') || message.includes('ECONNREFUSED')) {
         setError('Unable to connect to server. Please try again.');
       } else {
@@ -91,18 +103,8 @@ function LoginForm() {
         {/* Idle timeout message */}
         {idleExpired && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 mb-4">
-            <svg
-              className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p className="text-sm text-yellow-400">Session expired due to inactivity. Please sign in again.</p>
           </div>
@@ -110,37 +112,74 @@ function LoginForm() {
 
         {/* Card */}
         <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-2xl p-8">
+          {/* Login mode toggle */}
+          <div className="flex bg-[#0F1117] rounded-lg p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => setLoginMode('phone')}
+              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                loginMode === 'phone'
+                  ? 'bg-[#10B981] text-white'
+                  : 'text-[#6B7280] hover:text-[#E5E7EB]'
+              }`}
+            >
+              Phone
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode('email')}
+              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                loginMode === 'email'
+                  ? 'bg-[#10B981] text-white'
+                  : 'text-[#6B7280] hover:text-[#E5E7EB]'
+              }`}
+            >
+              Email
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Phone Number */}
-            <div>
-              <label
-                htmlFor="phone"
-                className="block text-sm font-medium text-[#E5E7EB] mb-2"
-              >
-                Phone Number
-              </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-[#2A2D37] bg-[#0F1117] text-sm text-[#6B7280]">
-                  +263
-                </span>
+            {loginMode === 'phone' ? (
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-[#E5E7EB] mb-2">
+                  Phone Number
+                </label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-[#2A2D37] bg-[#0F1117] text-sm text-[#6B7280]">
+                    +263
+                  </span>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="7X XXX XXXX"
+                    required
+                    className="flex-1 px-4 py-2.5 bg-[#0F1117] border border-[#2A2D37] rounded-r-lg text-sm text-[#E5E7EB] placeholder-[#6B7280] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-colors"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-[#E5E7EB] mb-2">
+                  Email Address
+                </label>
                 <input
-                  id="phone"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="7X XXX XXXX"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@sellai.com"
                   required
-                  className="flex-1 px-4 py-2.5 bg-[#0F1117] border border-[#2A2D37] rounded-r-lg text-sm text-[#E5E7EB] placeholder-[#6B7280] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-colors"
+                  className="w-full px-4 py-2.5 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-[#E5E7EB] placeholder-[#6B7280] focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-colors"
                 />
               </div>
-            </div>
+            )}
 
             {/* OTP */}
             <div>
-              <label
-                htmlFor="otp"
-                className="block text-sm font-medium text-[#E5E7EB] mb-2"
-              >
+              <label htmlFor="otp" className="block text-sm font-medium text-[#E5E7EB] mb-2">
                 OTP Code
               </label>
               <input
@@ -149,9 +188,7 @@ function LoginForm() {
                 inputMode="numeric"
                 maxLength={6}
                 value={otp}
-                onChange={(e) =>
-                  setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
-                }
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="Enter 6-digit code"
                 required
                 className="w-full px-4 py-2.5 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-[#E5E7EB] placeholder-[#6B7280] tracking-widest text-center focus:outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981] transition-colors"
@@ -161,18 +198,8 @@ function LoginForm() {
             {/* Error message */}
             {error && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <svg
-                  className="w-4 h-4 text-red-400 mt-0.5 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                  />
+                <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
                 <p className="text-sm text-red-400">{error}</p>
               </div>
@@ -186,24 +213,9 @@ function LoginForm() {
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Signing in...
                 </span>
