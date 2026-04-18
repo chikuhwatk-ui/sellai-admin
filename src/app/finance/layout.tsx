@@ -9,6 +9,7 @@ const FINANCE_TABS = [
   { label: 'Overview', href: '/finance' },
   { label: 'Accounts', href: '/finance/accounts' },
   { label: 'Journal', href: '/finance/journal' },
+  { label: 'Invoices', href: '/finance/invoices' },
   { label: 'Reports', href: '/finance/reports' },
   { label: 'Forecast', href: '/finance/forecast' },
   { label: 'Budget', href: '/finance/budget' },
