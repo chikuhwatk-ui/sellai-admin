@@ -1,14 +1,24 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { DataTable, Column } from '@/components/ui/DataTable';
-import { Badge, RoleBadge } from '@/components/ui/Badge';
-import { StatusPill } from '@/components/ui/StatusPill';
-import { useApi } from '@/hooks/useApi';
-import { api } from '@/lib/api';
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Search, ShieldCheck, Ban, Download, Users as UsersIcon } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useApi } from "@/hooks/useApi";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { api } from "@/lib/api";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { Table } from "@/components/ui/Table";
+import { Input } from "@/components/ui/Input";
+import { FilterChip } from "@/components/ui/FilterChip";
+import { Badge, RoleBadge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Kbd } from "@/components/ui/Kbd";
+import { pushRecent } from "@/hooks/useRecent";
+import { cn } from "@/lib/cn";
 
-type User = Record<string, unknown> & {
+type User = {
   id: string;
   name: string;
   phoneNumber: string;
@@ -21,233 +31,270 @@ type User = Record<string, unknown> & {
 
 export default function UsersPage() {
   const router = useRouter();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [page, setPage] = React.useState(1);
+  const [search, setSearch] = React.useState("");
+  const [roleFilter, setRoleFilter] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("");
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
 
-  // Debounce search
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(timer);
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
   }, [search]);
 
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const { data, loading } = useApi<{ data: User[]; total: number }>(
-    `/api/admin/users?page=${page}&limit=12&search=${debouncedSearch}&role=${roleFilter}&status=${statusFilter}`
+    `/api/admin/users?page=${page}&limit=20&search=${debouncedSearch}&role=${roleFilter}&status=${statusFilter}`
   );
 
   const users = data?.data || [];
   const total = data?.total || 0;
 
-  const handleBulkAction = async (action: string) => {
-    try {
-      await api.post('/api/admin/users/bulk-action', { userIds: [...selectedIds], action });
-      setSelectedIds(new Set());
-    } catch (err) {
-      console.error('Bulk action failed:', err);
-    }
+  const { run } = useOptimisticAction();
+  const handleBulkAction = (action: string) => {
+    const ids = [...selectedIds];
+    run({
+      action: () => api.post("/api/admin/users/bulk-action", { userIds: ids, action }),
+      optimistic: () => setSelectedIds(new Set()),
+      label: `${ids.length} user${ids.length === 1 ? "" : "s"} ${action === "verify" ? "verified" : action === "suspend" ? "suspended" : "updated"}`,
+    });
   };
 
-  const columns: Column<User>[] = [
+  const toggleAll = (on: boolean) => {
+    setSelectedIds(on ? new Set(users.map((u) => u.id)) : new Set());
+  };
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const allSelected = users.length > 0 && users.every((u) => selectedIds.has(u.id));
+  const someSelected = users.some((u) => selectedIds.has(u.id));
+
+  const columns: ColumnDef<User>[] = [
     {
-      key: 'select',
-      header: '',
-      className: 'w-10',
-      render: (u) => (
-        <input
-          type="checkbox"
-          checked={selectedIds.has(u.id)}
-          onChange={(e) => {
-            e.stopPropagation();
-            setSelectedIds(prev => {
-              const next = new Set(prev);
-              if (next.has(u.id)) next.delete(u.id);
-              else next.add(u.id);
-              return next;
-            });
-          }}
-          className="rounded border-border accent-primary"
+      id: "select",
+      size: 36,
+      header: () => (
+        <Checkbox
+          checked={allSelected}
+          indeterminate={someSelected && !allSelected}
+          onCheckedChange={(v) => toggleAll(!!v)}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedIds.has(row.original.id)}
+          onCheckedChange={() => toggleOne(row.original.id)}
+          onClick={(e) => e.stopPropagation()}
         />
       ),
     },
     {
-      key: 'name',
-      header: 'Name',
-      sortable: true,
-      render: (u) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-            {(u.name || '?').split(' ').map(n => n[0]).join('')}
+      id: "name",
+      header: "Name",
+      accessorKey: "name",
+      cell: ({ row }) => {
+        const u = row.original;
+        const initials = (u.name || "?").split(" ").map((n) => n[0]).join("").slice(0, 2);
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-accent-bg text-accent flex items-center justify-center text-2xs font-semibold shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm-compact text-fg truncate">{u.name || "Unknown"}</div>
+              <div className="text-2xs text-fg-muted tabular">{u.phoneNumber}</div>
+            </div>
           </div>
-          <div>
-            <div className="font-medium text-text">{u.name || 'Unknown'}</div>
-            <div className="text-xs text-text-muted">{u.phoneNumber}</div>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
-      key: 'role',
-      header: 'Role',
-      sortable: true,
-      render: (u) => <RoleBadge role={u.role} />,
+      id: "role",
+      header: "Role",
+      accessorKey: "role",
+      cell: ({ row }) => <RoleBadge role={row.original.role} />,
     },
     {
-      key: 'verificationStatus',
-      header: 'Verification',
-      sortable: true,
-      render: (u) => <StatusPill status={u.verificationStatus} />,
+      id: "verification",
+      header: "Verification",
+      accessorKey: "verificationStatus",
+      cell: ({ row }) => {
+        const s = row.original.verificationStatus;
+        const tone = s === "VERIFIED" ? "success" : s === "REJECTED" ? "danger" : s === "PENDING" ? "warning" : "neutral";
+        return <Badge tone={tone} size="sm" dot>{s}</Badge>;
+      },
     },
     {
-      key: 'location',
-      header: 'Location',
-      sortable: true,
-      render: (u) => <span className="text-text-muted">{u.location || '--'}</span>,
+      id: "location",
+      header: "Location",
+      accessorKey: "location",
+      cell: ({ row }) => <span className="text-xs text-fg-muted">{row.original.location || "—"}</span>,
     },
     {
-      key: 'createdAt',
-      header: 'Created',
-      sortable: true,
-      render: (u) => (
-        <span className="text-text-muted">
-          {new Date(u.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'short', year: '2-digit' })}
+      id: "orders",
+      header: () => <span className="text-right block">Orders</span>,
+      accessorFn: (u) => u._count?.orders ?? 0,
+      cell: ({ row }) => <span className="text-sm-compact text-fg tabular block text-right">{row.original._count?.orders ?? 0}</span>,
+    },
+    {
+      id: "created",
+      header: "Joined",
+      accessorKey: "createdAt",
+      cell: ({ row }) => (
+        <span className="text-xs text-fg-muted tabular">
+          {new Date(row.original.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "2-digit" })}
         </span>
-      ),
-    },
-    {
-      key: 'orderCount',
-      header: 'Orders',
-      sortable: true,
-      render: (u) => <span className="text-text font-medium">{u._count?.orders ?? 0}</span>,
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (u) => (
-        <button
-          onClick={(e) => { e.stopPropagation(); router.push(`/users/${u.id}`); }}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-        >
-          View
-        </button>
       ),
     },
   ];
 
-  return (
-    <div className="min-h-screen p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">User Management</h1>
-          <p className="text-sm text-text-muted mt-1">{total} total users</p>
-        </div>
-      </div>
+  const openUser = (u: User) => {
+    pushRecent({ id: u.id, kind: "user", label: u.name || u.phoneNumber, href: `/users/${u.id}` });
+    router.push(`/users/${u.id}`);
+  };
 
-      {/* Filters & Bulk Actions */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Users"
+        description={`${total.toLocaleString()} total`}
+        actions={
+          <Button variant="secondary" size="sm" leadingIcon={<Download className="h-3.5 w-3.5" />}>
+            Export
+          </Button>
+        }
+      />
+
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[240px] max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name or phone..."
+          <Input
+            ref={searchRef}
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors"
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search by name or phone…"
+            leadingIcon={<Search className="h-3.5 w-3.5" />}
+            trailingIcon={!search ? <Kbd>/</Kbd> : undefined}
           />
         </div>
 
-        {/* Role Filter */}
-        <select
+        <FilterChip
+          label="Role"
           value={roleFilter}
-          onChange={e => { setRoleFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text focus:outline-none focus:border-primary/50 transition-colors"
-        >
-          <option value="">All Roles</option>
-          <option value="BUYER">Buyer</option>
-          <option value="SELLER">Seller</option>
-          <option value="DELIVERY_PARTNER">Runner</option>
-        </select>
+          onChange={(v) => { setRoleFilter(v); setPage(1); }}
+          onClear={() => { setRoleFilter(""); setPage(1); }}
+          options={[
+            { value: "BUYER", label: "Buyer" },
+            { value: "SELLER", label: "Seller" },
+            { value: "DELIVERY_PARTNER", label: "Runner" },
+          ]}
+        />
 
-        {/* Status Filter */}
-        <select
+        <FilterChip
+          label="Status"
           value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-text focus:outline-none focus:border-primary/50 transition-colors"
-        >
-          <option value="">All Statuses</option>
-          <option value="VERIFIED">Verified</option>
-          <option value="PENDING">Pending</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="GUEST">Guest</option>
-        </select>
+          onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          onClear={() => { setStatusFilter(""); setPage(1); }}
+          options={[
+            { value: "VERIFIED", label: "Verified" },
+            { value: "PENDING", label: "Pending" },
+            { value: "REJECTED", label: "Rejected" },
+            { value: "GUEST", label: "Guest" },
+          ]}
+        />
 
-        {/* Bulk Actions */}
-        {selectedIds.size > 0 && (
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-xs text-text-muted">{selectedIds.size} selected</span>
-            <button
-              onClick={() => handleBulkAction('verify')}
-              className="px-3 py-2 rounded-xl text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-            >
-              Bulk Verify
-            </button>
-            <button
-              onClick={() => handleBulkAction('suspend')}
-              className="px-3 py-2 rounded-xl text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
-            >
-              Suspend Selected
-            </button>
-            <button className="px-3 py-2 rounded-xl text-xs font-medium bg-info/10 text-info hover:bg-info/20 transition-colors">
-              Export
-            </button>
-          </div>
+        {(search || roleFilter || statusFilter) && (
+          <span className="text-2xs text-fg-subtle ml-1">
+            Showing {users.length} of {total}
+          </span>
         )}
       </div>
 
-      {/* Results count */}
-      {(search || roleFilter || statusFilter) && (
-        <div className="text-xs text-text-muted">
-          Showing {users.length} of {total} users
-        </div>
-      )}
-
       {/* Table */}
-      <DataTable<User>
+      <Table<User>
         columns={columns}
         data={users}
-        onRowClick={(u) => router.push(`/users/${u.id}`)}
-        pageSize={12}
         loading={loading}
+        onRowClick={openUser}
+        rowId={(u) => u.id}
+        emptyTitle="No users found"
+        emptyDescription={debouncedSearch ? `Nothing matches "${debouncedSearch}"` : "Adjust filters to see users"}
+        emptyIcon={<UsersIcon className="h-5 w-5" />}
       />
 
-      {/* Server-side pagination */}
-      {total > 12 && (
-        <div className="flex items-center justify-center gap-2">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Prev
-          </button>
-          <span className="text-xs text-text-muted">
-            Page {page} of {Math.ceil(total / 12)}
+      {/* Pagination */}
+      {total > 20 && (
+        <div className="flex items-center justify-between">
+          <span className="text-2xs text-fg-subtle tabular">
+            Page {page} of {Math.ceil(total / 20)}
           </span>
-          <button
-            onClick={() => setPage(p => Math.min(Math.ceil(total / 12), p + 1))}
-            disabled={page >= Math.ceil(total / 12)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="secondary" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Previous
+            </Button>
+            <Button size="sm" variant="secondary" disabled={page >= Math.ceil(total / 20)} onClick={() => setPage((p) => p + 1)}>
+              Next
+            </Button>
+          </div>
         </div>
       )}
+
+      {/* Bulk action sticky toolbar */}
+      <BulkToolbar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onVerify={() => handleBulkAction("verify")}
+        onSuspend={() => handleBulkAction("suspend")}
+      />
+    </PageContainer>
+  );
+}
+
+function BulkToolbar({
+  count, onClear, onVerify, onSuspend,
+}: {
+  count: number; onClear: () => void; onVerify: () => void; onSuspend: () => void;
+}) {
+  if (count === 0) return null;
+  return (
+    <div
+      className={cn(
+        "fixed bottom-4 left-1/2 -translate-x-1/2 z-40",
+        "flex items-center gap-2 bg-overlay border border-strong rounded-xl shadow-elev-4 px-2 py-1.5",
+        "animate-slide-up"
+      )}
+    >
+      <span className="text-xs text-fg-muted pl-2">
+        <span className="font-semibold text-fg tabular">{count}</span> selected
+      </span>
+      <div className="w-px h-4 bg-muted mx-1" />
+      <Button size="sm" variant="primary" leadingIcon={<ShieldCheck className="h-3.5 w-3.5" />} onClick={onVerify}>
+        Verify
+      </Button>
+      <Button size="sm" variant="danger-ghost" leadingIcon={<Ban className="h-3.5 w-3.5" />} onClick={onSuspend}>
+        Suspend
+      </Button>
+      <Button size="sm" variant="ghost" onClick={onClear}>
+        Clear
+      </Button>
     </div>
   );
 }
