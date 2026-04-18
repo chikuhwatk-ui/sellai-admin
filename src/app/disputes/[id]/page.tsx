@@ -1,114 +1,77 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
+import * as React from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, User as UserIcon, MessageSquare } from "lucide-react";
+import { useApi } from "@/hooks/useApi";
+import { useAuth } from "@/hooks/useAuth";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { api } from "@/lib/api";
+import { PageContainer } from "@/components/ui/PageHeader";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Label";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { cn } from "@/lib/cn";
 
-// ── Types ──────────────────────────────────────────────────────────────
-
-interface DisputeUser {
-  id: string;
-  name: string;
-  phoneNumber?: string;
-}
-
+interface DisputeUser { id: string; name: string; phoneNumber?: string }
 interface DisputeNote {
-  id: string;
-  content: string;
-  authorId: string;
+  id: string; content: string; authorId: string;
   author: { id: string; name: string; phoneNumber: string } | null;
-  isInternal: boolean;
-  createdAt: string;
+  isInternal: boolean; createdAt: string;
 }
-
 interface DisputeDetail {
-  id: string;
-  disputeNumber: string;
-  status: string;
-  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  reason: string;
-  description: string;
-  filedByUser: DisputeUser | null;
-  againstUser: DisputeUser | null;
-  chatId?: string;
-  orderId?: string;
-  deliveryId?: string;
+  id: string; disputeNumber: string; status: string;
+  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  reason: string; description: string;
+  filedByUser: DisputeUser | null; againstUser: DisputeUser | null;
+  chatId?: string; orderId?: string; deliveryId?: string;
   slaDeadline: string | null;
-  assignedTo?: string;
-  assignedAdminName?: string;
-  evidence?: string[];
-  notes: DisputeNote[];
-  createdAt: string;
-  assignedAt?: string;
-  escalatedAt?: string;
-  resolvedAt?: string;
-  resolution?: string;
-  resolutionType?: string;
-  refundAmount?: number;
-  creditRefund?: number;
+  assignedTo?: string; assignedAdminName?: string;
+  evidence?: string[]; notes: DisputeNote[];
+  createdAt: string; assignedAt?: string;
+  escalatedAt?: string; resolvedAt?: string;
+  resolution?: string; resolutionType?: string;
+  refundAmount?: number; creditRefund?: number;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────
-
-const PRIORITY_CONFIG: Record<string, { variant: 'danger' | 'warning' | 'info' | 'success'; label: string }> = {
-  CRITICAL: { variant: 'danger', label: 'Critical' },
-  HIGH: { variant: 'warning', label: 'High' },
-  MEDIUM: { variant: 'info', label: 'Medium' },
-  LOW: { variant: 'success', label: 'Low' },
+const PRIORITY_TONE: Record<string, "danger" | "warning" | "info" | "success"> = {
+  CRITICAL: "danger", HIGH: "warning", MEDIUM: "info", LOW: "success",
 };
-
-const STATUS_VARIANT: Record<string, 'danger' | 'warning' | 'info' | 'success' | 'pending' | 'default'> = {
-  OPEN: 'danger',
-  ASSIGNED: 'info',
-  INVESTIGATING: 'pending',
-  AWAITING_RESPONSE: 'warning',
-  ESCALATED: 'danger',
-  RESOLVED: 'success',
-  CLOSED: 'default',
+const STATUS_TONE: Record<string, "danger" | "info" | "pending" | "warning" | "success" | "neutral"> = {
+  OPEN: "danger", ASSIGNED: "info", INVESTIGATING: "pending",
+  AWAITING_RESPONSE: "warning", ESCALATED: "danger",
+  RESOLVED: "success", CLOSED: "neutral",
 };
-
 const RESOLUTION_TYPES = [
-  { value: 'REFUND_FULL', label: 'Full Refund' },
-  { value: 'REFUND_PARTIAL', label: 'Partial Refund' },
-  { value: 'CREDIT_REFUND', label: 'Credit Refund' },
-  { value: 'NO_ACTION', label: 'No Action' },
-  { value: 'WARNING_ISSUED', label: 'Warning Issued' },
-  { value: 'USER_SUSPENDED', label: 'User Suspended' },
-  { value: 'USER_BANNED', label: 'User Banned' },
+  { value: "REFUND_FULL", label: "Full Refund" },
+  { value: "REFUND_PARTIAL", label: "Partial Refund" },
+  { value: "CREDIT_REFUND", label: "Credit Refund" },
+  { value: "NO_ACTION", label: "No Action" },
+  { value: "WARNING_ISSUED", label: "Warning Issued" },
+  { value: "USER_SUSPENDED", label: "User Suspended" },
+  { value: "USER_BANNED", label: "User Banned" },
 ] as const;
 
-// ── Helpers ────────────────────────────────────────────────────────────
-
-function formatSLA(slaDeadline: string | null): { text: string; breached: boolean } {
-  if (!slaDeadline) return { text: '--', breached: false };
-  const diff = new Date(slaDeadline).getTime() - Date.now();
-  if (diff <= 0) return { text: 'Breached', breached: true };
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 24) {
-    const days = Math.floor(hours / 24);
-    return { text: `${days}d ${hours % 24}h remaining`, breached: false };
-  }
-  return { text: `${hours}h ${mins}m remaining`, breached: false };
+function slaText(d: string | null) {
+  if (!d) return { text: "—", breached: false };
+  const diff = new Date(d).getTime() - Date.now();
+  if (diff <= 0) return { text: "Breached", breached: true };
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  if (h > 24) return { text: `${Math.floor(h / 24)}d ${h % 24}h left`, breached: false };
+  return { text: `${h}h ${m}m left`, breached: false };
 }
 
-function formatDateTime(date: string | undefined) {
-  if (!date) return '--';
-  return new Date(date).toLocaleString('en', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function fmt(d?: string) {
+  return d ? new Date(d).toLocaleString() : "—";
 }
-
-// ── Component ──────────────────────────────────────────────────────────
 
 export default function DisputeDetailPage() {
   const params = useParams();
@@ -117,27 +80,22 @@ export default function DisputeDetailPage() {
   const disputeId = params.id as string;
 
   const { data: dispute, loading, error, refetch } = useApi<DisputeDetail>(`/api/admin/disputes/${disputeId}`);
+  const { run } = useOptimisticAction();
 
-  // ── Local state ────────────────────────────────────────────────────
+  const [noteText, setNoteText] = React.useState("");
+  const [noteInternal, setNoteInternal] = React.useState(false);
+  const [submittingNote, setSubmittingNote] = React.useState(false);
 
-  const [noteText, setNoteText] = useState('');
-  const [noteInternal, setNoteInternal] = useState(false);
-  const [submittingNote, setSubmittingNote] = useState(false);
+  const [resolutionText, setResolutionText] = React.useState("");
+  const [resolutionType, setResolutionType] = React.useState("NO_ACTION");
+  const [refundAmount, setRefundAmount] = React.useState("");
+  const [creditAmount, setCreditAmount] = React.useState("");
 
-  const [resolutionText, setResolutionText] = useState('');
-  const [resolutionType, setResolutionType] = useState('NO_ACTION');
-  const [refundAmount, setRefundAmount] = useState('');
-  const [creditAmount, setCreditAmount] = useState('');
-  const [submittingResolve, setSubmittingResolve] = useState(false);
+  const [expandedImage, setExpandedImage] = React.useState<string | null>(null);
 
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const canManage = hasPermission("DISPUTES_MANAGE");
 
-  const canManage = hasPermission('DISPUTES_MANAGE');
-
-  // ── Handlers ───────────────────────────────────────────────────────
-
-  async function handleAddNote() {
+  const addNote = React.useCallback(async () => {
     if (!noteText.trim()) return;
     setSubmittingNote(true);
     try {
@@ -145,463 +103,337 @@ export default function DisputeDetailPage() {
         content: noteText.trim(),
         isInternal: noteInternal,
       });
-      setNoteText('');
+      setNoteText("");
       setNoteInternal(false);
       refetch();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to add note');
     } finally {
       setSubmittingNote(false);
     }
-  }
+  }, [disputeId, noteText, noteInternal, refetch]);
 
-  async function handleResolve() {
-    if (!resolutionText.trim()) {
-      alert('Please enter a resolution description');
-      return;
+  const resolve = React.useCallback(() => {
+    if (!resolutionText.trim()) return;
+    const body: Record<string, unknown> = { resolution: resolutionText.trim(), resolutionType };
+    if ((resolutionType === "REFUND_FULL" || resolutionType === "REFUND_PARTIAL") && refundAmount) {
+      body.refundAmount = parseFloat(refundAmount);
     }
-    setSubmittingResolve(true);
-    try {
-      const body: Record<string, unknown> = {
-        resolution: resolutionText.trim(),
-        resolutionType,
-      };
-      if ((resolutionType === 'REFUND_FULL' || resolutionType === 'REFUND_PARTIAL') && refundAmount) {
-        body.refundAmount = parseFloat(refundAmount);
-      }
-      if (resolutionType === 'CREDIT_REFUND' && creditAmount) {
-        body.creditRefund = parseFloat(creditAmount);
-      }
-      await api.post(`/api/admin/disputes/${disputeId}/resolve`, body);
-      refetch();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to resolve dispute');
-    } finally {
-      setSubmittingResolve(false);
+    if (resolutionType === "CREDIT_REFUND" && creditAmount) {
+      body.creditRefund = parseFloat(creditAmount);
     }
-  }
+    run({
+      action: () => api.post(`/api/admin/disputes/${disputeId}/resolve`, body),
+      label: "Dispute resolved",
+      onSuccess: () => refetch(),
+    });
+  }, [disputeId, resolutionText, resolutionType, refundAmount, creditAmount, run, refetch]);
 
-  async function handleStatusAction(action: 'assign' | 'escalate' | 'close') {
-    setActionLoading(action);
-    try {
-      if (action === 'assign') {
-        await api.patch(`/api/admin/disputes/${disputeId}/assign`, { adminId: user?.id });
-      } else if (action === 'escalate') {
-        await api.patch(`/api/admin/disputes/${disputeId}/status`, { status: 'ESCALATED' });
-      } else if (action === 'close') {
-        await api.patch(`/api/admin/disputes/${disputeId}/status`, { status: 'CLOSED' });
-      }
-      refetch();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : `Failed to ${action} dispute`);
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  // ── Loading / Error / Not found ────────────────────────────────────
+  const statusAction = React.useCallback((action: "assign" | "escalate" | "close") => {
+    const doIt = () => {
+      if (action === "assign") return api.patch(`/api/admin/disputes/${disputeId}/assign`, { adminId: user?.id });
+      if (action === "escalate") return api.patch(`/api/admin/disputes/${disputeId}/status`, { status: "ESCALATED" });
+      return api.patch(`/api/admin/disputes/${disputeId}/status`, { status: "CLOSED" });
+    };
+    run({
+      action: doIt,
+      label: `Dispute ${action === "assign" ? "assigned" : action === "escalate" ? "escalated" : "closed"}`,
+      onSuccess: () => refetch(),
+    });
+  }, [disputeId, run, refetch, user?.id]);
 
   if (loading) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-text-muted">Loading dispute...</p>
+      <PageContainer>
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-64" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-48" />
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (error || !dispute) {
     return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-text mb-2">Dispute Not Found</h2>
-          <p className="text-text-muted mb-4">{error || `No dispute found with ID: ${disputeId}`}</p>
-          <button
-            onClick={() => router.push('/disputes')}
-            className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-hover transition-colors"
-          >
-            Back to Disputes
-          </button>
+      <PageContainer>
+        <div className="text-center py-12">
+          <h2 className="text-base font-semibold text-fg mb-2">Dispute not found</h2>
+          <p className="text-sm text-fg-muted mb-4">{error || `No dispute with ID ${disputeId}`}</p>
+          <Button onClick={() => router.push("/disputes")}>Back to disputes</Button>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
-  const sla = formatSLA(dispute.slaDeadline);
-  const priority = PRIORITY_CONFIG[dispute.priority] || PRIORITY_CONFIG.MEDIUM;
-  const statusVariant = STATUS_VARIANT[dispute.status] || 'default';
-  const isResolved = dispute.status === 'RESOLVED' || dispute.status === 'CLOSED';
-  const showRefundInput = resolutionType === 'REFUND_FULL' || resolutionType === 'REFUND_PARTIAL';
-  const showCreditInput = resolutionType === 'CREDIT_REFUND';
+  const sla = slaText(dispute.slaDeadline);
+  const isResolved = dispute.status === "RESOLVED" || dispute.status === "CLOSED";
+  const showRefund = resolutionType === "REFUND_FULL" || resolutionType === "REFUND_PARTIAL";
+  const showCredit = resolutionType === "CREDIT_REFUND";
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Image Lightbox */}
+    <>
       {expandedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8 cursor-pointer"
+          className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
           onClick={() => setExpandedImage(null)}
         >
-          <img src={expandedImage} alt="Evidence" className="max-w-full max-h-full object-contain rounded-xl" />
+          <img src={expandedImage} alt="" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/disputes"
-            className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            Back to Disputes
-          </Link>
+      <PageContainer>
+        {/* Header with status + actions */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 pb-3">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-text font-mono">{dispute.disputeNumber}</h1>
-              <Badge variant={statusVariant}>{dispute.status?.replace(/_/g, ' ')}</Badge>
-              <Badge variant={priority.variant}>{priority.label}</Badge>
+            <Link
+              href="/disputes"
+              className="inline-flex items-center gap-1 text-xs text-fg-muted hover:text-fg transition-colors mb-1"
+            >
+              <ArrowLeft className="h-3 w-3" /> Back
+            </Link>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-semibold text-fg font-mono tracking-tight">{dispute.disputeNumber}</h1>
+              <Badge tone={STATUS_TONE[dispute.status] || "neutral"} size="sm" dot>{dispute.status?.replace(/_/g, " ")}</Badge>
+              <Badge tone={PRIORITY_TONE[dispute.priority] || "neutral"} size="sm">{dispute.priority}</Badge>
             </div>
-            <div className="flex items-center gap-3 mt-1">
-              <span className={`text-xs font-medium ${sla.breached ? 'text-danger' : 'text-text-muted'}`}>
+            <div className="flex items-center gap-3 mt-1.5">
+              <span className={cn("text-xs tabular font-medium", sla.breached ? "text-danger" : "text-fg-muted")}>
                 SLA: {sla.text}
               </span>
               {dispute.assignedAdminName && (
-                <span className="text-xs text-text-muted">
-                  Assigned to: <span className="text-text">{dispute.assignedAdminName}</span>
+                <span className="text-xs text-fg-muted">
+                  Assigned to <span className="text-fg">{dispute.assignedAdminName}</span>
                 </span>
               )}
             </div>
           </div>
+
+          {canManage && !isResolved && (
+            <div className="flex items-center gap-1.5">
+              {!dispute.assignedTo && (
+                <Button size="sm" variant="secondary" onClick={() => statusAction("assign")}>Assign to me</Button>
+              )}
+              {dispute.status !== "ESCALATED" && (
+                <Button size="sm" variant="secondary" onClick={() => statusAction("escalate")}>Escalate</Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => statusAction("close")}>Close</Button>
+            </div>
+          )}
         </div>
 
-        {/* Status Action Buttons */}
-        {canManage && !isResolved && (
-          <div className="flex items-center gap-2">
-            {!dispute.assignedTo && (
-              <button
-                onClick={() => handleStatusAction('assign')}
-                disabled={actionLoading === 'assign'}
-                className="px-3 py-1.5 text-sm font-medium bg-info/10 text-info rounded-lg hover:bg-info/20 transition-colors disabled:opacity-50"
-              >
-                {actionLoading === 'assign' ? 'Assigning...' : 'Assign to Me'}
-              </button>
-            )}
-            {dispute.status !== 'ESCALATED' && (
-              <button
-                onClick={() => handleStatusAction('escalate')}
-                disabled={actionLoading === 'escalate'}
-                className="px-3 py-1.5 text-sm font-medium bg-warning/10 text-warning rounded-lg hover:bg-warning/20 transition-colors disabled:opacity-50"
-              >
-                {actionLoading === 'escalate' ? 'Escalating...' : 'Escalate'}
-              </button>
-            )}
-            <button
-              onClick={() => handleStatusAction('close')}
-              disabled={actionLoading === 'close'}
-              className="px-3 py-1.5 text-sm font-medium bg-border text-text-muted rounded-lg hover:bg-surface-hover transition-colors disabled:opacity-50"
-            >
-              {actionLoading === 'close' ? 'Closing...' : 'Close'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Info Section */}
-          <Card>
-            <h2 className="text-base font-semibold text-text mb-4">Dispute Information</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-text-muted block mb-1">Filed By</span>
-                <span className="text-text font-medium">{dispute.filedByUser?.name || 'Unknown'}</span>
-                {dispute.filedByUser?.phoneNumber && (
-                  <span className="text-text-muted text-xs block">{dispute.filedByUser.phoneNumber}</span>
-                )}
-              </div>
-              <div>
-                <span className="text-text-muted block mb-1">Against</span>
-                <span className="text-text font-medium">{dispute.againstUser?.name || 'Unknown'}</span>
-                {dispute.againstUser?.phoneNumber && (
-                  <span className="text-text-muted text-xs block">{dispute.againstUser.phoneNumber}</span>
-                )}
-              </div>
-              <div>
-                <span className="text-text-muted block mb-1">Reason</span>
-                <Badge variant="default">{dispute.reason?.replace(/_/g, ' ') || 'N/A'}</Badge>
-              </div>
-              {dispute.chatId && (
-                <div>
-                  <span className="text-text-muted block mb-1">Chat ID</span>
-                  <Link href={`/communications?chatId=${dispute.chatId}`} className="text-primary text-xs hover:underline font-mono">
-                    {dispute.chatId}
-                  </Link>
+        {/* Content grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left column — info, description, evidence, notes */}
+          <div className="lg:col-span-2 space-y-4">
+            <Card padding={false}>
+              <CardHeader><CardTitle>Dispute information</CardTitle></CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Info label="Filed by">
+                    <div className="text-sm text-fg font-medium">{dispute.filedByUser?.name || "Unknown"}</div>
+                    {dispute.filedByUser?.phoneNumber && <div className="text-2xs text-fg-muted tabular">{dispute.filedByUser.phoneNumber}</div>}
+                  </Info>
+                  <Info label="Against">
+                    <div className="text-sm text-fg font-medium">{dispute.againstUser?.name || "Unknown"}</div>
+                    {dispute.againstUser?.phoneNumber && <div className="text-2xs text-fg-muted tabular">{dispute.againstUser.phoneNumber}</div>}
+                  </Info>
+                  <Info label="Reason"><Badge tone="neutral" size="sm">{dispute.reason?.replace(/_/g, " ") || "—"}</Badge></Info>
+                  {dispute.chatId && (
+                    <Info label="Chat ID">
+                      <Link href={`/chats/${dispute.chatId}`} className="text-xs text-accent hover:underline font-mono">{dispute.chatId}</Link>
+                    </Info>
+                  )}
+                  {dispute.orderId && (
+                    <Info label="Order ID">
+                      <Link href={`/orders?search=${dispute.orderId}`} className="text-xs text-accent hover:underline font-mono">{dispute.orderId}</Link>
+                    </Info>
+                  )}
+                  {dispute.deliveryId && (
+                    <Info label="Delivery ID">
+                      <Link href={`/deliveries?search=${dispute.deliveryId}`} className="text-xs text-accent hover:underline font-mono">{dispute.deliveryId}</Link>
+                    </Info>
+                  )}
+                  <Info label="Created"><span className="text-xs text-fg tabular">{fmt(dispute.createdAt)}</span></Info>
+                  {dispute.assignedAt && <Info label="Assigned"><span className="text-xs text-fg tabular">{fmt(dispute.assignedAt)}</span></Info>}
+                  {dispute.escalatedAt && <Info label="Escalated"><span className="text-xs text-fg tabular">{fmt(dispute.escalatedAt)}</span></Info>}
+                  {dispute.resolvedAt && <Info label="Resolved"><span className="text-xs text-fg tabular">{fmt(dispute.resolvedAt)}</span></Info>}
                 </div>
-              )}
-              {dispute.orderId && (
-                <div>
-                  <span className="text-text-muted block mb-1">Order ID</span>
-                  <Link href={`/orders?search=${dispute.orderId}`} className="text-primary text-xs hover:underline font-mono">
-                    {dispute.orderId}
-                  </Link>
-                </div>
-              )}
-              {dispute.deliveryId && (
-                <div>
-                  <span className="text-text-muted block mb-1">Delivery ID</span>
-                  <Link href={`/deliveries?search=${dispute.deliveryId}`} className="text-primary text-xs hover:underline font-mono">
-                    {dispute.deliveryId}
-                  </Link>
-                </div>
-              )}
-              <div>
-                <span className="text-text-muted block mb-1">Created</span>
-                <span className="text-text text-xs">{formatDateTime(dispute.createdAt)}</span>
-              </div>
-              {dispute.assignedAt && (
-                <div>
-                  <span className="text-text-muted block mb-1">Assigned</span>
-                  <span className="text-text text-xs">{formatDateTime(dispute.assignedAt)}</span>
-                </div>
-              )}
-              {dispute.escalatedAt && (
-                <div>
-                  <span className="text-text-muted block mb-1">Escalated</span>
-                  <span className="text-text text-xs">{formatDateTime(dispute.escalatedAt)}</span>
-                </div>
-              )}
-              {dispute.resolvedAt && (
-                <div>
-                  <span className="text-text-muted block mb-1">Resolved</span>
-                  <span className="text-text text-xs">{formatDateTime(dispute.resolvedAt)}</span>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Description & Evidence */}
-          <Card>
-            <h2 className="text-base font-semibold text-text mb-3">Description</h2>
-            <p className="text-sm text-text-muted whitespace-pre-wrap leading-relaxed">
-              {dispute.description || 'No description provided.'}
-            </p>
-
-            {dispute.evidence && dispute.evidence.length > 0 && (
-              <div className="mt-5">
-                <h3 className="text-sm font-semibold text-text mb-3">Evidence ({dispute.evidence.length})</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {dispute.evidence.map((url, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setExpandedImage(url)}
-                      className="aspect-square rounded-lg overflow-hidden border border-border hover:border-primary/40 transition-colors"
-                    >
-                      <img src={url} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Resolution Info (if resolved) */}
-          {isResolved && dispute.resolution && (
-            <Card>
-              <h2 className="text-base font-semibold text-text mb-3">Resolution</h2>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-text-muted block mb-1">Type</span>
-                  <Badge variant="success">{dispute.resolutionType?.replace(/_/g, ' ') || 'N/A'}</Badge>
-                </div>
-                <div>
-                  <span className="text-text-muted block mb-1">Details</span>
-                  <p className="text-text whitespace-pre-wrap">{dispute.resolution}</p>
-                </div>
-                {dispute.refundAmount != null && dispute.refundAmount > 0 && (
-                  <div>
-                    <span className="text-text-muted block mb-1">Refund Amount</span>
-                    <span className="text-text font-medium">${dispute.refundAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                {dispute.creditRefund != null && dispute.creditRefund > 0 && (
-                  <div>
-                    <span className="text-text-muted block mb-1">Credit Refund</span>
-                    <span className="text-text font-medium">{dispute.creditRefund} credits</span>
-                  </div>
-                )}
-              </div>
+              </CardContent>
             </Card>
-          )}
 
-          {/* Timeline / Notes */}
-          <Card>
-            <h2 className="text-base font-semibold text-text mb-4">Timeline &amp; Notes</h2>
-
-            {(!dispute.notes || dispute.notes.length === 0) ? (
-              <p className="text-sm text-text-muted py-4">No notes yet.</p>
-            ) : (
-              <div className="space-y-4 mb-6">
-                {dispute.notes.map((note) => (
-                  <div key={note.id} className="flex gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center">
-                      <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
-                      </svg>
+            <Card padding={false}>
+              <CardHeader><CardTitle>Description</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-sm text-fg-muted whitespace-pre-wrap leading-relaxed">
+                  {dispute.description || "No description provided."}
+                </p>
+                {dispute.evidence && dispute.evidence.length > 0 && (
+                  <div className="mt-5">
+                    <div className="text-2xs uppercase tracking-wider text-fg-subtle mb-2">
+                      Evidence <span className="tabular">({dispute.evidence.length})</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-text">{note.author?.name || 'Unknown'}</span>
-                        <span className="text-xs text-text-muted">{formatDateTime(note.createdAt)}</span>
-                        {note.isInternal && <Badge variant="warning">Internal</Badge>}
+                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
+                      {dispute.evidence.map((url, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setExpandedImage(url)}
+                          className="aspect-square rounded-md overflow-hidden border border-muted hover:border-strong transition-colors"
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {isResolved && dispute.resolution && (
+              <Card padding={false}>
+                <CardHeader>
+                  <CardTitle>Resolution</CardTitle>
+                  <Badge tone="success" size="sm">{dispute.resolutionType?.replace(/_/g, " ") || "—"}</Badge>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-fg whitespace-pre-wrap">{dispute.resolution}</p>
+                  <div className="flex gap-4 mt-3">
+                    {dispute.refundAmount != null && dispute.refundAmount > 0 && (
+                      <Info label="Refund"><span className="text-sm text-fg font-semibold tabular">${dispute.refundAmount.toFixed(2)}</span></Info>
+                    )}
+                    {dispute.creditRefund != null && dispute.creditRefund > 0 && (
+                      <Info label="Credits"><span className="text-sm text-fg font-semibold tabular">{dispute.creditRefund}</span></Info>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card padding={false}>
+              <CardHeader><CardTitle>Notes &amp; timeline</CardTitle></CardHeader>
+              <CardContent>
+                {(!dispute.notes || dispute.notes.length === 0) ? (
+                  <div className="text-xs text-fg-subtle py-2">No notes yet.</div>
+                ) : (
+                  <div className="space-y-3 mb-4">
+                    {dispute.notes.map((n) => (
+                      <div key={n.id} className="flex gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-raised flex items-center justify-center shrink-0">
+                          <UserIcon className="h-3.5 w-3.5 text-fg-muted" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-sm font-medium text-fg">{n.author?.name || "Unknown"}</span>
+                            <span className="text-2xs text-fg-subtle tabular">{fmt(n.createdAt)}</span>
+                            {n.isInternal && <Badge tone="warning" size="sm">Internal</Badge>}
+                          </div>
+                          <p className="text-sm text-fg-muted whitespace-pre-wrap">{n.content}</p>
+                        </div>
                       </div>
-                      <p className="text-sm text-text-muted whitespace-pre-wrap">{note.content}</p>
+                    ))}
+                  </div>
+                )}
+
+                {canManage && (
+                  <div className="border-t border-muted pt-3">
+                    <Textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Add a note…"
+                      rows={3}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <label className="flex items-center gap-2 text-xs text-fg-muted cursor-pointer">
+                        <Checkbox checked={noteInternal} onCheckedChange={(v) => setNoteInternal(!!v)} />
+                        Internal note
+                      </label>
+                      <Button size="sm" variant="primary" onClick={addNote} disabled={submittingNote || !noteText.trim()} loading={submittingNote}>
+                        Add note
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add Note Form */}
-            {canManage && (
-              <div className="border-t border-border pt-4">
-                <textarea
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  placeholder="Add a note..."
-                  rows={3}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary/50 resize-none"
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={noteInternal}
-                      onChange={(e) => setNoteInternal(e.target.checked)}
-                      className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary/30"
-                    />
-                    Internal note
-                  </label>
-                  <button
-                    onClick={handleAddNote}
-                    disabled={submittingNote || !noteText.trim()}
-                    className="px-4 py-1.5 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submittingNote ? 'Adding...' : 'Add Note'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Right Column (1/3) — Resolution Panel */}
-        <div className="space-y-6">
-          {!isResolved && canManage && (
-            <Card>
-              <h2 className="text-base font-semibold text-text mb-4">Resolve Dispute</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Resolution Type</label>
-                  <select
-                    value={resolutionType}
-                    onChange={(e) => setResolutionType(e.target.value)}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary/50"
-                  >
-                    {RESOLUTION_TYPES.map((rt) => (
-                      <option key={rt.value} value={rt.value}>{rt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {showRefundInput && (
-                  <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1.5">Refund Amount ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={refundAmount}
-                      onChange={(e) => setRefundAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary/50"
-                    />
-                  </div>
                 )}
-
-                {showCreditInput && (
-                  <div>
-                    <label className="block text-xs font-medium text-text-muted mb-1.5">Credit Amount ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={creditAmount}
-                      onChange={(e) => setCreditAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary/50"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Resolution Details</label>
-                  <textarea
-                    value={resolutionText}
-                    onChange={(e) => setResolutionText(e.target.value)}
-                    placeholder="Describe the resolution..."
-                    rows={4}
-                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary/50 resize-none"
-                  />
-                </div>
-
-                <button
-                  onClick={handleResolve}
-                  disabled={submittingResolve || !resolutionText.trim()}
-                  className="w-full px-4 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submittingResolve ? 'Resolving...' : 'Resolve Dispute'}
-                </button>
-              </div>
+              </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Quick Info Sidebar */}
-          <Card>
-            <h2 className="text-base font-semibold text-text mb-3">Quick Info</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Status</span>
-                <Badge variant={statusVariant}>{dispute.status?.replace(/_/g, ' ')}</Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Priority</span>
-                <Badge variant={priority.variant}>{priority.label}</Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">SLA</span>
-                <span className={`text-xs font-medium ${sla.breached ? 'text-danger' : 'text-text-muted'}`}>
-                  {sla.text}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Notes</span>
-                <span className="text-text">{dispute.notes?.length || 0}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Evidence</span>
-                <span className="text-text">{dispute.evidence?.length || 0} files</span>
-              </div>
-            </div>
-          </Card>
+          {/* Right column — resolve panel + quick info */}
+          <div className="space-y-4">
+            {!isResolved && canManage && (
+              <Card padding={false}>
+                <CardHeader><CardTitle>Resolve dispute</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <Field label="Resolution type" required>
+                    <Select value={resolutionType} onValueChange={setResolutionType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RESOLUTION_TYPES.map((rt) => (
+                          <SelectItem key={rt.value} value={rt.value}>{rt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  {showRefund && (
+                    <Field label="Refund amount ($)">
+                      <Input type="number" min="0" step="0.01" value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} placeholder="0.00" />
+                    </Field>
+                  )}
+
+                  {showCredit && (
+                    <Field label="Credit amount ($)">
+                      <Input type="number" min="0" step="0.01" value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} placeholder="0.00" />
+                    </Field>
+                  )}
+
+                  <Field label="Resolution details" required>
+                    <Textarea value={resolutionText} onChange={(e) => setResolutionText(e.target.value)} placeholder="Describe the resolution…" rows={4} />
+                  </Field>
+
+                  <Button variant="primary" className="w-full" onClick={resolve} disabled={!resolutionText.trim()}>
+                    Resolve dispute
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card padding={false}>
+              <CardHeader><CardTitle>Quick info</CardTitle></CardHeader>
+              <CardContent className="space-y-2.5">
+                <QuickRow label="Status" value={<Badge tone={STATUS_TONE[dispute.status] || "neutral"} size="sm">{dispute.status?.replace(/_/g, " ")}</Badge>} />
+                <QuickRow label="Priority" value={<Badge tone={PRIORITY_TONE[dispute.priority] || "neutral"} size="sm">{dispute.priority}</Badge>} />
+                <QuickRow label="SLA" value={<span className={cn("text-xs tabular font-medium", sla.breached ? "text-danger" : "text-fg-muted")}>{sla.text}</span>} />
+                <QuickRow label="Notes" value={<span className="text-sm text-fg tabular">{dispute.notes?.length || 0}</span>} />
+                <QuickRow label="Evidence" value={<span className="text-sm text-fg tabular">{dispute.evidence?.length || 0}</span>} />
+              </CardContent>
+            </Card>
+
+            {dispute.chatId && (
+              <Button variant="secondary" className="w-full" leadingIcon={<MessageSquare className="h-3.5 w-3.5" />} asChild>
+                <Link href={`/chats/${dispute.chatId}`}>Open chat thread</Link>
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      </PageContainer>
+    </>
+  );
+}
+
+function Info({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-2xs uppercase tracking-wider text-fg-subtle mb-0.5">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function QuickRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-fg-muted">{label}</span>
+      {value}
     </div>
   );
 }
