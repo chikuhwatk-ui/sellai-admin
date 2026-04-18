@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/shell/CommandPalette";
 import { ShortcutCheatsheet } from "@/components/shell/ShortcutCheatsheet";
 import { NavigationShortcuts } from "@/components/shell/NavigationShortcuts";
 import { TooltipProvider } from "@/components/ui/Tooltip";
+import { PageTransition } from "./PageTransition";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -45,11 +46,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0">
         <Header title={title} onMenuToggle={() => setMobileOpen(true)} onOpenPalette={() => setPaletteOpen(true)} />
         <StaleConnectionBanner stale={stale} onRetry={revalidate} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main id="main-content" className="flex-1 overflow-y-auto" tabIndex={-1}>
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <ShortcutCheatsheet />

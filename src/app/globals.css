@@ -184,6 +184,33 @@
     color: var(--color-fg-muted);
     font-variant-numeric: tabular-nums;
   }
+
+  /* Dense mode shrinks row heights and paddings project-wide */
+  [data-density='compact'] table th,
+  [data-density='compact'] table td {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+  [data-density='compact'] .density-row {
+    height: 28px !important;
+  }
+}
+
+/* Skip link — keyboard users can jump past the nav */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
 }
 
 @layer utilities {
