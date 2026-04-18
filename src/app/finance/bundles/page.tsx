@@ -46,8 +46,10 @@ interface PriceChange {
 }
 
 export default function BundlesPage() {
-  const { hasPermission, adminRole } = useAuth();
-  const canEdit = hasPermission("FINANCE_MANAGE") && adminRole === "SUPER_ADMIN";
+  const { hasPermission } = useAuth();
+  // Anyone with FINANCE_MANAGE can propose; a different SUPER_ADMIN must approve
+  // before a proposed change takes effect. The approval UI lives on /finance/bundles/pending.
+  const canEdit = hasPermission("FINANCE_MANAGE");
   const { data: bundles, loading, refetch } = useApi<Bundle[]>("/api/admin/v2/bundles");
   const { data: pending } = useApi<Array<{ id: string; bundleId: string }>>(
     "/api/admin/v2/bundle-requests?status=PENDING",
