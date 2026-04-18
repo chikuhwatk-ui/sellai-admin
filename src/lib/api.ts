@@ -1,5 +1,9 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+const RETRY_STATUSES = new Set([502, 503, 504]);
+const MAX_RETRIES = 2;
+const BASE_BACKOFF_MS = 300;
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
   return {
@@ -29,9 +33,38 @@ async function tryRefreshToken(): Promise<boolean> {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Retry GET requests on transient failures (network errors + 502/503/504).
+// Non-GETs are not retried to avoid double-writes.
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const isIdempotent = !init.method || init.method === 'GET';
+  let attempt = 0;
+  for (;;) {
+    try {
+      const res = await fetch(url, init);
+      if (isIdempotent && RETRY_STATUSES.has(res.status) && attempt < MAX_RETRIES) {
+        await sleep(BASE_BACKOFF_MS * Math.pow(2, attempt));
+        attempt++;
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (isIdempotent && attempt < MAX_RETRIES) {
+        await sleep(BASE_BACKOFF_MS * Math.pow(2, attempt));
+        attempt++;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers = await getAuthHeaders();
-  let res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetchWithRetry(`${API_BASE}${path}`, {
     ...options,
     headers: { ...headers, ...options?.headers },
   });
@@ -41,7 +74,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const refreshed = await tryRefreshToken();
     if (refreshed) {
       const newHeaders = await getAuthHeaders();
-      res = await fetch(`${API_BASE}${path}`, {
+      res = await fetchWithRetry(`${API_BASE}${path}`, {
         ...options,
         headers: { ...newHeaders, ...options?.headers },
       });

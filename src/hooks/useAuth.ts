@@ -58,10 +58,15 @@ const FALLBACK_PERMISSIONS_BY_ROLE: Record<string, string[]> = {
   ],
 };
 
+// Revalidate against the server every 5 minutes so a deactivated admin
+// loses access without needing to refresh the page manually.
+const REVALIDATE_INTERVAL_MS = 5 * 60 * 1000;
+
 export function useAuth() {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [stale, setStale] = useState(false);
   const router = useRouter();
 
   const logout = useCallback(() => {
@@ -75,6 +80,40 @@ export function useAuth() {
     setUser(null);
     router.push('/login');
   }, [router]);
+
+  const revalidate = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const me = await api.get<AdminMeResponse>('/api/admin/me');
+      const next: AdminUser = {
+        id: me.id,
+        name: me.name,
+        phoneNumber: me.phoneNumber,
+        adminRole: me.adminRole,
+        permissions: me.permissions || [],
+        isActive: me.isActive,
+        memberSince: me.memberSince,
+      };
+      setUser(next);
+      setStale(false);
+      Sentry.setUser({ id: me.id, username: me.phoneNumber });
+      Sentry.setTag('admin_role', me.adminRole);
+      try {
+        localStorage.setItem('adminUser', JSON.stringify({ id: me.id, name: me.name, phoneNumber: me.phoneNumber }));
+        localStorage.setItem('adminRole', me.adminRole);
+        localStorage.setItem('adminPermissions', JSON.stringify(me.permissions || []));
+      } catch { /* quota / private mode */ }
+      if (me.isActive === false) {
+        logout();
+      }
+    } catch {
+      // api.ts redirects to /login on 401. Other failures (network, 5xx) mean
+      // the cached view is still rendering but may be stale.
+      setStale(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [logout]);
 
   // Hydrate from localStorage immediately so the UI doesn't flash unauthorized,
   // then re-verify against /admin/me which is the server's source of truth.
@@ -100,37 +139,19 @@ export function useAuth() {
     }
     setLoading(false);
 
-    // Always re-verify against the server.
-    setRefreshing(true);
-    api.get<AdminMeResponse>('/api/admin/me')
-      .then((me) => {
-        const next: AdminUser = {
-          id: me.id,
-          name: me.name,
-          phoneNumber: me.phoneNumber,
-          adminRole: me.adminRole,
-          permissions: me.permissions || [],
-          isActive: me.isActive,
-          memberSince: me.memberSince,
-        };
-        setUser(next);
-        Sentry.setUser({ id: me.id, username: me.phoneNumber });
-        Sentry.setTag('admin_role', me.adminRole);
-        try {
-          localStorage.setItem('adminUser', JSON.stringify({ id: me.id, name: me.name, phoneNumber: me.phoneNumber }));
-          localStorage.setItem('adminRole', me.adminRole);
-          localStorage.setItem('adminPermissions', JSON.stringify(me.permissions || []));
-        } catch { /* quota / private mode */ }
-        if (me.isActive === false) {
-          logout();
-        }
-      })
-      .catch(() => {
-        // /admin/me failed — api.ts already redirects on 401.
-        // For 403/network, keep cached so the page renders.
-      })
-      .finally(() => setRefreshing(false));
-  }, [logout]);
+    revalidate();
+
+    const interval = setInterval(revalidate, REVALIDATE_INTERVAL_MS);
+    const onFocus = () => revalidate();
+    const onOnline = () => revalidate();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [revalidate]);
 
   const hasPermission = useCallback(
     (permission: string): boolean => {
@@ -150,7 +171,9 @@ export function useAuth() {
     user,
     loading,
     refreshing,
+    stale,
     logout,
+    revalidate,
     isAuthenticated: !!user,
     adminRole: user?.adminRole || null,
     hasPermission,

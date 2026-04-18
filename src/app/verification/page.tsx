@@ -56,6 +56,7 @@ export default function VerificationPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
 
   // Track items claimed locally for the "In Review" column
   const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
@@ -357,59 +358,45 @@ export default function VerificationPage() {
             <div className="mb-6">
               <div className="text-xs text-text-muted mb-3">Submitted Documents <span className="text-text-muted/60">(click to zoom)</span></div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* ID Front */}
-                <div className="space-y-1.5">
-                  <div className="text-xs font-medium text-text-muted">ID Front</div>
-                  {expanded.idFrontUrl ? (
-                    <img
-                      src={expanded.idFrontUrl}
-                      alt="ID Front"
-                      className="w-full aspect-[4/3] object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity bg-background"
-                      onClick={(e) => { e.stopPropagation(); setZoomedImage(expanded.idFrontUrl!); }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div className="aspect-[4/3] bg-border/30 rounded-xl border border-border flex items-center justify-center">
-                      <span className="text-xs text-text-muted">Not available</span>
+                {(
+                  [
+                    { label: 'ID Front', url: expanded.idFrontUrl },
+                    { label: 'ID Back', url: expanded.idBackUrl },
+                    { label: 'Selfie with ID', url: expanded.selfieWithIdUrl },
+                  ] as const
+                ).map(({ label, url }) => {
+                  const broken = !!url && brokenImages.has(url);
+                  const showImage = !!url && !broken;
+                  return (
+                    <div className="space-y-1.5" key={label}>
+                      <div className="text-xs font-medium text-text-muted">{label}</div>
+                      {showImage ? (
+                        <img
+                          src={url}
+                          alt={label}
+                          className="w-full aspect-[4/3] object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity bg-background"
+                          onClick={(e) => { e.stopPropagation(); setZoomedImage(url!); }}
+                          onError={() => setBrokenImages(prev => {
+                            const next = new Set(prev);
+                            next.add(url!);
+                            return next;
+                          })}
+                        />
+                      ) : (
+                        <div className="aspect-[4/3] bg-border/30 rounded-xl border border-border flex flex-col items-center justify-center gap-1.5">
+                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="text-text-muted/60">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                          <span className="text-xs text-text-muted">
+                            {broken ? 'Failed to load' : 'Not submitted'}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-
-                {/* ID Back */}
-                <div className="space-y-1.5">
-                  <div className="text-xs font-medium text-text-muted">ID Back</div>
-                  {expanded.idBackUrl ? (
-                    <img
-                      src={expanded.idBackUrl}
-                      alt="ID Back"
-                      className="w-full aspect-[4/3] object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity bg-background"
-                      onClick={(e) => { e.stopPropagation(); setZoomedImage(expanded.idBackUrl!); }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div className="aspect-[4/3] bg-border/30 rounded-xl border border-border flex items-center justify-center">
-                      <span className="text-xs text-text-muted">Not available</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Selfie with ID */}
-                <div className="space-y-1.5">
-                  <div className="text-xs font-medium text-text-muted">Selfie with ID</div>
-                  {expanded.selfieWithIdUrl ? (
-                    <img
-                      src={expanded.selfieWithIdUrl}
-                      alt="Selfie with ID"
-                      className="w-full aspect-[4/3] object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity bg-background"
-                      onClick={(e) => { e.stopPropagation(); setZoomedImage(expanded.selfieWithIdUrl!); }}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <div className="aspect-[4/3] bg-border/30 rounded-xl border border-border flex items-center justify-center">
-                      <span className="text-xs text-text-muted">Not available</span>
-                    </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </div>
 

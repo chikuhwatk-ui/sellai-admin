@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useApi } from '@/hooks/useApi';
+import { api } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 const ACTION_COLORS: Record<string, string> = {
   ADMIN_LOGIN_SUCCESS: 'text-[#10B981] bg-[#10B981]/10',
@@ -30,7 +32,26 @@ function formatDate(iso: string): string {
 }
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'general' | 'roles' | 'audit'>('general');
+  const [tab, setTab] = useState<'general' | 'security' | 'roles' | 'audit'>('general');
+  const { user, logout } = useAuth();
+  const [forcingLogout, setForcingLogout] = useState(false);
+  const [forceLogoutMsg, setForceLogoutMsg] = useState<string | null>(null);
+
+  const handleForceLogoutAllSessions = async () => {
+    if (!user?.id) return;
+    if (!confirm("This will sign you out of every device. Continue?")) return;
+    setForcingLogout(true);
+    setForceLogoutMsg(null);
+    try {
+      await api.post(`/api/admin/management/${user.id}/force-logout`);
+      setForceLogoutMsg("All sessions invalidated. Signing you out…");
+      setTimeout(() => logout(), 1000);
+    } catch (e) {
+      setForceLogoutMsg(e instanceof Error ? e.message : "Failed to invalidate sessions.");
+    } finally {
+      setForcingLogout(false);
+    }
+  };
 
   // Fetch real audit logs for the audit tab
   const { data: auditData, loading: auditLoading } = useApi<any>(
@@ -44,7 +65,7 @@ export default function SettingsPage() {
       <p className="text-[#6B7280] mb-6">System configuration and activity log</p>
 
       <div className="flex gap-1 mb-6 bg-[#1A1D27] rounded-lg p-1 w-fit">
-        {(['general', 'roles', 'audit'] as const).map((t) => (
+        {(['general', 'security', 'roles', 'audit'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -57,25 +78,136 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'security' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Current security posture */}
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Account security</h2>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div>
+                  <div className="text-sm font-medium text-white">SMS / Email OTP login</div>
+                  <div className="text-xs text-[#6B7280]">A 6-digit one-time code is required at every sign in.</div>
+                </div>
+                <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium shrink-0 ml-3">Active</span>
+              </div>
+              <div className="flex items-start justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div>
+                  <div className="text-sm font-medium text-white">Idle session timeout</div>
+                  <div className="text-xs text-[#6B7280]">You are signed out automatically after 30 minutes of inactivity.</div>
+                </div>
+                <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium shrink-0 ml-3">30 min</span>
+              </div>
+              <div className="flex items-start justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div>
+                  <div className="text-sm font-medium text-white">Account lockout</div>
+                  <div className="text-xs text-[#6B7280]">5 failed sign-ins within 15 minutes locks the account temporarily.</div>
+                </div>
+                <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium shrink-0 ml-3">Active</span>
+              </div>
+              <div className="flex items-start justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div>
+                  <div className="text-sm font-medium text-white">Single-session enforcement</div>
+                  <div className="text-xs text-[#6B7280]">Each new sign-in invalidates the previous one (server-side token rotation).</div>
+                </div>
+                <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium shrink-0 ml-3">Active</span>
+              </div>
+              <div className="flex items-start justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div>
+                  <div className="text-sm font-medium text-white">TOTP / Authenticator app (2FA)</div>
+                  <div className="text-xs text-[#6B7280]">
+                    Not yet available — requires a backend endpoint to store TOTP secrets and verify codes.
+                    On the roadmap once <span className="font-mono text-[10px]">/auth/2fa/setup</span> + <span className="font-mono text-[10px]">/verify</span> ship.
+                  </div>
+                </div>
+                <span className="text-xs text-[#F59E0B] bg-[#F59E0B]/10 px-2 py-1 rounded-full font-medium shrink-0 ml-3">Planned</span>
+              </div>
+              <div className="flex items-start justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div>
+                  <div className="text-sm font-medium text-white">Passkey / WebAuthn</div>
+                  <div className="text-xs text-[#6B7280]">
+                    Browser-native phishing-resistant sign-in. Needs backend public-key storage.
+                  </div>
+                </div>
+                <span className="text-xs text-[#F59E0B] bg-[#F59E0B]/10 px-2 py-1 rounded-full font-medium shrink-0 ml-3">Planned</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sessions + force logout */}
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Active sessions</h2>
+            <p className="text-xs text-[#6B7280] mb-4">
+              Sellai uses short-lived JWTs (4h) refreshed via a longer-lived refresh token.
+              Forcing a logout invalidates every refresh token for your account, which kicks
+              you off any other browsers, tabs, or devices that were signed in.
+            </p>
+
+            <div className="bg-[#0F1117] border border-[#2A2D37] rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-white">This device</div>
+                  <div className="text-xs text-[#6B7280] mt-1">
+                    Signed in as <span className="text-white">{user?.name || user?.phoneNumber || '—'}</span>
+                  </div>
+                  <div className="text-xs text-[#6B7280]">Role: {user?.adminRole || '—'}</div>
+                </div>
+                <span className="text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-1 rounded-full font-medium">Current</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleForceLogoutAllSessions}
+              disabled={forcingLogout}
+              className="w-full bg-[#EF4444]/10 hover:bg-[#EF4444]/20 disabled:opacity-50 border border-[#EF4444]/30 text-[#EF4444] font-medium px-4 py-2.5 rounded-lg text-sm transition-colors"
+            >
+              {forcingLogout ? "Invalidating sessions…" : "Sign out of all devices"}
+            </button>
+            {forceLogoutMsg && (
+              <p className="text-xs text-[#9CA3AF] mt-3">{forceLogoutMsg}</p>
+            )}
+
+            <div className="mt-6 pt-6 border-t border-[#2A2D37]">
+              <p className="text-xs text-[#6B7280] leading-relaxed">
+                <span className="text-white font-medium">Tip:</span> If you suspect someone else has access to your account,
+                use the button above to invalidate every session, then sign back in fresh.
+                Your activity is also logged in the <button onClick={() => setTab('audit')} className="text-[#3B82F6] hover:underline">Audit Log</button> tab.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === 'general' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Platform Settings */}
           <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Platform Settings</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Platform Settings</h2>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] bg-[#0F1117] border border-[#2A2D37] px-2 py-1 rounded">
+                Read only
+              </span>
+            </div>
+            <p className="text-xs text-[#6B7280] mb-4">
+              These values are configured at the backend level. To change them, edit the corresponding
+              environment variables on the server and redeploy. A live editor is on the roadmap once
+              there's an audited admin-config endpoint.
+            </p>
             <div className="space-y-4">
               {[
-                { label: 'Default Intent Expiry', value: '24 hours', desc: 'How long demands stay open' },
-                { label: 'Max Notification Waves', value: '4', desc: 'Waves per demand notification cycle' },
-                { label: 'PIN Max Attempts', value: '5', desc: 'Failed PIN attempts before lockout' },
-                { label: 'Free Trial Credits', value: '5', desc: 'Credits for new sellers' },
-                { label: 'Offer Retention Hours', value: '72', desc: 'Default offer visibility window' },
+                { label: 'Default Intent Expiry', value: '24 hours', desc: 'How long demands stay open', envKey: 'INTENT_EXPIRY_HOURS' },
+                { label: 'Max Notification Waves', value: '4', desc: 'Waves per demand notification cycle', envKey: 'NOTIFICATION_WAVES' },
+                { label: 'PIN Max Attempts', value: '5', desc: 'Failed PIN attempts before lockout', envKey: 'PIN_MAX_ATTEMPTS' },
+                { label: 'Free Trial Credits', value: '5', desc: 'Credits for new sellers', envKey: 'FREE_TRIAL_CREDITS' },
+                { label: 'Offer Retention Hours', value: '72', desc: 'Default offer visibility window', envKey: 'OFFER_RETENTION_HOURS' },
               ].map((setting) => (
                 <div key={setting.label} className="flex items-center justify-between p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-white">{setting.label}</div>
                     <div className="text-xs text-[#6B7280]">{setting.desc}</div>
+                    <div className="text-[10px] text-[#6B7280]/70 font-mono mt-1">{setting.envKey}</div>
                   </div>
-                  <div className="bg-[#2A2D37] px-3 py-1.5 rounded-md text-sm text-white font-mono">{setting.value}</div>
+                  <div className="bg-[#2A2D37] px-3 py-1.5 rounded-md text-sm text-white font-mono shrink-0 ml-3">{setting.value}</div>
                 </div>
               ))}
             </div>

@@ -6,6 +6,8 @@ import Header from "./Header";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { usePathname } from "next/navigation";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
+import { useAuth } from "@/hooks/useAuth";
+import { StaleConnectionBanner } from "./StaleConnectionBanner";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -34,12 +36,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const title = routeTitles[pathname] || "Sellai Admin";
   const [mobileOpen, setMobileOpen] = useState(false);
   useSessionTimeout();
+  const { stale, revalidate } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0">
         <Header title={title} onMenuToggle={() => setMobileOpen(true)} />
+        <StaleConnectionBanner stale={stale} onRetry={revalidate} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
