@@ -252,10 +252,21 @@ export default function BudgetDetailPage() {
                           )}
                         </td>
                         <td className={cn("px-3 py-2 text-right tabular font-semibold",
-                          line.projectedMonthlyUsd > 50 ? "text-fg" : "text-fg-muted")}>
-                          {formatMoney(line.projectedMonthlyUsd)}
-                          {line.overrideMonthlyUsd !== null && (
-                            <div className="text-2xs text-warning">overridden</div>
+                          (line.pricingModel === 'ONE_TIME'
+                            ? Number(line.overrideMonthlyUsd ?? line.fixedMonthlyUsd) > 50
+                            : line.projectedMonthlyUsd > 50) ? "text-fg" : "text-fg-muted")}>
+                          {line.pricingModel === 'ONE_TIME' ? (
+                            <>
+                              {formatMoney(Number(line.overrideMonthlyUsd ?? line.fixedMonthlyUsd))}
+                              <div className="text-2xs text-warning">launch month only</div>
+                            </>
+                          ) : (
+                            <>
+                              {formatMoney(line.projectedMonthlyUsd)}
+                              {line.overrideMonthlyUsd !== null && (
+                                <div className="text-2xs text-warning">overridden</div>
+                              )}
+                            </>
                           )}
                         </td>
                         <td className="px-3 py-2 text-xs text-fg-muted">{SCALES_LABEL[line.scalesWith]}</td>
