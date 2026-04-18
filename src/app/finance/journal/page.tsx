@@ -1,136 +1,139 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useApi } from '@/hooks/useApi';
-import Link from 'next/link';
+import * as React from "react";
+import Link from "next/link";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useApi } from "@/hooks/useApi";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { FilterChip } from "@/components/ui/FilterChip";
 
-const TYPE_COLORS: Record<string, string> = {
-  AUTOMATED: '#10B981',
-  MANUAL: '#3B82F6',
-  ADJUSTING: '#F59E0B',
-  REVERSING: '#EF4444',
-  CLOSING: '#8B5CF6',
+interface JournalLine { debit?: number; credit?: number }
+interface JournalEntry {
+  id: string; entryNumber: string; date: string; description: string;
+  type: "AUTOMATED" | "MANUAL" | "ADJUSTING" | "REVERSING" | "CLOSING";
+  status: "POSTED" | "VOID";
+  lines?: JournalLine[];
+}
+
+const TYPE_TONE: Record<string, "accent" | "info" | "warning" | "danger" | "pending"> = {
+  AUTOMATED: "accent", MANUAL: "info", ADJUSTING: "warning",
+  REVERSING: "danger", CLOSING: "pending",
 };
 
 export default function JournalEntriesPage() {
-  const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+  const [page, setPage] = React.useState(1);
+  const [typeFilter, setTypeFilter] = React.useState("");
+  const [sourceFilter, setSourceFilter] = React.useState("");
 
-  const params = new URLSearchParams({ page: String(page), limit: '20' });
-  if (typeFilter) params.set('type', typeFilter);
-  if (sourceFilter) params.set('sourceType', sourceFilter);
+  const params = new URLSearchParams({ page: String(page), limit: "20" });
+  if (typeFilter) params.set("type", typeFilter);
+  if (sourceFilter) params.set("sourceType", sourceFilter);
 
-  const { data, loading } = useApi<any>(`/api/admin/accounting/journal-entries?${params}`);
+  const { data, loading } = useApi<{ data: JournalEntry[]; totalPages: number }>(
+    `/api/admin/accounting/journal-entries?${params}`
+  );
   const entries = data?.data || [];
   const totalPages = data?.totalPages || 1;
 
+  const columns: ColumnDef<JournalEntry>[] = [
+    {
+      id: "number",
+      header: "Entry",
+      cell: ({ row }) => (
+        <Link href={`/finance/journal/${row.original.id}`} className="font-mono text-xs text-accent hover:underline tabular">
+          {row.original.entryNumber}
+        </Link>
+      ),
+    },
+    {
+      id: "date",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-fg-muted tabular">
+          {new Date(row.original.date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+        </span>
+      ),
+    },
+    {
+      id: "description",
+      header: "Description",
+      cell: ({ row }) => <span className="block max-w-[320px] truncate text-sm-compact text-fg">{row.original.description}</span>,
+    },
+    {
+      id: "type",
+      header: "Type",
+      cell: ({ row }) => <Badge tone={TYPE_TONE[row.original.type] || "neutral"} size="sm">{row.original.type}</Badge>,
+    },
+    {
+      id: "amount",
+      header: () => <span className="block text-right">Amount</span>,
+      cell: ({ row }) => {
+        const total = (row.original.lines || []).reduce((s, l) => s + Number(l.debit || 0), 0);
+        return <span className="block text-right text-sm-compact font-medium text-fg tabular">${total.toFixed(2)}</span>;
+      },
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => <Badge tone={row.original.status === "POSTED" ? "success" : "danger"} size="sm">{row.original.status}</Badge>,
+    },
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Journal Entries</h1>
-        <p className="text-sm text-[#6B7280] mt-1">Immutable double-entry accounting records</p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Journal Entries"
+        description="Immutable double-entry accounting records"
+      />
 
-      {/* Filters */}
-      <div className="flex gap-3">
-        <select
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterChip
+          label="Type"
           value={typeFilter}
-          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2 bg-[#1A1D27] border border-[#2A2D37] rounded-lg text-sm text-white focus:outline-none focus:border-[#10B981]"
-        >
-          <option value="">All Types</option>
-          <option value="AUTOMATED">Automated</option>
-          <option value="MANUAL">Manual</option>
-          <option value="ADJUSTING">Adjusting</option>
-          <option value="REVERSING">Reversing</option>
-          <option value="CLOSING">Closing</option>
-        </select>
-        <select
+          onChange={(v) => { setTypeFilter(v); setPage(1); }}
+          onClear={() => { setTypeFilter(""); setPage(1); }}
+          options={[
+            { value: "AUTOMATED", label: "Automated" },
+            { value: "MANUAL", label: "Manual" },
+            { value: "ADJUSTING", label: "Adjusting" },
+            { value: "REVERSING", label: "Reversing" },
+            { value: "CLOSING", label: "Closing" },
+          ]}
+        />
+        <FilterChip
+          label="Source"
           value={sourceFilter}
-          onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2 bg-[#1A1D27] border border-[#2A2D37] rounded-lg text-sm text-white focus:outline-none focus:border-[#10B981]"
-        >
-          <option value="">All Sources</option>
-          <option value="CREDIT_PURCHASE">Credit Purchase</option>
-          <option value="CREDIT_SPEND">Credit Spend</option>
-          <option value="WALLET_TOPUP">Wallet Top-up</option>
-          <option value="DELIVERY_COMMISSION">Delivery Commission</option>
-          <option value="SLOT_AMORTIZATION">Slot Amortization</option>
-          <option value="MANUAL_EXPENSE">Manual Expense</option>
-        </select>
+          onChange={(v) => { setSourceFilter(v); setPage(1); }}
+          onClear={() => { setSourceFilter(""); setPage(1); }}
+          options={[
+            { value: "CREDIT_PURCHASE", label: "Credit purchase" },
+            { value: "CREDIT_SPEND", label: "Credit spend" },
+            { value: "WALLET_TOPUP", label: "Wallet top-up" },
+            { value: "DELIVERY_COMMISSION", label: "Delivery commission" },
+            { value: "SLOT_AMORTIZATION", label: "Slot amortization" },
+            { value: "MANUAL_EXPENSE", label: "Manual expense" },
+          ]}
+        />
       </div>
 
-      {loading ? (
-        <div className="text-center py-12 text-[#6B7280]">Loading...</div>
-      ) : entries.length === 0 ? (
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-12 text-center">
-          <p className="text-[#6B7280]">No journal entries found</p>
-        </div>
-      ) : (
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#2A2D37]">
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Entry #</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-4 py-4">Date</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-4 py-4">Description</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-4 py-4">Type</th>
-                <th className="text-right text-xs font-medium text-[#6B7280] uppercase tracking-wider px-4 py-4">Amount</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry: any) => {
-                const totalDebit = (entry.lines || []).reduce((s: number, l: any) => s + Number(l.debit || 0), 0);
-                return (
-                  <tr key={entry.id} className="border-b border-[#2A2D37]/50 hover:bg-[#1A1D27]/50">
-                    <td className="px-6 py-3">
-                      <Link href={`/finance/journal/${entry.id}`} className="font-mono text-sm text-[#10B981] hover:underline">
-                        {entry.entryNumber}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#6B7280]">
-                      {new Date(entry.date).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-white max-w-[300px] truncate">{entry.description}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ backgroundColor: (TYPE_COLORS[entry.type] || '#6B7280') + '20', color: TYPE_COLORS[entry.type] || '#6B7280' }}
-                      >
-                        {entry.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-white text-right font-medium">${totalDebit.toFixed(2)}</td>
-                    <td className="px-6 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        entry.status === 'POSTED' ? 'bg-[#10B981]/15 text-[#10B981]' : 'bg-[#EF4444]/15 text-[#EF4444]'
-                      }`}>
-                        {entry.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Table<JournalEntry>
+        columns={columns}
+        data={entries}
+        loading={loading}
+        rowId={(e) => e.id}
+        emptyTitle="No journal entries"
+      />
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40">
-            Prev
-          </button>
-          <span className="text-xs text-[#6B7280]">Page {page} of {totalPages}</span>
-          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40">
-            Next
-          </button>
+        <div className="flex items-center justify-center gap-1">
+          <Button size="sm" variant="secondary" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+          <span className="px-3 text-2xs text-fg-subtle tabular">Page {page} of {totalPages}</span>
+          <Button size="sm" variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

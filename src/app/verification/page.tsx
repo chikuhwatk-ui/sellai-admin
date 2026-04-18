@@ -1,17 +1,30 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { KPICard } from '@/components/ui/KPICard';
-import { useApi } from '@/hooks/useApi';
-import { api } from '@/lib/api';
+import * as React from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { ShieldCheck, Clock, TrendingUp, XCircle, UserCheck } from "lucide-react";
+import { useApi } from "@/hooks/useApi";
+import { api } from "@/lib/api";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter } from "@/components/ui/Sheet";
+import { Field } from "@/components/ui/Label";
+import { Textarea } from "@/components/ui/Input";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/Select";
+import { Kbd } from "@/components/ui/Kbd";
+import { Hint } from "@/components/ui/Tooltip";
+import { cn } from "@/lib/cn";
+import { toast } from "sonner";
 
-interface VerificationUser {
-  id: string;
-  name: string;
-  phoneNumber: string;
-}
+interface VerificationUser { id: string; name: string; phoneNumber: string; }
 
 interface Verification {
   id: string;
@@ -32,17 +45,18 @@ interface Verification {
 }
 
 const REJECTION_REASONS = [
-  { value: 'BLURRY_PHOTO', label: 'Blurry or unreadable photo' },
-  { value: 'NAME_MISMATCH', label: 'Name mismatch' },
-  { value: 'EXPIRED_ID', label: 'Expired document' },
-  { value: 'FAKE_FRAUDULENT', label: 'Suspected fraudulent document' },
-  { value: 'INCOMPLETE_SUBMISSION', label: 'Incomplete submission' },
-  { value: 'OTHER', label: 'Other' },
+  { value: "BLURRY_PHOTO", label: "Blurry or unreadable photo" },
+  { value: "NAME_MISMATCH", label: "Name mismatch" },
+  { value: "EXPIRED_ID", label: "Expired document" },
+  { value: "FAKE_FRAUDULENT", label: "Suspected fraudulent document" },
+  { value: "INCOMPLETE_SUBMISSION", label: "Incomplete submission" },
+  { value: "OTHER", label: "Other" },
 ];
 
-function getTimeAgo(isoDate: string): string {
-  const diff = Date.now() - new Date(isoDate).getTime();
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;
@@ -50,440 +64,391 @@ function getTimeAgo(isoDate: string): string {
 }
 
 export default function VerificationPage() {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [rejectionNote, setRejectionNote] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = React.useState("");
+  const [rejectionNote, setRejectionNote] = React.useState("");
+  const [brokenImages, setBrokenImages] = React.useState<Set<string>>(new Set());
+  const [zoomedImage, setZoomedImage] = React.useState<string | null>(null);
+  const [claimedIds, setClaimedIds] = React.useState<Set<string>>(new Set());
+  const [rejecting, setRejecting] = React.useState(false);
 
-  // Track items claimed locally for the "In Review" column
-  const [claimedIds, setClaimedIds] = useState<Set<string>>(new Set());
+  const { data: pendingRaw, loading: pendingLoading, refetch: refetchPending } = useApi<any>("/api/verification/queue?status=PENDING");
+  const { data: processedRaw, refetch: refetchProcessed } = useApi<any>("/api/verification/queue?status=VERIFIED");
+  const { data: rejectedRaw, refetch: refetchRejected } = useApi<any>("/api/verification/queue?status=REJECTED");
+  const { data: stats } = useApi<any>("/api/admin/verification/stats");
 
-  const { data: pendingRaw, loading: pendingLoading, refetch: refetchPending } = useApi<any>('/api/verification/queue?status=PENDING');
-  const { data: processedRaw, loading: processedLoading, refetch: refetchProcessed } = useApi<any>('/api/verification/queue?status=VERIFIED');
-  const { data: rejectedRaw, refetch: refetchRejected } = useApi<any>('/api/verification/queue?status=REJECTED');
-  const { data: stats } = useApi<any>('/api/admin/verification/stats');
+  const pendingItems: Verification[] = React.useMemo(() => pendingRaw?.queue || [], [pendingRaw]);
+  const processedItems: Verification[] = React.useMemo(() => processedRaw?.queue || [], [processedRaw]);
+  const rejectedItems: Verification[] = React.useMemo(() => rejectedRaw?.queue || [], [rejectedRaw]);
 
-  // API returns { queue: [...], total: N }
-  const pendingItems: Verification[] = pendingRaw?.queue || [];
-  const processedItems: Verification[] = processedRaw?.queue || [];
-  const rejectedItems: Verification[] = rejectedRaw?.queue || [];
-
-  // Split pending into truly pending vs claimed (in review)
-  const pending = pendingItems.filter(v => !claimedIds.has(v.id));
-  const inReview = pendingItems.filter(v => claimedIds.has(v.id));
+  const pending = pendingItems.filter((v) => !claimedIds.has(v.id));
+  const inReview = pendingItems.filter((v) => claimedIds.has(v.id));
   const processed = [...processedItems, ...rejectedItems].sort(
     (a, b) => new Date(b.reviewedAt || b.submittedAt).getTime() - new Date(a.reviewedAt || a.submittedAt).getTime()
   );
 
   const allItems = [...pendingItems, ...processedItems, ...rejectedItems];
-  const expanded = expandedId ? allItems.find(v => v.id === expandedId) : null;
+  const selected = selectedId ? allItems.find((v) => v.id === selectedId) || null : null;
 
-  const handleClaim = (id: string) => {
-    setClaimedIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
+  const { run } = useOptimisticAction();
+
+  const closeSheet = () => {
+    setSelectedId(null);
+    setRejectionReason("");
+    setRejectionNote("");
+    setRejecting(false);
+  };
+
+  const handleClaim = React.useCallback((id: string) => {
+    setClaimedIds((prev) => new Set(prev).add(id));
+    toast("Claimed for review");
+  }, []);
+
+  const handleApprove = React.useCallback((id: string) => {
+    run({
+      action: () => api.post(`/api/verification/${id}/approve`, {}),
+      optimistic: () => {
+        setClaimedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        closeSheet();
+      },
+      label: "Verification approved",
+      description: "The user can now transact.",
+      onSuccess: () => { refetchPending(); refetchProcessed(); },
     });
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, refetchPending, refetchProcessed]);
 
-  const handleUnclaim = (id: string) => {
-    setClaimedIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
+  const handleReject = React.useCallback((id: string) => {
+    if (!rejectionReason) {
+      toast.error("Select a rejection reason first");
+      return;
+    }
+    run({
+      action: () => api.post(`/api/verification/${id}/reject`, { reason: rejectionReason, note: rejectionNote || undefined }),
+      optimistic: () => {
+        setClaimedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        closeSheet();
+      },
+      label: "Verification rejected",
+      description: REJECTION_REASONS.find((r) => r.value === rejectionReason)?.label,
+      onSuccess: () => { refetchPending(); refetchProcessed(); refetchRejected(); },
     });
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, rejectionReason, rejectionNote, refetchPending, refetchProcessed, refetchRejected]);
 
-  const handleApprove = async (id: string) => {
-    setActionLoading(true);
-    setActionMsg(null);
-    try {
-      await api.post(`/api/verification/${id}/approve`, {});
-      setClaimedIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setExpandedId(null);
-      setActionMsg({ type: 'success', text: 'Verification approved successfully.' });
-      refetchPending();
-      refetchProcessed();
-    } catch (err) {
-      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to approve.' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  // Hotkeys bound to the selected verification (sheet open)
+  useHotkeys("a", () => { if (selected) handleApprove(selected.id); }, { enabled: !!selected, enableOnFormTags: false });
+  useHotkeys("r", () => { if (selected) setRejecting(true); }, { enabled: !!selected && !rejecting, enableOnFormTags: false });
+  useHotkeys("c", () => { if (selected) handleClaim(selected.id); }, { enabled: !!selected, enableOnFormTags: false });
 
-  const handleReject = async (id: string) => {
-    if (!rejectionReason) return;
-    setActionLoading(true);
-    setActionMsg(null);
-    try {
-      await api.post(`/api/verification/${id}/reject`, {
-        reason: rejectionReason,
-        note: rejectionNote || undefined,
-      });
-      setClaimedIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setExpandedId(null);
-      setRejectionReason('');
-      setRejectionNote('');
-      setActionMsg({ type: 'success', text: 'Verification rejected.' });
-      refetchPending();
-      refetchProcessed();
-      refetchRejected();
-    } catch (err) {
-      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to reject.' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  if (pendingLoading) {
-    return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-text-muted">Loading verification queue...</p>
-        </div>
-      </div>
-    );
-  }
+  // j/k navigate the pending queue, Enter opens
+  const queueIds = React.useMemo(() => [...pending, ...inReview, ...processed].map((v) => v.id), [pending, inReview, processed]);
+  const [cursor, setCursor] = React.useState(0);
+  useHotkeys("j", (e) => { e.preventDefault(); setCursor((c) => Math.min(c + 1, queueIds.length - 1)); }, { enableOnFormTags: false });
+  useHotkeys("k", (e) => { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }, { enableOnFormTags: false });
+  useHotkeys("enter", (e) => {
+    if (selected) return;
+    e.preventDefault();
+    const id = queueIds[cursor];
+    if (id) setSelectedId(id);
+  }, { enabled: !selected, enableOnFormTags: false });
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text">Verification Center</h1>
-        <p className="text-sm text-text-muted mt-1">Review and process identity verification requests</p>
-      </div>
+    <>
+      <PageContainer>
+        <PageHeader
+          title="Verification"
+          description="Review and process identity verification requests. Use J/K to move, Enter to open, A to approve, R to reject."
+        />
 
-      {/* Action message */}
-      {actionMsg && (
-        <div className={`p-3 rounded-lg text-sm ${actionMsg.type === 'success' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-danger/10 text-danger border border-danger/20'}`}>
-          {actionMsg.text}
+        {/* Stat row — 4 dense blocks */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <StatBlock label="Pending" value={stats?.totalPending ?? pendingItems.length} hint="awaiting review" />
+          <StatBlock label="Avg time" value={stats?.avgProcessingTime || "—"} hint="to decision" />
+          <StatBlock label="Approval rate" value={stats?.approvalRate != null ? `${stats.approvalRate}%` : "—"} />
+          <StatBlock label="Rejected today" value={stats?.rejectedToday ?? 0} />
         </div>
-      )}
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard title="Total Pending" value={stats?.totalPending ?? pendingItems.length} icon={
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-        } />
-        <KPICard title="Avg Processing Time" value={stats?.avgProcessingTime || '--'} icon={
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-        } />
-        <KPICard title="Approval Rate" value={stats?.approvalRate != null ? `${stats.approvalRate}%` : '--'} icon={
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="M22 4L12 14.01l-3-3" /></svg>
-        } />
-        <KPICard title="Rejected Today" value={stats?.rejectedToday ?? 0} icon={
-          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
-        } />
-      </div>
-
-      {/* Kanban Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pending Column */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text">Pending</h3>
-            <Badge variant="warning">{pending.length}</Badge>
-          </div>
-          <div className="space-y-3">
-            {pending.map(v => (
-              <Card
-                key={v.id}
-                hover
-                padding={false}
-                onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}
-                className={expandedId === v.id ? 'border-primary/50' : ''}
-              >
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-medium text-text">{v.fullName}</div>
-                      <div className="text-xs text-text-muted mt-0.5">ID: {v.idNumber}</div>
-                      <div className="text-xs text-text-muted">{v.user?.phoneNumber || ''}</div>
-                    </div>
-                    {v.isPriority && <Badge variant="danger">Priority</Badge>}
-                  </div>
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-text-muted">Waiting {getTimeAgo(v.submittedAt)}</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleClaim(v.id); }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                    >
-                      Claim
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-            {pending.length === 0 && (
-              <div className="text-center py-8 text-sm text-text-muted">No pending items</div>
+        {/* Three-column queue */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <QueueColumn
+            title="Pending"
+            tone="warning"
+            count={pending.length}
+            loading={pendingLoading}
+            items={pending}
+            onSelect={setSelectedId}
+            action={(v) => (
+              <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); handleClaim(v.id); }}>
+                Claim
+              </Button>
             )}
-          </div>
-        </div>
+            footer={(v) => <span className="text-2xs text-fg-subtle">Waiting {timeAgo(v.submittedAt)}</span>}
+          />
 
-        {/* In Review Column */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text">In Review</h3>
-            <Badge variant="info">{inReview.length}</Badge>
-          </div>
-          <div className="space-y-3">
-            {inReview.map(v => (
-              <Card
-                key={v.id}
-                hover
-                padding={false}
-                onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}
-                className={expandedId === v.id ? 'border-primary/50' : ''}
-              >
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-medium text-text">{v.fullName}</div>
-                      <div className="text-xs text-text-muted mt-0.5">ID: {v.idNumber}</div>
-                    </div>
-                    {v.isPriority && <Badge variant="danger">Priority</Badge>}
-                  </div>
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-text-muted">Claimed by you</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleUnclaim(v.id); }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-hover text-text-muted hover:text-text transition-colors"
-                    >
-                      Release
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-            {inReview.length === 0 && (
-              <div className="text-center py-8 text-sm text-text-muted">No items in review</div>
+          <QueueColumn
+            title="In review"
+            tone="info"
+            count={inReview.length}
+            items={inReview}
+            onSelect={setSelectedId}
+            action={(v) => (
+              <Button size="xs" variant="ghost" onClick={(e) => { e.stopPropagation(); setClaimedIds((p) => { const n = new Set(p); n.delete(v.id); return n; }); }}>
+                Release
+              </Button>
             )}
-          </div>
-        </div>
+            footer={() => <span className="text-2xs text-fg-subtle">Claimed by you</span>}
+          />
 
-        {/* Processed Column */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text">Processed (Recent)</h3>
-            <Badge variant="default">{processed.length}</Badge>
-          </div>
-          <div className="space-y-3">
-            {processed.map(v => (
-              <Card
-                key={v.id}
-                hover
-                padding={false}
-                onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}
-                className={expandedId === v.id ? 'border-primary/50' : ''}
-              >
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="text-sm font-medium text-text">{v.fullName}</div>
-                      <div className="text-xs text-text-muted mt-0.5">ID: {v.idNumber}</div>
-                    </div>
-                    <Badge variant={v.status === 'VERIFIED' ? 'primary' : 'danger'}>
-                      {v.status === 'VERIFIED' ? 'Approved' : 'Rejected'}
-                    </Badge>
-                  </div>
-                  {v.rejectionReason && (
-                    <div className="mt-2 text-xs text-danger/80 bg-danger/5 px-2 py-1 rounded">
-                      {v.rejectionReason.replace(/_/g, ' ')}
-                      {v.rejectionNote ? `: ${v.rejectionNote}` : ''}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-text-muted">{v.user?.name || ''}</span>
-                    <span className="text-xs text-text-muted">{v.reviewedAt ? getTimeAgo(v.reviewedAt) + ' ago' : ''}</span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-            {processed.length === 0 && (
-              <div className="text-center py-8 text-sm text-text-muted">No processed items yet</div>
+          <QueueColumn
+            title="Processed"
+            tone="neutral"
+            count={processed.length}
+            items={processed.slice(0, 20)}
+            onSelect={setSelectedId}
+            action={(v) => (
+              <Badge tone={v.status === "VERIFIED" ? "success" : "danger"} size="sm">
+                {v.status === "VERIFIED" ? "Approved" : "Rejected"}
+              </Badge>
             )}
-          </div>
+            footer={(v) => (
+              <span className="text-2xs text-fg-subtle">
+                {v.reviewedAt ? timeAgo(v.reviewedAt) + " ago" : ""}
+              </span>
+            )}
+          />
         </div>
-      </div>
+      </PageContainer>
 
-      {/* Expanded Detail Modal */}
-      {expanded && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 sm:p-6" onClick={() => setExpandedId(null)}>
-          <div className="max-w-3xl w-full max-h-[90vh] overflow-y-auto bg-surface border border-border rounded-xl p-6" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-text">Verification Review</h2>
-                {expanded.isPriority && <Badge variant="danger">Priority</Badge>}
-              </div>
-              <button onClick={() => setExpandedId(null)} className="text-text-muted hover:text-text transition-colors">
-                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            {/* User Info */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div>
-                <div className="text-xs text-text-muted mb-1">Full Name</div>
-                <div className="text-sm font-medium text-text">{expanded.fullName}</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted mb-1">ID Number</div>
-                <div className="text-sm font-medium text-text font-mono">{expanded.idNumber}</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted mb-1">Phone</div>
-                <div className="text-sm font-medium text-text">{expanded.user?.phoneNumber || '--'}</div>
-              </div>
-              <div>
-                <div className="text-xs text-text-muted mb-1">Submitted</div>
-                <div className="text-sm font-medium text-text">{new Date(expanded.submittedAt).toLocaleString()}</div>
-              </div>
-            </div>
-
-            {/* Document Images */}
-            <div className="mb-6">
-              <div className="text-xs text-text-muted mb-3">Submitted Documents <span className="text-text-muted/60">(click to zoom)</span></div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(
-                  [
-                    { label: 'ID Front', url: expanded.idFrontUrl },
-                    { label: 'ID Back', url: expanded.idBackUrl },
-                    { label: 'Selfie with ID', url: expanded.selfieWithIdUrl },
-                  ] as const
-                ).map(({ label, url }) => {
-                  const broken = !!url && brokenImages.has(url);
-                  const showImage = !!url && !broken;
-                  return (
-                    <div className="space-y-1.5" key={label}>
-                      <div className="text-xs font-medium text-text-muted">{label}</div>
-                      {showImage ? (
-                        <img
-                          src={url}
-                          alt={label}
-                          className="w-full aspect-[4/3] object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity bg-background"
-                          onClick={(e) => { e.stopPropagation(); setZoomedImage(url!); }}
-                          onError={() => setBrokenImages(prev => {
-                            const next = new Set(prev);
-                            next.add(url!);
-                            return next;
-                          })}
-                        />
-                      ) : (
-                        <div className="aspect-[4/3] bg-border/30 rounded-xl border border-border flex flex-col items-center justify-center gap-1.5">
-                          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="text-text-muted/60">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                          </svg>
-                          <span className="text-xs text-text-muted">
-                            {broken ? 'Failed to load' : 'Not submitted'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Actions — only for pending/claimed items */}
-            {(expanded.status === 'PENDING' || claimedIds.has(expanded.id)) ? (
-              <div className="space-y-4 pt-4 border-t border-border">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-text-muted mb-2 block">Rejection Reason (if rejecting)</label>
-                    <select
-                      value={rejectionReason}
-                      onChange={e => setRejectionReason(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-text focus:outline-none focus:border-primary/50"
-                    >
-                      <option value="">Select reason...</option>
-                      {REJECTION_REASONS.map(r => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-text-muted mb-2 block">Note (optional)</label>
-                    <input
-                      type="text"
-                      value={rejectionNote}
-                      onChange={e => setRejectionNote(e.target.value)}
-                      placeholder="Additional details..."
-                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-text placeholder-text-muted focus:outline-none focus:border-primary/50"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleApprove(expanded.id)}
-                    disabled={actionLoading}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50"
-                  >
-                    {actionLoading ? 'Processing...' : 'Approve'}
-                  </button>
-                  <button
-                    onClick={() => handleReject(expanded.id)}
-                    disabled={actionLoading || !rejectionReason}
-                    className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors disabled:opacity-50"
-                  >
-                    {actionLoading ? 'Processing...' : 'Reject'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="pt-4 border-t border-border">
+      {/* Detail side sheet */}
+      <Sheet open={!!selected} onOpenChange={(o) => { if (!o) closeSheet(); }}>
+        {selected && (
+          <SheetContent width="md">
+            <SheetHeader
+              title={
                 <div className="flex items-center gap-2">
-                  <Badge variant={expanded.status === 'VERIFIED' ? 'primary' : 'danger'}>
-                    {expanded.status === 'VERIFIED' ? 'Approved' : 'Rejected'}
-                  </Badge>
-                  {expanded.reviewedAt && <span className="text-xs text-text-muted">on {new Date(expanded.reviewedAt).toLocaleString()}</span>}
+                  <span className="truncate">{selected.fullName}</span>
+                  {selected.isPriority && <Badge tone="danger" size="sm">Priority</Badge>}
                 </div>
-                {expanded.rejectionReason && (
-                  <div className="mt-2 text-sm text-danger/80">
-                    Reason: {expanded.rejectionReason.replace(/_/g, ' ')}
-                    {expanded.rejectionNote ? ` - ${expanded.rejectionNote}` : ''}
+              }
+              subtitle={
+                <div className="flex items-center gap-2 text-2xs">
+                  <span className="font-mono">{selected.idNumber}</span>
+                  <span>·</span>
+                  <span>{selected.user?.phoneNumber || "—"}</span>
+                </div>
+              }
+              actions={
+                !rejecting && (selected.status === "PENDING" || claimedIds.has(selected.id)) ? (
+                  <div className="flex items-center gap-1">
+                    <Hint content={<span>Approve · <Kbd>A</Kbd></span>}>
+                      <Button size="sm" variant="primary" onClick={() => handleApprove(selected.id)}>
+                        <UserCheck className="h-3.5 w-3.5" /> Approve
+                      </Button>
+                    </Hint>
+                    <Hint content={<span>Reject · <Kbd>R</Kbd></span>}>
+                      <Button size="sm" variant="danger-ghost" onClick={() => setRejecting(true)}>
+                        <XCircle className="h-3.5 w-3.5" /> Reject
+                      </Button>
+                    </Hint>
                   </div>
-                )}
+                ) : null
+              }
+            />
+            <SheetBody>
+              {/* User meta */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <MetaRow label="Submitted" value={new Date(selected.submittedAt).toLocaleString()} />
+                <MetaRow label="Status" value={<Badge tone={selected.status === "VERIFIED" ? "success" : selected.status === "REJECTED" ? "danger" : "warning"} size="sm">{selected.status}</Badge>} />
+                {selected.reviewedAt && <MetaRow label="Reviewed" value={new Date(selected.reviewedAt).toLocaleString()} />}
+                {selected.rejectionReason && <MetaRow label="Reason" value={selected.rejectionReason.replace(/_/g, " ")} />}
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Image Zoom Lightbox */}
+              {/* Documents */}
+              <div className="space-y-2">
+                <div className="text-2xs uppercase tracking-wider text-fg-subtle">Submitted documents</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { label: "ID Front", url: selected.idFrontUrl },
+                      { label: "ID Back", url: selected.idBackUrl },
+                      { label: "Selfie", url: selected.selfieWithIdUrl },
+                    ] as const
+                  ).map(({ label, url }) => (
+                    <DocumentTile
+                      key={label}
+                      label={label}
+                      url={url}
+                      broken={!!url && brokenImages.has(url)}
+                      onOpen={(u) => setZoomedImage(u)}
+                      onError={(u) => setBrokenImages((p) => new Set(p).add(u))}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Rejection form */}
+              {rejecting && (selected.status === "PENDING" || claimedIds.has(selected.id)) && (
+                <div className="mt-5 p-3 rounded-lg bg-raised border border-danger/30 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-fg">Reject verification</div>
+                      <div className="text-2xs text-fg-muted">Let the user know why so they can re-submit.</div>
+                    </div>
+                    <button onClick={() => setRejecting(false)} className="text-fg-subtle hover:text-fg text-xs">Cancel</button>
+                  </div>
+                  <Field label="Reason" required>
+                    <Select value={rejectionReason} onValueChange={setRejectionReason}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a reason…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REJECTION_REASONS.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Note" hint="optional">
+                    <Textarea
+                      value={rejectionNote}
+                      onChange={(e) => setRejectionNote(e.target.value)}
+                      placeholder="Additional details…"
+                    />
+                  </Field>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setRejecting(false)}>Cancel</Button>
+                    <Button variant="danger" size="sm" onClick={() => handleReject(selected.id)} disabled={!rejectionReason}>
+                      Confirm rejection
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </SheetBody>
+            <SheetFooter>
+              <div className="flex items-center gap-2 text-2xs text-fg-subtle mr-auto">
+                <Kbd>A</Kbd> approve · <Kbd>R</Kbd> reject · <Kbd>Esc</Kbd> close
+              </div>
+              <Button variant="ghost" size="sm" onClick={closeSheet}>Close</Button>
+            </SheetFooter>
+          </SheetContent>
+        )}
+      </Sheet>
+
+      {/* Image zoom lightbox */}
       {zoomedImage && (
         <div
-          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
           onClick={() => setZoomedImage(null)}
         >
-          <div className="relative max-w-4xl max-h-[90vh]">
-            <button
-              onClick={() => setZoomedImage(null)}
-              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm"
+          <img src={zoomedImage} alt="Document" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+        </div>
+      )}
+    </>
+  );
+}
+
+function QueueColumn({
+  title,
+  tone,
+  count,
+  loading,
+  items,
+  onSelect,
+  action,
+  footer,
+}: {
+  title: string;
+  tone: "warning" | "info" | "neutral";
+  count: number;
+  loading?: boolean;
+  items: Verification[];
+  onSelect: (id: string) => void;
+  action: (v: Verification) => React.ReactNode;
+  footer: (v: Verification) => React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col min-w-0">
+      <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-fg">{title}</h3>
+          <Badge tone={tone} size="sm">{count}</Badge>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-[62px] w-full rounded-lg" />
+          ))
+        ) : items.length === 0 ? (
+          <Card variant="ghost" padding className="text-center">
+            <div className="text-xs text-fg-subtle py-4">Empty</div>
+          </Card>
+        ) : (
+          items.map((v) => (
+            <Card
+              key={v.id}
+              hoverable
+              padding={false}
+              onClick={() => onSelect(v.id)}
+              className="p-3"
             >
-              Close
-            </button>
-            <img
-              src={zoomedImage}
-              alt="Document zoom"
-              className="max-w-full max-h-[85vh] object-contain rounded-lg"
-            />
-          </div>
+              <div className="flex items-start justify-between gap-2 mb-1.5">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-fg truncate">{v.fullName}</div>
+                  <div className="text-2xs text-fg-muted font-mono truncate">{v.idNumber}</div>
+                </div>
+                {v.isPriority && <Badge tone="danger" size="sm">Priority</Badge>}
+              </div>
+              <div className="flex items-center justify-between">
+                {footer(v)}
+                {action(v)}
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-2xs uppercase tracking-wider text-fg-subtle mb-0.5">{label}</div>
+      <div className="text-sm text-fg">{value}</div>
+    </div>
+  );
+}
+
+function DocumentTile({
+  label, url, broken, onOpen, onError,
+}: {
+  label: string; url?: string; broken: boolean;
+  onOpen: (u: string) => void; onError: (u: string) => void;
+}) {
+  const show = !!url && !broken;
+  return (
+    <div>
+      <div className="text-2xs font-medium text-fg-muted mb-1">{label}</div>
+      {show ? (
+        <img
+          src={url}
+          alt={label}
+          loading="lazy"
+          onClick={() => onOpen(url!)}
+          onError={() => onError(url!)}
+          className={cn(
+            "w-full aspect-[4/3] object-cover rounded-md border border-muted bg-canvas",
+            "cursor-zoom-in hover:opacity-90 transition-opacity"
+          )}
+        />
+      ) : (
+        <div className="aspect-[4/3] rounded-md border border-muted bg-raised flex flex-col items-center justify-center gap-1 text-fg-subtle">
+          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span className="text-[10px]">{broken ? "Failed to load" : "Not submitted"}</span>
         </div>
       )}
     </div>

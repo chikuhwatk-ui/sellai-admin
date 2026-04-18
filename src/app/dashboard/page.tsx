@@ -1,379 +1,331 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { KPICard } from '@/components/ui/KPICard';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { StatusPill } from '@/components/ui/StatusPill';
-import { useApi } from '@/hooks/useApi';
+import * as React from "react";
+import Link from "next/link";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, Cell,
+} from "recharts";
+import { Activity, Users, ShoppingCart, ShieldCheck, Truck, Wallet, AlertTriangle, ChevronRight } from "lucide-react";
+import { useApi } from "@/hooks/useApi";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
 
-// ── SVG Dual Line Chart ──
-function DualLineChart({
-  data1,
-  data2,
-  label1,
-  label2,
-  color1,
-  color2,
-}: {
-  data1: { date: string; value: number }[];
-  data2: { date: string; value: number }[];
-  label1: string;
-  label2: string;
-  color1: string;
-  color2: string;
-}) {
-  if (!data1?.length && !data2?.length) {
-    return <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">No data available</div>;
-  }
-  const safeData1 = data1?.length ? data1 : [{ date: new Date().toISOString(), value: 0 }];
-  const safeData2 = data2?.length ? data2 : [{ date: new Date().toISOString(), value: 0 }];
-  const all = [...safeData1.map(d => d.value), ...safeData2.map(d => d.value)];
-  const min = Math.min(...all) * 0.9;
-  const max = Math.max(...all) * 1.1 || 1;
-  const range = max - min || 1;
-  const w = 500;
-  const h = 200;
-  const pad = { t: 10, r: 10, b: 30, l: 45 };
-  const cw = w - pad.l - pad.r;
-  const ch = h - pad.t - pad.b;
+const chartTheme = {
+  grid: "oklch(0.30 0.018 255 / 0.5)",
+  text: "oklch(0.55 0.015 255)",
+  tooltipBg: "var(--color-overlay)",
+  tooltipBorder: "var(--color-border-muted)",
+};
 
-  const toPoints = (data: { value: number }[]) =>
-    data
-      .map((d, i) => {
-        const x = pad.l + (data.length > 1 ? (i / (data.length - 1)) * cw : cw / 2);
-        const y = pad.t + ch - ((d.value - min) / range) * ch;
-        return `${x},${y}`;
-      })
-      .join(' ');
+export default function DashboardPage() {
+  const { data: kpis, loading: kpiLoading } = useApi<any>("/api/admin/dashboard/kpis");
+  const { data: timeSeries, loading: tsLoading } = useApi<any>("/api/admin/dashboard/time-series?period=30");
+  const { data: funnel, loading: funnelLoading } = useApi<any>("/api/admin/dashboard/funnel?period=30");
+  const { data: verifications } = useApi<any>("/api/verification/queue?status=PENDING");
+  const { data: alertsData } = useApi<any>("/api/admin/dashboard/alerts");
+  const { data: flaggedData } = useApi<any>("/api/admin/dashboard/flagged-content");
 
-  const yTicks = Array.from({ length: 5 }, (_, i) => min + (range / 4) * i);
+  const systemAlerts: any[] = Array.isArray(alertsData) ? alertsData : [];
+  const flaggedContent: any[] = Array.isArray(flaggedData) ? flaggedData : [];
+
+  const demands = Array.isArray(timeSeries?.demands) ? timeSeries.demands : [];
+  const offers = Array.isArray(timeSeries?.offers) ? timeSeries.offers : [];
+  const combinedSeries = React.useMemo(() => {
+    const map = new Map<string, { date: string; demands?: number; offers?: number }>();
+    for (const d of demands) map.set(d.date, { date: d.date, demands: d.value });
+    for (const o of offers) {
+      const existing = map.get(o.date);
+      if (existing) existing.offers = o.value;
+      else map.set(o.date, { date: o.date, offers: o.value });
+    }
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+  }, [demands, offers]);
+
+  const funnelData = Array.isArray(funnel) ? funnel : [];
+  const verificationList = Array.isArray(verifications) ? verifications : verifications?.queue || [];
 
   return (
-    <div>
-      <div className="flex items-center gap-4 mb-3">
-        <span className="flex items-center gap-1.5 text-xs text-text-muted">
-          <span className="w-3 h-0.5 rounded-full" style={{ background: color1 }} />
-          {label1}
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-text-muted">
-          <span className="w-3 h-0.5 rounded-full" style={{ background: color2 }} />
-          {label2}
-        </span>
+    <PageContainer>
+      <PageHeader
+        title="Command Center"
+        description="Real-time marketplace operations overview"
+        actions={
+          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-success-bg">
+            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            <span className="text-2xs font-medium text-success">Live</span>
+          </div>
+        }
+      />
+
+      {/* Dense KPI row — 6 across on desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+        {kpiLoading ? (
+          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[72px]" />)
+        ) : (
+          <>
+            <StatBlock
+              label="Active users"
+              value={fmtNum(kpis?.activeUsers?.value ?? 0)}
+              delta={kpis?.activeUsers?.change}
+            />
+            <StatBlock
+              label="Open demands"
+              value={fmtNum(kpis?.openDemands?.value ?? 0)}
+              delta={kpis?.openDemands?.change}
+            />
+            <StatBlock
+              label="Pending verification"
+              value={fmtNum(kpis?.pendingVerifications?.value ?? 0)}
+              hint={kpis?.pendingVerifications?.oldestWait ? `Oldest: ${kpis.pendingVerifications.oldestWait}` : undefined}
+            />
+            <StatBlock
+              label="Active deliveries"
+              value={fmtNum(kpis?.activeDeliveries?.value ?? 0)}
+              delta={kpis?.activeDeliveries?.change}
+            />
+            <StatBlock
+              label="Revenue today"
+              value={`$${fmtNum(kpis?.revenueToday?.value ?? 0)}`}
+              delta={kpis?.revenueToday?.change}
+            />
+            <StatBlock
+              label="Disputes"
+              value={fmtNum(kpis?.disputes?.value ?? 0)}
+              delta={kpis?.disputes?.change}
+            />
+          </>
+        )}
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto">
-        {/* Grid lines */}
-        {yTicks.map((tick, i) => {
-          const y = pad.t + ch - ((tick - min) / range) * ch;
-          return (
-            <g key={i}>
-              <line x1={pad.l} x2={w - pad.r} y1={y} y2={y} stroke="#2A2D37" strokeWidth="1" />
-              <text x={pad.l - 6} y={y + 3} textAnchor="end" fill="#6B7280" fontSize="9">
-                {Math.round(tick)}
-              </text>
-            </g>
-          );
-        })}
-        {/* X-axis labels */}
-        {safeData1.length > 1 && safeData1.filter((_, i) => i % 7 === 0).map((d, i) => {
-          const idx = i * 7;
-          const x = pad.l + (idx / (safeData1.length - 1)) * cw;
-          return (
-            <text key={i} x={x} y={h - 5} textAnchor="middle" fill="#6B7280" fontSize="9">
-              {new Date(d.date).toLocaleDateString('en', { day: 'numeric', month: 'short' })}
-            </text>
-          );
-        })}
-        {/* Area fills */}
-        <polygon
-          points={`${pad.l},${pad.t + ch} ${toPoints(data1)} ${w - pad.r},${pad.t + ch}`}
-          fill={color1}
-          opacity="0.08"
-        />
-        <polygon
-          points={`${pad.l},${pad.t + ch} ${toPoints(data2)} ${w - pad.r},${pad.t + ch}`}
-          fill={color2}
-          opacity="0.08"
-        />
-        {/* Lines */}
-        <polyline points={toPoints(data1)} fill="none" stroke={color1} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points={toPoints(data2)} fill="none" stroke={color2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card padding={false}>
+          <CardHeader className="px-5 py-4">
+            <div>
+              <CardTitle>Demand vs offer (30d)</CardTitle>
+              <CardDescription>Listings posted and matched daily</CardDescription>
+            </div>
+            <LegendDot tones={[{ label: "Demands", tone: "accent" }, { label: "Offers", tone: "info" }]} />
+          </CardHeader>
+          <div className="px-3 pb-4 h-[240px]">
+            {tsLoading ? (
+              <Skeleton className="h-full w-full" />
+            ) : combinedSeries.length === 0 ? (
+              <EmptyState title="No data" description="No activity in the selected range" />
+            ) : (
+              <ResponsiveContainer>
+                <LineChart data={combinedSeries} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke={chartTheme.grid} strokeDasharray="2 4" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    stroke={chartTheme.text}
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    tickMargin={8}
+                  />
+                  <YAxis stroke={chartTheme.text} tick={{ fontSize: 10 }} tickMargin={4} />
+                  <Tooltip
+                    contentStyle={{
+                      background: chartTheme.tooltipBg,
+                      border: `1px solid ${chartTheme.tooltipBorder}`,
+                      borderRadius: 8, fontSize: 12,
+                    }}
+                    labelStyle={{ color: "var(--color-fg)", fontWeight: 500 }}
+                    itemStyle={{ color: "var(--color-fg-muted)" }}
+                  />
+                  <Line type="monotone" dataKey="demands" stroke="var(--color-accent)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="offers" stroke="var(--color-info)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+
+        <Card padding={false}>
+          <CardHeader className="px-5 py-4">
+            <div>
+              <CardTitle>Conversion funnel</CardTitle>
+              <CardDescription>Demand → offer → accepted → delivered</CardDescription>
+            </div>
+          </CardHeader>
+          <div className="px-5 pb-4 h-[240px]">
+            {funnelLoading ? (
+              <Skeleton className="h-full w-full" />
+            ) : funnelData.length === 0 ? (
+              <EmptyState title="No data" />
+            ) : (
+              <ResponsiveContainer>
+                <BarChart data={funnelData} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 80 }}>
+                  <XAxis type="number" stroke={chartTheme.text} tick={{ fontSize: 10 }} />
+                  <YAxis type="category" dataKey="stage" stroke={chartTheme.text} tick={{ fontSize: 11 }} width={80} />
+                  <Tooltip
+                    contentStyle={{
+                      background: chartTheme.tooltipBg,
+                      border: `1px solid ${chartTheme.tooltipBorder}`,
+                      borderRadius: 8, fontSize: 12,
+                    }}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {funnelData.map((_, i) => (
+                      <Cell key={i} fill={`oklch(0.72 0.18 155 / ${1 - i * 0.15})`} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Action queues */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <QueueCard
+          title="Verification queue"
+          subtitle={`${verificationList.length} pending`}
+          tone="warning"
+          href="/verification"
+          icon={<ShieldCheck className="h-4 w-4" />}
+        >
+          {verificationList.slice(0, 5).map((v: any) => (
+            <QueueRow
+              key={v.id}
+              title={v.fullName}
+              subtitle={`ID ${v.idNumber}`}
+              time={v.submittedAt}
+              badge={v.isPriority ? <Badge tone="danger" size="sm">Priority</Badge> : null}
+            />
+          ))}
+          {verificationList.length === 0 && (
+            <div className="text-center py-6 text-xs text-fg-subtle">Queue empty</div>
+          )}
+        </QueueCard>
+
+        <QueueCard
+          title="Flagged content"
+          subtitle={`${flaggedContent.length} items`}
+          tone="danger"
+          href="/disputes"
+          icon={<AlertTriangle className="h-4 w-4" />}
+        >
+          {flaggedContent.slice(0, 5).map((f: any, i: number) => (
+            <QueueRow key={i} title={f.reason || "Flagged"} subtitle={f.description} time={f.createdAt} />
+          ))}
+          {flaggedContent.length === 0 && (
+            <div className="text-center py-6 text-xs text-fg-subtle">Nothing flagged</div>
+          )}
+        </QueueCard>
+
+        <QueueCard
+          title="System alerts"
+          subtitle={`${systemAlerts.length} active`}
+          tone="info"
+          href="/settings/audit-log"
+          icon={<Activity className="h-4 w-4" />}
+        >
+          {systemAlerts.slice(0, 5).map((a: any, i: number) => (
+            <QueueRow key={i} title={a.title} subtitle={a.description} time={a.createdAt} />
+          ))}
+          {systemAlerts.length === 0 && (
+            <div className="text-center py-6 text-xs text-fg-subtle">All clear</div>
+          )}
+        </QueueCard>
+      </div>
+
+      {/* Quick nav */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <NavLink href="/users" icon={<Users className="h-4 w-4" />} label="Users" />
+        <NavLink href="/orders" icon={<ShoppingCart className="h-4 w-4" />} label="Orders" />
+        <NavLink href="/deliveries" icon={<Truck className="h-4 w-4" />} label="Deliveries" />
+        <NavLink href="/finance" icon={<Wallet className="h-4 w-4" />} label="Finance" />
+      </div>
+    </PageContainer>
   );
 }
 
-// ── Funnel Chart ──
-function FunnelChart({ data }: { data: { label: string; value: number; rate: number }[] }) {
-  const maxVal = data[0]?.value || 1;
+function fmtNum(n: number | string): string {
+  if (typeof n === "string") return n;
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+  return n.toLocaleString();
+}
+
+function LegendDot({ tones }: { tones: { label: string; tone: "accent" | "info" | "danger" | "warning" }[] }) {
   return (
-    <div className="space-y-3">
-      {data.map((stage, i) => (
-        <div key={i}>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-text-muted">{stage.label}</span>
-            <span className="text-xs font-medium text-text">
-              {stage.value.toLocaleString()} <span className="text-text-muted">({stage.rate}%)</span>
-            </span>
-          </div>
-          <div className="h-6 bg-border/30 rounded-lg overflow-hidden">
-            <div
-              className="h-full rounded-lg transition-all duration-500"
-              style={{
-                width: `${(stage.value / maxVal) * 100}%`,
-                background: `linear-gradient(90deg, #10B981 0%, ${i < 3 ? '#10B981' : '#059669'} 100%)`,
-                opacity: 1 - i * 0.1,
-              }}
-            />
-          </div>
-        </div>
+    <div className="flex items-center gap-3">
+      {tones.map((t) => (
+        <span key={t.label} className="inline-flex items-center gap-1.5 text-2xs text-fg-muted">
+          <span className={`h-1.5 w-3 rounded-full bg-${t.tone}`} />
+          {t.label}
+        </span>
       ))}
     </div>
   );
 }
 
-// ── Action Queue Item ──
-function QueueItem({
-  title,
-  subtitle,
-  badge,
-  badgeVariant,
-  action,
-  time,
-  href,
+function QueueCard({
+  title, subtitle, tone, href, icon, children,
 }: {
-  title: string;
-  subtitle: string;
-  badge?: string;
-  badgeVariant?: 'danger' | 'warning' | 'info' | 'primary';
-  action: string;
-  time: string;
-  href?: string;
+  title: string; subtitle: string; tone: "warning" | "danger" | "info"; href: string;
+  icon: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between py-3 px-4 border-b border-border/50 last:border-0 hover:bg-surface-hover transition-colors">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-text truncate">{title}</span>
-          {badge && <Badge variant={badgeVariant || 'default'}>{badge}</Badge>}
+    <Card padding={false}>
+      <CardHeader className="px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-${tone}`}>{icon}</span>
+          <div className="min-w-0">
+            <CardTitle className="text-xs">{title}</CardTitle>
+            <CardDescription className="text-2xs">{subtitle}</CardDescription>
+          </div>
         </div>
-        <div className="text-xs text-text-muted mt-0.5">{subtitle}</div>
-      </div>
-      <div className="flex items-center gap-3 shrink-0 ml-3">
-        <span className="text-xs text-text-muted">{time}</span>
-        {href ? (
-          <a href={href} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-            {action}
-          </a>
-        ) : (
-          <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary">
-            {action}
-          </span>
-        )}
-      </div>
-    </div>
+        <Link href={href} className="inline-flex items-center gap-0.5 text-2xs text-fg-muted hover:text-fg transition-colors">
+          View <ChevronRight className="h-3 w-3" />
+        </Link>
+      </CardHeader>
+      <div className="divide-y divide-[color:var(--color-border-muted)]">{children}</div>
+    </Card>
   );
 }
 
-export default function DashboardPage() {
-  const { data: kpis, loading: kpiLoading } = useApi<any>('/api/admin/dashboard/kpis');
-  const { data: timeSeries, loading: tsLoading } = useApi<any>('/api/admin/dashboard/time-series?period=30');
-  const { data: funnel, loading: funnelLoading } = useApi<any>('/api/admin/dashboard/funnel?period=30');
-  const { data: verifications } = useApi<any>('/api/verification/queue?status=PENDING');
-  const { data: alertsData } = useApi<any>('/api/admin/dashboard/alerts');
-  const { data: flaggedData } = useApi<any>('/api/admin/dashboard/flagged-content');
-
-  const systemAlerts: any[] = Array.isArray(alertsData) ? alertsData : [];
-  const flaggedContent: any[] = Array.isArray(flaggedData) ? flaggedData : [];
-
-  if (kpiLoading) {
-    return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-text-muted">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const demands = Array.isArray(timeSeries?.demands) ? timeSeries.demands : [];
-  const offers = Array.isArray(timeSeries?.offers) ? timeSeries.offers : [];
-  const funnelData = Array.isArray(funnel) ? funnel : [];
-  const verificationList = Array.isArray(verifications) ? verifications : (verifications?.queue || []);
-
+function QueueRow({ title, subtitle, time, badge }: { title: string; subtitle?: string; time?: string; badge?: React.ReactNode }) {
   return (
-    <div className="min-h-screen p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text">Command Center</h1>
-          <p className="text-sm text-text-muted mt-1">Real-time marketplace operations overview</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-xs font-medium text-primary">Live</span>
-          </div>
-          <span className="text-xs text-text-muted">
-            Last updated: {new Date().toLocaleTimeString()}
-          </span>
-        </div>
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm-compact text-fg truncate">{title}</div>
+        {subtitle && <div className="text-2xs text-fg-muted truncate">{subtitle}</div>}
       </div>
-
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard
-          title="Active Users"
-          value={kpis?.activeUsers?.value ?? 0}
-          change={kpis?.activeUsers?.change}
-          trend={kpis?.activeUsers?.trend}
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
-        />
-        <KPICard
-          title="Open Demands"
-          value={kpis?.openDemands?.value ?? 0}
-          change={kpis?.openDemands?.change}
-          trend={kpis?.openDemands?.trend}
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>}
-        />
-        <KPICard
-          title="Pending Verifications"
-          value={kpis?.pendingVerifications?.value ?? 0}
-          subtitle={kpis?.pendingVerifications?.oldestWait ? `Oldest: ${kpis.pendingVerifications.oldestWait}` : undefined}
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
-        />
-        <KPICard
-          title="Active Deliveries"
-          value={kpis?.activeDeliveries?.value ?? 0}
-          change={kpis?.activeDeliveries?.change}
-          trend={kpis?.activeDeliveries?.trend}
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>}
-        />
-        <KPICard
-          title="Revenue Today"
-          value={kpis?.revenueToday?.value ?? 0}
-          change={kpis?.revenueToday?.change}
-          trend={kpis?.revenueToday?.trend}
-          prefix="$"
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
-        />
-        <KPICard
-          title="Disputes"
-          value={kpis?.disputes?.value ?? 0}
-          change={kpis?.disputes?.change}
-          icon={<svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-sm font-semibold text-text mb-4">Demands vs Offers (30 Days)</h3>
-          {tsLoading || demands.length === 0 ? (
-            <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">Loading chart...</div>
-          ) : (
-            <DualLineChart
-              data1={demands}
-              data2={offers}
-              label1="Demands"
-              label2="Offers"
-              color1="#10B981"
-              color2="#3B82F6"
-            />
-          )}
-        </Card>
-        <Card className="p-6">
-          <h3 className="text-sm font-semibold text-text mb-4">Conversion Funnel</h3>
-          {funnelLoading || funnelData.length === 0 ? (
-            <div className="h-[200px] flex items-center justify-center text-sm text-text-muted">Loading funnel...</div>
-          ) : (
-            <FunnelChart data={funnelData} />
-          )}
-        </Card>
-      </div>
-
-      {/* Action Queues */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Verification Queue */}
-        <Card padding={false}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-text">Verification Queue</h3>
-            <Badge variant="warning">{verificationList.length} pending</Badge>
-          </div>
-          <div className="max-h-[320px] overflow-y-auto">
-            {verificationList.map((v: any) => (
-              <QueueItem
-                key={v.id}
-                title={v.fullName}
-                subtitle={`ID: ${v.idNumber}`}
-                badge={v.isPriority ? 'Priority' : undefined}
-                badgeVariant="danger"
-                action="Review"
-                time={getTimeAgo(v.submittedAt)}
-                href="/verification"
-              />
-            ))}
-          </div>
-        </Card>
-
-        {/* Flagged Content */}
-        <Card padding={false}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-text">Flagged Content</h3>
-            <Badge variant="danger">{flaggedContent.length} items</Badge>
-          </div>
-          <div className="max-h-[320px] overflow-y-auto">
-            {flaggedContent.length === 0 && (
-              <div className="py-8 text-center text-sm text-text-muted">No flagged content</div>
-            )}
-            {flaggedContent.map((item: any, i: number) => (
-              <QueueItem
-                key={i}
-                title={String(item.title || '')}
-                subtitle={String(item.subtitle || '')}
-                action="Investigate"
-                time={String(item.time || '')}
-                href="/orders"
-              />
-            ))}
-          </div>
-        </Card>
-
-        {/* System Alerts */}
-        <Card padding={false}>
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-text">System Alerts</h3>
-            <Badge variant="warning">{systemAlerts.length} active</Badge>
-          </div>
-          <div className="max-h-[320px] overflow-y-auto">
-            {systemAlerts.length === 0 && (
-              <div className="py-8 text-center text-sm text-text-muted">No active alerts</div>
-            )}
-            {systemAlerts.map((alert: any, i: number) => (
-              <QueueItem
-                key={i}
-                title={String(alert.title || '')}
-                subtitle={String(alert.subtitle || '')}
-                badge={alert.severity === 'danger' ? 'Critical' : alert.severity === 'warning' ? 'Warning' : 'Info'}
-                badgeVariant={alert.severity}
-                action="Resolve"
-                time={String(alert.time || '')}
-                href={String(alert.title || '').includes('Delivery') ? '/deliveries' : '/orders'}
-              />
-            ))}
-          </div>
-        </Card>
+      <div className="flex items-center gap-2 shrink-0">
+        {badge}
+        {time && <span className="text-2xs text-fg-subtle tabular">{timeSince(time)}</span>}
       </div>
     </div>
   );
 }
 
-function getTimeAgo(isoDate: string): string {
-  const diff = Date.now() - new Date(isoDate).getTime();
+function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-muted bg-panel hover:bg-raised hover:border-strong transition-colors"
+    >
+      <span className="text-fg-subtle">{icon}</span>
+      <span className="text-sm-compact text-fg font-medium">{label}</span>
+      <ChevronRight className="h-3 w-3 text-fg-subtle ml-auto" />
+    </Link>
+  );
+}
+
+function timeSince(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 }

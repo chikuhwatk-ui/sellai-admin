@@ -1,66 +1,94 @@
-import React from "react";
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/cn";
 
-type BadgeVariant =
-  | "default"
-  | "primary"
-  | "success"
-  | "danger"
-  | "warning"
-  | "info"
-  | "pending"
-  | "purple"
-  | "buyer"
-  | "seller"
-  | "runner";
+const badge = cva(
+  "inline-flex items-center gap-1 font-medium whitespace-nowrap",
+  {
+    variants: {
+      tone: {
+        neutral: "bg-raised text-fg-muted",
+        accent: "bg-accent-bg text-accent",
+        success: "bg-success-bg text-success",
+        danger: "bg-danger-bg text-danger",
+        warning: "bg-warning-bg text-warning",
+        info: "bg-info-bg text-info",
+        pending: "bg-pending-bg text-pending",
+      },
+      size: {
+        sm: "h-[18px] px-1.5 text-2xs rounded",
+        md: "h-5 px-2 text-2xs rounded",
+        lg: "h-6 px-2.5 text-xs rounded-md",
+      },
+      shape: {
+        square: "",
+        pill: "!rounded-full",
+      },
+    },
+    defaultVariants: { tone: "neutral", size: "md", shape: "square" },
+  }
+);
 
-const variantClasses: Record<BadgeVariant, string> = {
-  default: "bg-border text-text-muted",
-  primary: "bg-primary/15 text-primary border-primary/20",
-  success: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-  danger: "bg-danger/15 text-danger border-danger/20",
-  warning: "bg-warning/15 text-warning border-warning/20",
-  info: "bg-info/15 text-info border-info/20",
-  pending: "bg-pending/15 text-pending border-pending/20",
-  purple: "bg-pending/15 text-pending border-pending/20",
-  buyer: "bg-info/15 text-info border-info/20",
-  seller: "bg-primary/15 text-primary border-primary/20",
-  runner: "bg-warning/15 text-warning border-warning/20",
+// Legacy variant → tone map for migration compatibility.
+type LegacyVariant =
+  | "default" | "primary" | "success" | "danger" | "warning"
+  | "info" | "pending" | "purple" | "buyer" | "seller" | "runner";
+
+const LEGACY_TONE: Record<LegacyVariant, VariantProps<typeof badge>["tone"]> = {
+  default: "neutral",
+  primary: "accent",
+  success: "success",
+  danger: "danger",
+  warning: "warning",
+  info: "info",
+  pending: "pending",
+  purple: "pending",
+  buyer: "info",
+  seller: "accent",
+  runner: "warning",
 };
 
-interface BadgeProps {
-  children: React.ReactNode;
-  variant?: BadgeVariant;
-  className?: string;
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    Omit<VariantProps<typeof badge>, "tone"> {
+  tone?: VariantProps<typeof badge>["tone"];
+  variant?: LegacyVariant;
+  dot?: boolean;
 }
 
-export function Badge({
-  children,
-  variant = "default",
-  className = "",
-}: BadgeProps) {
+export function Badge({ className, tone, variant, size, shape, dot, children, ...props }: BadgeProps) {
+  const resolvedTone = tone ?? (variant ? LEGACY_TONE[variant] : "neutral");
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border border-transparent ${variantClasses[variant]} ${className}`}
-    >
+    <span className={cn(badge({ tone: resolvedTone, size, shape }), className)} {...props}>
+      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
       {children}
     </span>
   );
 }
 
+const ROLE_TONE: Record<string, VariantProps<typeof badge>["tone"]> = {
+  BUYER: "info",
+  SELLER: "accent",
+  DELIVERY_PARTNER: "warning",
+  ADMIN: "pending",
+  SUPER_ADMIN: "pending",
+  ADMIN_MANAGER: "pending",
+  SUPPORT_AGENT: "pending",
+  ADMIN_VIEWER: "neutral",
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  DELIVERY_PARTNER: "Runner",
+  SUPER_ADMIN: "Super Admin",
+  ADMIN_MANAGER: "Manager",
+  SUPPORT_AGENT: "Support",
+  ADMIN_VIEWER: "Viewer",
+};
+
 export function RoleBadge({ role }: { role: string }) {
-  const variant: BadgeVariant =
-    role === "BUYER"
-      ? "buyer"
-      : role === "SELLER"
-        ? "seller"
-        : role === "DELIVERY_PARTNER"
-          ? "runner"
-          : "default";
-  const label =
-    role === "DELIVERY_PARTNER"
-      ? "Runner"
-      : role.charAt(0) + role.slice(1).toLowerCase();
-  return <Badge variant={variant}>{label}</Badge>;
+  const tone = ROLE_TONE[role] || "neutral";
+  const label = ROLE_LABEL[role] || role.charAt(0) + role.slice(1).toLowerCase();
+  return <Badge tone={tone} size="sm">{label}</Badge>;
 }
 
 export default Badge;

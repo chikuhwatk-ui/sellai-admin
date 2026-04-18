@@ -8,6 +8,11 @@ import { usePathname } from "next/navigation";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useAuth } from "@/hooks/useAuth";
 import { StaleConnectionBanner } from "./StaleConnectionBanner";
+import { CommandPalette } from "@/components/shell/CommandPalette";
+import { ShortcutCheatsheet } from "@/components/shell/ShortcutCheatsheet";
+import { NavigationShortcuts } from "@/components/shell/NavigationShortcuts";
+import { TooltipProvider } from "@/components/ui/Tooltip";
+import { PageTransition } from "./PageTransition";
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -35,29 +40,34 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = routeTitles[pathname] || "Sellai Admin";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   useSessionTimeout();
   const { stale, revalidate } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0">
-        <Header title={title} onMenuToggle={() => setMobileOpen(true)} />
+        <Header title={title} onMenuToggle={() => setMobileOpen(true)} onOpenPalette={() => setPaletteOpen(true)} />
         <StaleConnectionBanner stale={stale} onRetry={revalidate} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>
+        <main id="main-content" className="flex-1 overflow-y-auto" tabIndex={-1}>
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <ShortcutCheatsheet />
+      <NavigationShortcuts />
     </div>
   );
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ErrorBoundary>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
-    </ErrorBoundary>
+    <TooltipProvider delayDuration={250}>
+      <ErrorBoundary>
+        <DashboardLayoutInner>{children}</DashboardLayoutInner>
+      </ErrorBoundary>
+    </TooltipProvider>
   );
 }

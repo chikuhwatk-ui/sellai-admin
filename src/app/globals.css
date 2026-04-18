@@ -2,41 +2,260 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-primary: #10B981;
-  --color-primary-hover: #059669;
-  --color-background: #0F1117;
-  --color-surface: #1A1D27;
-  --color-surface-hover: #22252F;
-  --color-border: #2A2D37;
-  --color-text: #E5E7EB;
-  --color-text-muted: #6B7280;
+/*
+ * Design tokens.
+ *
+ * Everything visual refers to a semantic token (`--color-surface-raised`,
+ * `--color-action-primary-bg`) not a raw hex. Switching themes means
+ * swapping one :root block.
+ *
+ * Colors are defined in OKLCH for perceptually-uniform lightness —
+ * `oklch(0.72 0.18 155)` reads as "fairly light, medium chroma, green hue"
+ * and stays that way across hue rotations.
+ */
+
+@layer base {
+  :root,
+  [data-theme='dark'] {
+    /* Surfaces — four elevation tiers */
+    --color-canvas: oklch(0.17 0.015 255);          /* page background */
+    --color-panel: oklch(0.22 0.018 255);           /* cards, sidebar */
+    --color-raised: oklch(0.26 0.02 255);           /* hovered rows, nested */
+    --color-overlay: oklch(0.30 0.022 255);         /* dialogs, popovers */
+    --color-overlay-scrim: oklch(0.10 0.01 255 / 0.72);
+
+    /* Text */
+    --color-fg: oklch(0.95 0.005 255);              /* primary text */
+    --color-fg-muted: oklch(0.72 0.01 255);         /* secondary text */
+    --color-fg-subtle: oklch(0.55 0.015 255);       /* tertiary / placeholders */
+    --color-fg-disabled: oklch(0.40 0.015 255);
+
+    /* Borders */
+    --color-border: oklch(0.30 0.018 255);
+    --color-border-muted: oklch(0.26 0.018 255);
+    --color-border-strong: oklch(0.42 0.02 255);
+
+    /* Brand — emerald, perceptually tuned */
+    --color-accent: oklch(0.72 0.18 155);
+    --color-accent-hover: oklch(0.78 0.19 155);
+    --color-accent-active: oklch(0.66 0.18 155);
+    --color-accent-bg: oklch(0.72 0.18 155 / 0.12);
+    --color-accent-bg-hover: oklch(0.72 0.18 155 / 0.18);
+    --color-accent-fg: oklch(0.18 0.03 155);
+
+    /* Semantic — success / warning / danger / info */
+    --color-success: oklch(0.72 0.17 155);
+    --color-success-bg: oklch(0.72 0.17 155 / 0.12);
+    --color-warning: oklch(0.80 0.16 80);
+    --color-warning-bg: oklch(0.80 0.16 80 / 0.14);
+    --color-danger: oklch(0.68 0.22 25);
+    --color-danger-bg: oklch(0.68 0.22 25 / 0.14);
+    --color-info: oklch(0.72 0.15 240);
+    --color-info-bg: oklch(0.72 0.15 240 / 0.14);
+    --color-pending: oklch(0.70 0.20 290);
+    --color-pending-bg: oklch(0.70 0.20 290 / 0.14);
+
+    /* Focus */
+    --color-focus-ring: oklch(0.75 0.17 220);
+    --shadow-focus-ring: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-focus-ring);
+
+    /* Elevation */
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+    --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 0.35), 0 2px 4px -2px oklch(0 0 0 / 0.25);
+    --shadow-lg: 0 12px 24px -8px oklch(0 0 0 / 0.45), 0 4px 8px -4px oklch(0 0 0 / 0.30);
+    --shadow-xl: 0 24px 48px -12px oklch(0 0 0 / 0.55), 0 8px 16px -8px oklch(0 0 0 / 0.35);
+  }
+
+  [data-theme='light'] {
+    --color-canvas: oklch(0.99 0.002 255);
+    --color-panel: oklch(1.00 0 0);
+    --color-raised: oklch(0.975 0.003 255);
+    --color-overlay: oklch(1.00 0 0);
+    --color-overlay-scrim: oklch(0.20 0.01 255 / 0.48);
+
+    --color-fg: oklch(0.20 0.01 255);
+    --color-fg-muted: oklch(0.42 0.012 255);
+    --color-fg-subtle: oklch(0.58 0.015 255);
+    --color-fg-disabled: oklch(0.72 0.01 255);
+
+    --color-border: oklch(0.90 0.008 255);
+    --color-border-muted: oklch(0.94 0.006 255);
+    --color-border-strong: oklch(0.82 0.01 255);
+
+    --color-accent: oklch(0.58 0.17 155);
+    --color-accent-hover: oklch(0.52 0.18 155);
+    --color-accent-active: oklch(0.48 0.18 155);
+    --color-accent-bg: oklch(0.72 0.15 155 / 0.16);
+    --color-accent-bg-hover: oklch(0.72 0.15 155 / 0.22);
+    --color-accent-fg: oklch(0.99 0.01 155);
+
+    --color-success: oklch(0.55 0.16 155);
+    --color-success-bg: oklch(0.72 0.15 155 / 0.16);
+    --color-warning: oklch(0.68 0.16 70);
+    --color-warning-bg: oklch(0.82 0.14 70 / 0.22);
+    --color-danger: oklch(0.58 0.22 25);
+    --color-danger-bg: oklch(0.75 0.18 25 / 0.20);
+    --color-info: oklch(0.58 0.15 240);
+    --color-info-bg: oklch(0.72 0.14 240 / 0.18);
+    --color-pending: oklch(0.58 0.20 290);
+    --color-pending-bg: oklch(0.72 0.16 290 / 0.18);
+
+    --color-focus-ring: oklch(0.55 0.18 220);
+    --shadow-focus-ring: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-focus-ring);
+
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.06);
+    --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 0.08), 0 2px 4px -2px oklch(0 0 0 / 0.06);
+    --shadow-lg: 0 12px 24px -8px oklch(0 0 0 / 0.12), 0 4px 8px -4px oklch(0 0 0 / 0.08);
+    --shadow-xl: 0 24px 48px -12px oklch(0 0 0 / 0.18), 0 8px 16px -8px oklch(0 0 0 / 0.10);
+  }
+
+  /* Motion — two durations × three easings, reduced-motion aware */
+  :root {
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --dur-fast: 120ms;
+    --dur-base: 180ms;
+    --dur-slow: 260ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  html {
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular numerals everywhere — numbers should not jitter */
+  table, .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border: 2px solid transparent; background-clip: padding-box; border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); background-clip: padding-box; border: 2px solid transparent; }
+
+  /* Selection */
+  ::selection {
+    background: var(--color-accent-bg-hover);
+    color: var(--color-fg);
+  }
+
+  /* Focus-visible only — never show rings on mouse click */
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-ring);
+    border-radius: inherit;
+  }
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #2A2D37 transparent;
+@layer components {
+  /* Keyboard hint used by command palette + shortcut cheatsheet */
+  .kbd {
+    @apply inline-flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded border text-[10.5px] font-medium;
+    background: var(--color-raised);
+    border-color: var(--color-border-muted);
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Dense mode shrinks row heights and paddings project-wide */
+  [data-density='compact'] table th,
+  [data-density='compact'] table td {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+  [data-density='compact'] .density-row {
+    height: 28px !important;
+  }
 }
 
-body {
-  background: var(--color-background);
-  color: var(--color-text);
+/* Skip link — keyboard users can jump past the nav */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+@layer utilities {
+  .bg-canvas { background-color: var(--color-canvas); }
+  .bg-panel { background-color: var(--color-panel); }
+  .bg-raised { background-color: var(--color-raised); }
+  .bg-overlay { background-color: var(--color-overlay); }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .text-fg { color: var(--color-fg); }
+  .text-fg-muted { color: var(--color-fg-muted); }
+  .text-fg-subtle { color: var(--color-fg-subtle); }
 
-::-webkit-scrollbar-thumb {
-  background: #2A2D37;
-  border-radius: 3px;
-}
+  .border-default { border-color: var(--color-border); }
+  .border-muted { border-color: var(--color-border-muted); }
+  .border-strong { border-color: var(--color-border-strong); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #6B7280;
+  /* Accent / semantic helpers used by primitives */
+  .bg-accent { background-color: var(--color-accent); }
+  .bg-accent-hover { background-color: var(--color-accent-hover); }
+  .bg-accent-bg { background-color: var(--color-accent-bg); }
+  .text-accent { color: var(--color-accent); }
+  .text-accent-fg { color: var(--color-accent-fg); }
+
+  .bg-danger { background-color: var(--color-danger); }
+  .bg-danger-bg { background-color: var(--color-danger-bg); }
+  .text-danger { color: var(--color-danger); }
+
+  .bg-warning { background-color: var(--color-warning); }
+  .bg-warning-bg { background-color: var(--color-warning-bg); }
+  .text-warning { color: var(--color-warning); }
+
+  .bg-success { background-color: var(--color-success); }
+  .bg-success-bg { background-color: var(--color-success-bg); }
+  .text-success { color: var(--color-success); }
+
+  .bg-info { background-color: var(--color-info); }
+  .bg-info-bg { background-color: var(--color-info-bg); }
+  .text-info { color: var(--color-info); }
+
+  .bg-pending { background-color: var(--color-pending); }
+  .bg-pending-bg { background-color: var(--color-pending-bg); }
+  .text-pending { color: var(--color-pending); }
+
+  .shadow-sm-token { box-shadow: var(--shadow-sm); }
+  .shadow-md-token { box-shadow: var(--shadow-md); }
+  .shadow-lg-token { box-shadow: var(--shadow-lg); }
+  .shadow-xl-token { box-shadow: var(--shadow-xl); }
 }

@@ -1,359 +1,238 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { KPICard } from '@/components/ui/KPICard';
-import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
-import { useApi } from '@/hooks/useApi';
-import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
-
-// ── Types ──────────────────────────────────────────────────────────────
+import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { ColumnDef } from "@tanstack/react-table";
+import { AlertTriangle } from "lucide-react";
+import { useApi } from "@/hooks/useApi";
+import { useAuth } from "@/hooks/useAuth";
+import { useOptimisticAction } from "@/hooks/useOptimisticAction";
+import { api } from "@/lib/api";
+import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
+import { StatBlock } from "@/components/ui/StatBlock";
+import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 
 interface DisputeStats {
-  openCount: number;
-  avgResolutionHours: number;
-  slaBreachRate: number;
-  byStatus: Record<string, number>;
-  byPriority: Record<string, number>;
+  openCount: number; avgResolutionHours: number; slaBreachRate: number;
+  byStatus: Record<string, number>; byPriority: Record<string, number>;
 }
-
-interface DisputeUser {
-  id: string;
-  name: string;
-  phoneNumber?: string;
-}
-
+interface DisputeUser { id: string; name: string; phoneNumber?: string }
 interface Dispute {
-  id: string;
-  disputeNumber: string;
-  filedByUser: DisputeUser | null;
-  againstUser: DisputeUser | null;
+  id: string; disputeNumber: string;
+  filedByUser: DisputeUser | null; againstUser: DisputeUser | null;
   reason: string;
-  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   status: string;
   slaDeadline: string | null;
   createdAt: string;
   assignedTo?: string;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────
-
 const STATUS_TABS = [
-  { key: 'ALL', label: 'All' },
-  { key: 'OPEN', label: 'Open' },
-  { key: 'ASSIGNED', label: 'Assigned' },
-  { key: 'INVESTIGATING', label: 'Investigating' },
-  { key: 'AWAITING_RESPONSE', label: 'Awaiting Response' },
-  { key: 'ESCALATED', label: 'Escalated' },
-  { key: 'RESOLVED', label: 'Resolved' },
-  { key: 'CLOSED', label: 'Closed' },
+  { key: "ALL", label: "All" },
+  { key: "OPEN", label: "Open" },
+  { key: "ASSIGNED", label: "Assigned" },
+  { key: "INVESTIGATING", label: "Investigating" },
+  { key: "AWAITING_RESPONSE", label: "Awaiting" },
+  { key: "ESCALATED", label: "Escalated" },
+  { key: "RESOLVED", label: "Resolved" },
+  { key: "CLOSED", label: "Closed" },
 ] as const;
 
-const PRIORITY_CONFIG: Record<string, { variant: 'danger' | 'warning' | 'info' | 'success'; label: string }> = {
-  CRITICAL: { variant: 'danger', label: 'Critical' },
-  HIGH: { variant: 'warning', label: 'High' },
-  MEDIUM: { variant: 'info', label: 'Medium' },
-  LOW: { variant: 'success', label: 'Low' },
+const PRIORITY_TONE: Record<string, "danger" | "warning" | "info" | "success"> = {
+  CRITICAL: "danger", HIGH: "warning", MEDIUM: "info", LOW: "success",
 };
 
-const STATUS_VARIANT: Record<string, 'danger' | 'warning' | 'info' | 'success' | 'pending' | 'default'> = {
-  OPEN: 'danger',
-  ASSIGNED: 'info',
-  INVESTIGATING: 'pending',
-  AWAITING_RESPONSE: 'warning',
-  ESCALATED: 'danger',
-  RESOLVED: 'success',
-  CLOSED: 'default',
+const STATUS_TONE: Record<string, "danger" | "info" | "pending" | "warning" | "success" | "neutral"> = {
+  OPEN: "danger", ASSIGNED: "info", INVESTIGATING: "pending",
+  AWAITING_RESPONSE: "warning", ESCALATED: "danger",
+  RESOLVED: "success", CLOSED: "neutral",
 };
 
-const PAGE_SIZE = 20;
-
-// ── Helpers ────────────────────────────────────────────────────────────
-
-function formatSLA(slaDeadline: string | null): { text: string; breached: boolean } {
-  if (!slaDeadline) return { text: '--', breached: false };
-  const now = Date.now();
-  const deadline = new Date(slaDeadline).getTime();
-  const diff = deadline - now;
-  if (diff <= 0) return { text: 'Breached', breached: true };
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 24) {
-    const days = Math.floor(hours / 24);
-    return { text: `${days}d ${hours % 24}h`, breached: false };
-  }
-  return { text: `${hours}h ${mins}m`, breached: false };
+function slaText(d: string | null) {
+  if (!d) return { text: "—", breached: false };
+  const diff = new Date(d).getTime() - Date.now();
+  if (diff <= 0) return { text: "Breached", breached: true };
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  if (h > 24) return { text: `${Math.floor(h / 24)}d ${h % 24}h`, breached: false };
+  return { text: `${h}h ${m}m`, breached: false };
 }
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('en', { day: 'numeric', month: 'short', year: '2-digit' });
-}
-
-// ── Component ──────────────────────────────────────────────────────────
 
 export default function DisputesPage() {
+  const router = useRouter();
   const { user, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState('ALL');
-  const [page, setPage] = useState(1);
-  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = React.useState<typeof STATUS_TABS[number]["key"]>("ALL");
+  const [page, setPage] = React.useState(1);
 
-  const statusQuery = activeTab === 'ALL' ? '' : activeTab;
-  const { data: stats, loading: statsLoading } = useApi<DisputeStats>('/api/admin/disputes/stats');
+  const statusQuery = activeTab === "ALL" ? "" : activeTab;
+  const { data: stats } = useApi<DisputeStats>("/api/admin/disputes/stats");
   const { data, loading, refetch } = useApi<{ data: Dispute[]; total: number; counts?: Record<string, number> }>(
-    `/api/admin/disputes?status=${statusQuery}&page=${page}&limit=${PAGE_SIZE}`
+    `/api/admin/disputes?status=${statusQuery}&page=${page}&limit=20`
   );
 
-  const disputes = data?.data || [];
+  const rows = data?.data || [];
   const total = data?.total || 0;
   const counts = data?.counts || {};
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const canManage = hasPermission("DISPUTES_MANAGE");
+  const { run } = useOptimisticAction();
 
-  const canManage = hasPermission('DISPUTES_MANAGE');
-
-  // ── Assign handler ─────────────────────────────────────────────────
-
-  async function handleAssign(disputeId: string) {
-    if (!canManage) return;
-    const adminId = prompt('Enter admin ID to assign (leave blank to assign to yourself):');
+  const assign = React.useCallback((id: string) => {
+    const adminId = prompt("Enter admin ID to assign (blank = assign to yourself):");
     const assignTo = adminId?.trim() || user?.id;
     if (!assignTo) return;
+    run({
+      action: () => api.patch(`/api/admin/disputes/${id}/assign`, { adminId: assignTo }),
+      label: "Dispute assigned",
+      onSuccess: () => refetch(),
+    });
+  }, [run, refetch, user?.id]);
 
-    setAssigningId(disputeId);
-    try {
-      await api.patch(`/api/admin/disputes/${disputeId}/assign`, { adminId: assignTo });
-      refetch();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to assign dispute');
-    } finally {
-      setAssigningId(null);
-    }
-  }
-
-  // ── Tab change ─────────────────────────────────────────────────────
-
-  function handleTabChange(tab: string) {
-    setActiveTab(tab);
-    setPage(1);
-  }
-
-  // ── Loading state ──────────────────────────────────────────────────
-
-  if (loading && !data) {
-    return (
-      <div className="min-h-screen p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-text-muted">Loading disputes...</p>
+  const columns: ColumnDef<Dispute>[] = [
+    {
+      id: "number",
+      header: "Dispute",
+      cell: ({ row }) => (
+        <Link href={`/disputes/${row.original.id}`} className="font-mono text-xs text-accent hover:underline tabular">
+          {row.original.disputeNumber}
+        </Link>
+      ),
+    },
+    {
+      id: "filedBy",
+      header: "Filed by",
+      cell: ({ row }) => <span className="text-sm-compact text-fg">{row.original.filedByUser?.name || "Unknown"}</span>,
+    },
+    {
+      id: "against",
+      header: "Against",
+      cell: ({ row }) => <span className="text-sm-compact text-fg">{row.original.againstUser?.name || "Unknown"}</span>,
+    },
+    {
+      id: "reason",
+      header: "Reason",
+      cell: ({ row }) => <span className="text-xs text-fg-muted">{row.original.reason?.replace(/_/g, " ") || "—"}</span>,
+    },
+    {
+      id: "priority",
+      header: "Priority",
+      cell: ({ row }) => <Badge tone={PRIORITY_TONE[row.original.priority] || "neutral"} size="sm">{row.original.priority}</Badge>,
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => <Badge tone={STATUS_TONE[row.original.status] || "neutral"} size="sm">{row.original.status?.replace(/_/g, " ")}</Badge>,
+    },
+    {
+      id: "sla",
+      header: "SLA",
+      cell: ({ row }) => {
+        const s = slaText(row.original.slaDeadline);
+        return <span className={cn("text-xs tabular font-medium", s.breached ? "text-danger" : "text-fg-muted")}>{s.text}</span>;
+      },
+    },
+    {
+      id: "created",
+      header: "Created",
+      cell: ({ row }) => (
+        <span className="text-2xs text-fg-muted tabular">
+          {new Date(row.original.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "2-digit" })}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button size="xs" variant="secondary" asChild>
+            <Link href={`/disputes/${row.original.id}`}>View</Link>
+          </Button>
+          {canManage && !row.original.assignedTo && (
+            <Button size="xs" variant="ghost" onClick={() => assign(row.original.id)}>Assign</Button>
+          )}
         </div>
-      </div>
-    );
-  }
+      ),
+    },
+  ];
+
+  const totalPages = Math.max(1, Math.ceil(total / 20));
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text">Dispute Center</h1>
-        <p className="text-sm text-text-muted mt-1">Manage and resolve buyer/seller disputes</p>
+    <PageContainer>
+      <PageHeader
+        title="Dispute Center"
+        description="Manage and resolve buyer/seller disputes"
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <StatBlock label="Open disputes" value={stats?.openCount ?? "—"} />
+        <StatBlock label="Avg resolution" value={stats?.avgResolutionHours != null ? `${stats.avgResolutionHours}h` : "—"} />
+        <StatBlock label="SLA breach rate" value={stats ? `${stats.slaBreachRate}%` : "—"} />
+        <StatBlock label="Escalated" value={stats?.byStatus?.ESCALATED ?? "—"} />
       </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          title="Open Disputes"
-          value={statsLoading ? '...' : (stats?.openCount ?? 0)}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
-            </svg>
-          }
-        />
-        <KPICard
-          title="Avg Resolution Time"
-          value={statsLoading ? '...' : stats?.avgResolutionHours != null ? `${stats.avgResolutionHours}h` : '--'}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-        />
-        <KPICard
-          title="SLA Breach Rate"
-          value={statsLoading ? '...' : `${stats?.slaBreachRate ?? 0}%`}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-            </svg>
-          }
-        />
-        <KPICard
-          title="Escalated"
-          value={statsLoading ? '...' : (stats?.byStatus?.ESCALATED ?? 0)}
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-          }
-        />
-      </div>
-
-      {/* Status Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+      <div className="flex items-center gap-0.5 p-0.5 bg-raised rounded-md border border-muted overflow-x-auto">
         {STATUS_TABS.map((tab) => {
-          const count = tab.key === 'ALL' ? total : (counts[tab.key] ?? 0);
-          const isActive = activeTab === tab.key;
+          const count = tab.key === "ALL" ? total : (counts[tab.key] ?? 0);
+          const active = activeTab === tab.key;
           return (
             <button
               key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-text-muted hover:text-text hover:bg-surface-hover'
-              }`}
+              onClick={() => { setActiveTab(tab.key); setPage(1); }}
+              className={cn(
+                "inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-xs font-medium transition-colors whitespace-nowrap",
+                active ? "bg-panel text-fg shadow-elev-1" : "text-fg-muted hover:text-fg"
+              )}
             >
               {tab.label}
-              <span className={`ml-1.5 text-xs ${isActive ? 'text-primary' : 'text-text-muted'}`}>
-                {count}
-              </span>
+              <span className={cn("tabular text-2xs", active ? "text-fg-muted" : "text-fg-subtle")}>{count}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Disputes Table */}
-      <Card padding={false}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-text-muted font-medium">Dispute #</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Filed By</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Against</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Reason</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Priority</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Status</th>
-                <th className="px-4 py-3 text-text-muted font-medium">SLA</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Created</th>
-                <th className="px-4 py-3 text-text-muted font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {disputes.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-text-muted">
-                    No disputes found
-                  </td>
-                </tr>
-              ) : (
-                disputes.map((d) => {
-                  const sla = formatSLA(d.slaDeadline);
-                  const priority = PRIORITY_CONFIG[d.priority] || PRIORITY_CONFIG.MEDIUM;
-                  const statusVariant = STATUS_VARIANT[d.status] || 'default';
+      <Table<Dispute>
+        columns={columns}
+        data={rows}
+        loading={loading}
+        onRowClick={(d) => router.push(`/disputes/${d.id}`)}
+        rowId={(d) => d.id}
+        emptyTitle="No disputes"
+        emptyDescription={activeTab === "ALL" ? "Nothing filed yet" : `No ${activeTab.toLowerCase().replace(/_/g, " ")} disputes`}
+        emptyIcon={<AlertTriangle className="h-5 w-5" />}
+      />
 
-                  return (
-                    <tr key={d.id} className="border-b border-border hover:bg-surface-hover transition-colors">
-                      <td className="px-4 py-3">
-                        <Link href={`/disputes/${d.id}`} className="font-mono text-xs text-primary hover:underline">
-                          {d.disputeNumber}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-text font-medium">{d.filedByUser?.name || 'Unknown'}</td>
-                      <td className="px-4 py-3 text-text">{d.againstUser?.name || 'Unknown'}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="default">{d.reason?.replace(/_/g, ' ') || 'N/A'}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={priority.variant}>{priority.label}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={statusVariant}>{d.status?.replace(/_/g, ' ')}</Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-medium ${sla.breached ? 'text-danger' : 'text-text-muted'}`}>
-                          {sla.text}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-text-muted text-xs">{formatDate(d.createdAt)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/disputes/${d.id}`}
-                            className="px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
-                          >
-                            View
-                          </Link>
-                          {canManage && !d.assignedTo && (
-                            <button
-                              onClick={() => handleAssign(d.id)}
-                              disabled={assigningId === d.id}
-                              className="px-2.5 py-1 text-xs font-medium bg-info/10 text-info rounded-lg hover:bg-info/20 transition-colors disabled:opacity-50"
-                            >
-                              {assigningId === d.id ? '...' : 'Assign'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <span className="text-xs text-text-muted">
-              Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, total)} of {total}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                      page === pageNum
-                        ? 'bg-primary text-white'
-                        : 'border border-border text-text-muted hover:text-text hover:bg-surface-hover'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-text-muted hover:text-text hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-2xs text-fg-subtle tabular">
+            Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let n: number;
+              if (totalPages <= 5) n = i + 1;
+              else if (page <= 3) n = i + 1;
+              else if (page >= totalPages - 2) n = totalPages - 4 + i;
+              else n = page - 2 + i;
+              return (
+                <Button
+                  key={n}
+                  size="sm"
+                  variant={page === n ? "primary" : "secondary"}
+                  onClick={() => setPage(n)}
+                >{n}</Button>
+              );
+            })}
+            <Button size="sm" variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
           </div>
-        )}
-      </Card>
-    </div>
+        </div>
+      )}
+    </PageContainer>
   );
 }

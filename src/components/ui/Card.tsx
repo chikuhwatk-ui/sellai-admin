@@ -1,69 +1,62 @@
-import React from "react";
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/cn";
 
-interface CardProps {
-  children: React.ReactNode;
-  variant?: "default" | "bordered" | "gradient";
-  className?: string;
-  onClick?: () => void;
+const card = cva("rounded-xl transition-colors duration-fast ease-out", {
+  variants: {
+    variant: {
+      default: "bg-panel border border-muted",
+      bordered: "bg-panel border border-strong",
+      raised: "bg-raised border border-muted shadow-elev-1",
+      gradient: "bg-gradient-to-br from-panel via-panel to-canvas border border-muted",
+      ghost: "bg-transparent border border-muted",
+    },
+  },
+  defaultVariants: { variant: "default" },
+});
+
+export interface CardProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof card> {
   hover?: boolean;
+  hoverable?: boolean;
   padding?: boolean;
 }
 
-export function Card({
-  children,
-  variant = "default",
-  className = "",
-  onClick,
-  hover = false,
-  padding = true,
-}: CardProps) {
-  const base = "rounded-xl transition-all duration-200";
-  const variants = {
-    default: "bg-surface border border-border",
-    bordered:
-      "bg-surface border-2 border-border hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
-    gradient:
-      "bg-gradient-to-br from-surface via-surface to-background border border-border",
-  };
+export const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant, hover, hoverable, onClick, padding = true, ...props }, ref) => {
+    const isClickable = !!onClick || hover || hoverable;
+    return (
+      <div
+        ref={ref}
+        onClick={onClick}
+        className={cn(
+          card({ variant }),
+          isClickable && "cursor-pointer hover:border-strong hover:bg-raised",
+          padding && "p-5",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+Card.displayName = "Card";
 
-  return (
-    <div
-      onClick={onClick}
-      className={`${base} ${variants[variant]} ${
-        hover
-          ? "hover:bg-surface-hover hover:border-primary/30 cursor-pointer"
-          : ""
-      } ${onClick ? "cursor-pointer" : ""} ${
-        padding ? "p-6" : ""
-      } ${className}`}
-    >
-      {children}
-    </div>
-  );
+export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("px-5 py-3.5 border-b border-muted flex items-start justify-between gap-3", className)} {...props} />;
 }
 
-export function CardHeader({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`px-6 py-4 border-b border-border ${className}`}>
-      {children}
-    </div>
-  );
+export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={cn("text-sm font-semibold text-fg", className)} {...props} />;
 }
 
-export function CardContent({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <div className={`px-6 py-4 ${className}`}>{children}</div>;
+export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn("mt-0.5 text-xs text-fg-muted", className)} {...props} />;
+}
+
+export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("px-5 py-4", className)} {...props} />;
 }
 
 export default Card;

@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ToasterProvider } from "@/components/providers/ToasterProvider";
 
 export const metadata: Metadata = {
   title: "Sellai Admin",
-  description: "Sellai Admin Dashboard - Marketplace Operations & Analytics",
+  description: "Sellai Admin Dashboard — Marketplace Operations & Analytics",
 };
 
 export default function RootLayout({
@@ -18,8 +16,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full bg-background text-text">{children}</body>
+    <html lang="en" data-theme="dark" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}>
+      <head>
+        <style>{`
+          :root {
+            --font-sans: ${GeistSans.style.fontFamily};
+            --font-mono: ${GeistMono.style.fontFamily};
+          }
+        `}</style>
+      </head>
+      <body className="min-h-full bg-canvas text-fg">
+        <ThemeProvider>
+          {children}
+          <ToasterProvider />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
