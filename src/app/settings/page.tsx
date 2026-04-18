@@ -180,6 +180,42 @@ export default function SettingsPage() {
 
       {tab === 'general' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Your admin identity */}
+          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 lg:col-span-2">
+            <h2 className="text-lg font-semibold text-white mb-1">Your admin identity</h2>
+            <p className="text-xs text-[#6B7280] mb-4">
+              Admin sessions are independent from buyer and seller accounts. If you have a buyer
+              account under the same phone number, the two sessions never share state.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                <div className="text-[10px] uppercase tracking-wider text-[#6B7280] mb-1">Logged in as</div>
+                <div className="text-sm text-white font-medium">{user?.email || user?.name || '—'}</div>
+                {user?.adminRole && (
+                  <div className="text-[10px] text-[#10B981] mt-1">{user.adminRole.replace(/_/g, ' ')}</div>
+                )}
+              </div>
+              {user?.linkedUser ? (
+                <div className="p-3 rounded-lg bg-[#10B981]/10 border border-[#10B981]/30">
+                  <div className="text-[10px] uppercase tracking-wider text-[#10B981] mb-1">
+                    Also a buyer
+                  </div>
+                  <div className="text-sm text-white font-medium">{user.linkedUser.name}</div>
+                  <div className="text-[10px] text-[#6B7280] font-mono mt-0.5">{user.linkedUser.phoneNumber}</div>
+                  <div className="text-[10px] text-[#6B7280] mt-1.5">
+                    Sign in on the mobile app with this number to use your buyer account. Admin
+                    and buyer sessions are independent — logging out of one does not affect the other.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-[#0F1117] border border-[#2A2D37]">
+                  <div className="text-[10px] uppercase tracking-wider text-[#6B7280] mb-1">Buyer account</div>
+                  <div className="text-sm text-[#6B7280]">Not linked</div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Platform Settings */}
           <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">

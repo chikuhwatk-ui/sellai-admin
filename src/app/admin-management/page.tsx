@@ -14,27 +14,39 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
 const ROLES = ['SUPER_ADMIN', 'ADMIN_MANAGER', 'SUPPORT_AGENT', 'ADMIN_VIEWER'];
 
 export default function AdminManagementPage() {
-  const { data: admins, loading, refetch } = useApi<any[]>('/api/admin/management/admins');
+  const { data: admins, loading, refetch } = useApi<any[]>('/admin/v2/management');
   const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteRole, setInviteRole] = useState('SUPPORT_AGENT');
   const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handleInvite = async () => {
-    if (!invitePhone.trim()) return;
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
+      setMessage({ text: 'Valid email required', type: 'error' });
+      return;
+    }
     setInviting(true);
     setMessage(null);
-    const fullPhone = invitePhone.startsWith('+263')
-      ? invitePhone
-      : `+263${invitePhone.replace(/^0+/, '')}`;
+
+    const phonePayload = invitePhone.trim()
+      ? invitePhone.startsWith('+263')
+        ? invitePhone
+        : `+263${invitePhone.replace(/^0+/, '')}`
+      : undefined;
 
     try {
-      const result = await api.post<any>('/api/admin/management/invite', {
-        phoneNumber: fullPhone,
+      const result = await api.post<any>('/admin/v2/management/invite', {
+        email: inviteEmail.toLowerCase().trim(),
+        phoneNumber: phonePayload,
         adminRole: inviteRole,
       });
-      setMessage({ text: `Invited ${result.name || fullPhone} as ${ROLE_LABELS[inviteRole]?.label}`, type: 'success' });
+      setMessage({
+        text: `Invited ${result.email} as ${ROLE_LABELS[inviteRole]?.label}${result.linkedUserId ? ' (linked to buyer account)' : ''}`,
+        type: 'success',
+      });
+      setInviteEmail('');
       setInvitePhone('');
       setShowInvite(false);
       refetch();
@@ -45,28 +57,28 @@ export default function AdminManagementPage() {
     }
   };
 
-  const handleChangeRole = async (userId: string, newRole: string) => {
+  const handleChangeRole = async (adminId: string, newRole: string) => {
     try {
-      await api.patch(`/api/admin/management/${userId}/role`, { adminRole: newRole });
+      await api.patch(`/admin/v2/management/${adminId}/role`, { adminRole: newRole });
       refetch();
     } catch (err: any) {
       alert(`Failed: ${err.message}`);
     }
   };
 
-  const handleToggleActive = async (userId: string) => {
+  const handleToggleActive = async (adminId: string, currentlyActive: boolean) => {
     try {
-      await api.post(`/api/admin/management/${userId}/deactivate`);
+      await api.post(`/admin/v2/management/${adminId}/${currentlyActive ? 'deactivate' : 'reactivate'}`);
       refetch();
     } catch (err: any) {
       alert(`Failed: ${err.message}`);
     }
   };
 
-  const handleForceLogout = async (userId: string) => {
+  const handleForceLogout = async (adminId: string) => {
     if (!confirm('Force logout this admin? Their current session will be invalidated.')) return;
     try {
-      await api.post(`/api/admin/management/${userId}/force-logout`);
+      await api.post(`/admin/v2/management/${adminId}/force-logout`);
       setMessage({ text: 'Session invalidated successfully', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
@@ -103,9 +115,20 @@ export default function AdminManagementPage() {
       {showInvite && (
         <div className="bg-[#1A1D27] border border-[#10B981]/30 rounded-xl p-6">
           <h2 className="text-sm font-semibold text-white mb-4">Invite New Admin</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs text-[#6B7280] mb-1">Email <span className="text-[#EF4444]">*</span></label>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="admin@sellai.com"
+                className="w-full px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]"
+              />
+              <p className="text-[10px] text-[#6B7280] mt-1">OTP is sent here. Unique across admins.</p>
+            </div>
             <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Phone Number</label>
+              <label className="block text-xs text-[#6B7280] mb-1">Phone <span className="text-[#6B7280]">(optional)</span></label>
               <div className="flex">
                 <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-[#2A2D37] bg-[#0F1117] text-xs text-[#6B7280]">+263</span>
                 <input
@@ -116,10 +139,10 @@ export default function AdminManagementPage() {
                   className="flex-1 px-3 py-2 bg-[#0F1117] border border-[#2A2D37] rounded-r-lg text-sm text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981]"
                 />
               </div>
-              <p className="text-[10px] text-[#6B7280] mt-1">User must already have a Sellai account</p>
+              <p className="text-[10px] text-[#6B7280] mt-1">Auto-links to existing buyer if matched.</p>
             </div>
             <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Admin Role</label>
+              <label className="block text-xs text-[#6B7280] mb-1">Role</label>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
@@ -130,10 +153,10 @@ export default function AdminManagementPage() {
                 ))}
               </select>
             </div>
-            <div className="flex items-end gap-2">
+            <div className="md:col-span-4 flex items-center gap-2">
               <button
                 onClick={handleInvite}
-                disabled={inviting || !invitePhone.trim()}
+                disabled={inviting || !inviteEmail.trim()}
                 className="px-4 py-2 bg-[#10B981] text-white text-sm font-medium rounded-lg hover:bg-[#059669] disabled:opacity-50"
               >
                 {inviting ? 'Inviting...' : 'Send Invite'}
@@ -176,8 +199,17 @@ export default function AdminManagementPage() {
                   return (
                     <tr key={admin.id} className="border-b border-[#2A2D37]/50 hover:bg-[#1A1D27]/50">
                       <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-white">{admin.name || 'Unnamed'}</div>
-                        <div className="text-xs text-[#6B7280]">{admin.phoneNumber}</div>
+                        <div className="text-sm font-medium text-white">
+                          {admin.email || admin.name || 'Unnamed'}
+                        </div>
+                        {admin.phoneNumber && (
+                          <div className="text-xs text-[#6B7280] font-mono">{admin.phoneNumber}</div>
+                        )}
+                        {admin.linkedUser && (
+                          <div className="text-[10px] text-[#10B981] mt-0.5">
+                            also buyer: {admin.linkedUser.name}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <select
@@ -193,7 +225,7 @@ export default function AdminManagementPage() {
                       </td>
                       <td className="px-6 py-4">
                         <button
-                          onClick={() => handleToggleActive(admin.id)}
+                          onClick={() => handleToggleActive(admin.id, !!admin.isActive)}
                           className={`text-xs px-2 py-1 rounded-full font-medium cursor-pointer ${
                             admin.isActive
                               ? 'bg-[#10B981]/15 text-[#10B981]'

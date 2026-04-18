@@ -8,22 +8,26 @@ import { api } from '@/lib/api';
 interface AdminUser {
   id: string;
   name: string;
-  phoneNumber: string;
+  phoneNumber?: string;
+  email?: string;
   role?: string;
   adminRole?: string;
   permissions?: string[];
   isActive?: boolean;
   memberSince?: string;
+  linkedUser?: { id: string; name: string; phoneNumber: string } | null;
 }
 
 interface AdminMeResponse {
   id: string;
   name: string;
-  phoneNumber: string;
+  phoneNumber?: string;
+  email?: string;
   adminRole: string;
   isActive: boolean;
   permissions: string[];
   memberSince?: string;
+  linkedUser?: { id: string; name: string; phoneNumber: string } | null;
 }
 
 // Fallback used only between mount and first /admin/me response, so the UI
@@ -84,22 +88,42 @@ export function useAuth() {
   const revalidate = useCallback(async () => {
     setRefreshing(true);
     try {
-      const me = await api.get<AdminMeResponse>('/api/admin/me');
+      // Prefer V2 endpoint; fall back to legacy if V2 isn't deployed yet.
+      let me: AdminMeResponse;
+      try {
+        me = await api.get<AdminMeResponse>('/admin/v2/me');
+      } catch {
+        me = await api.get<AdminMeResponse>('/api/admin/me');
+      }
+
       const next: AdminUser = {
         id: me.id,
         name: me.name,
         phoneNumber: me.phoneNumber,
+        email: me.email,
         adminRole: me.adminRole,
         permissions: me.permissions || [],
         isActive: me.isActive,
         memberSince: me.memberSince,
+        linkedUser: me.linkedUser ?? null,
       };
       setUser(next);
       setStale(false);
-      Sentry.setUser({ id: me.id, username: me.phoneNumber });
+      Sentry.setUser({
+        id: me.id,
+        username: me.email ?? me.phoneNumber ?? me.id,
+      });
       Sentry.setTag('admin_role', me.adminRole);
       try {
-        localStorage.setItem('adminUser', JSON.stringify({ id: me.id, name: me.name, phoneNumber: me.phoneNumber }));
+        localStorage.setItem(
+          'adminUser',
+          JSON.stringify({
+            id: me.id,
+            name: me.name,
+            phoneNumber: me.phoneNumber,
+            email: me.email,
+          }),
+        );
         localStorage.setItem('adminRole', me.adminRole);
         localStorage.setItem('adminPermissions', JSON.stringify(me.permissions || []));
       } catch { /* quota / private mode */ }
