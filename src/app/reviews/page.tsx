@@ -95,9 +95,9 @@ export default function ReviewModerationPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const severityParam = activeTab === 'ALL' ? '' : `&severity=${activeTab}`;
-  const { data: stats, loading: statsLoading } = useApi<ModerationStats>('/admin/reviews/moderation-stats');
+  const { data: stats, loading: statsLoading } = useApi<ModerationStats>('/api/admin/reviews/moderation-stats');
   const { data: flagged, loading: flaggedLoading, refetch } = useApi<FlaggedResponse>(
-    `/admin/reviews/flagged?page=1&limit=50${severityParam}`
+    `/api/admin/reviews/flagged?page=1&limit=50${severityParam}`
   );
 
   const canManage = hasPermission('DISPUTES_MANAGE');
@@ -105,7 +105,7 @@ export default function ReviewModerationPage() {
   const handleDismiss = async (flagId: string) => {
     setActionLoading(flagId);
     try {
-      await api.post(`/admin/reviews/${flagId}/dismiss`);
+      await api.post(`/api/admin/reviews/${flagId}/dismiss`);
       refetch();
     } catch (e) {
       console.error('Failed to dismiss:', e);
@@ -120,7 +120,7 @@ export default function ReviewModerationPage() {
     try {
       // The review ID is stored in the audit log's targetId — we need to extract it
       // For now we delete by the flag ID and the backend handles it
-      await api.delete(`/admin/reviews/${review.id}`);
+      await api.delete(`/api/admin/reviews/${review.id}`);
       refetch();
     } catch (e) {
       console.error('Failed to remove:', e);

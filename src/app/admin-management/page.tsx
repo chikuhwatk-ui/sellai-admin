@@ -14,7 +14,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
 const ROLES = ['SUPER_ADMIN', 'ADMIN_MANAGER', 'SUPPORT_AGENT', 'ADMIN_VIEWER'];
 
 export default function AdminManagementPage() {
-  const { data: admins, loading, refetch } = useApi<any[]>('/admin/v2/management');
+  const { data: admins, loading, refetch } = useApi<any[]>('/api/admin/v2/management');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePhone, setInvitePhone] = useState('');
@@ -37,7 +37,7 @@ export default function AdminManagementPage() {
       : undefined;
 
     try {
-      const result = await api.post<any>('/admin/v2/management/invite', {
+      const result = await api.post<any>('/api/admin/v2/management/invite', {
         email: inviteEmail.toLowerCase().trim(),
         phoneNumber: phonePayload,
         adminRole: inviteRole,
@@ -59,7 +59,7 @@ export default function AdminManagementPage() {
 
   const handleChangeRole = async (adminId: string, newRole: string) => {
     try {
-      await api.patch(`/admin/v2/management/${adminId}/role`, { adminRole: newRole });
+      await api.patch(`/api/admin/v2/management/${adminId}/role`, { adminRole: newRole });
       refetch();
     } catch (err: any) {
       alert(`Failed: ${err.message}`);
@@ -68,7 +68,7 @@ export default function AdminManagementPage() {
 
   const handleToggleActive = async (adminId: string, currentlyActive: boolean) => {
     try {
-      await api.post(`/admin/v2/management/${adminId}/${currentlyActive ? 'deactivate' : 'reactivate'}`);
+      await api.post(`/api/admin/v2/management/${adminId}/${currentlyActive ? 'deactivate' : 'reactivate'}`);
       refetch();
     } catch (err: any) {
       alert(`Failed: ${err.message}`);
@@ -78,7 +78,7 @@ export default function AdminManagementPage() {
   const handleForceLogout = async (adminId: string) => {
     if (!confirm('Force logout this admin? Their current session will be invalidated.')) return;
     try {
-      await api.post(`/admin/v2/management/${adminId}/force-logout`);
+      await api.post(`/api/admin/v2/management/${adminId}/force-logout`);
       setMessage({ text: 'Session invalidated successfully', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
