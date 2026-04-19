@@ -48,9 +48,9 @@ interface PriceChange {
 export default function BundlesPage() {
   const { hasPermission, adminRole } = useAuth();
   const canEdit = hasPermission("FINANCE_MANAGE") && adminRole === "SUPER_ADMIN";
-  const { data: bundles, loading, refetch } = useApi<Bundle[]>("/admin/v2/bundles");
+  const { data: bundles, loading, refetch } = useApi<Bundle[]>("/api/admin/v2/bundles");
   const { data: pending } = useApi<Array<{ id: string; bundleId: string }>>(
-    "/admin/v2/bundle-requests?status=PENDING",
+    "/api/admin/v2/bundle-requests?status=PENDING",
   );
   const [editing, setEditing] = React.useState<Bundle | null>(null);
   const [viewingHistory, setViewingHistory] = React.useState<Bundle | null>(null);
@@ -243,7 +243,7 @@ function EditForm({ bundle, onClose, onSaved }: { bundle: Bundle; onClose: () =>
     }
     setSubmitting(true);
     try {
-      await api.patch(`/admin/v2/bundles/${bundle.id}`, {
+      await api.patch(`/api/admin/v2/bundles/${bundle.id}`, {
         priceUsd: priceNum,
         credits: creditsNum,
         slots: slotsNum,
@@ -345,7 +345,7 @@ function EditForm({ bundle, onClose, onSaved }: { bundle: Bundle; onClose: () =>
 }
 
 function HistoryView({ bundle, onClose }: { bundle: Bundle; onClose: () => void }) {
-  const { data: changes, loading } = useApi<PriceChange[]>(`/admin/v2/bundles/${bundle.id}/history`);
+  const { data: changes, loading } = useApi<PriceChange[]>(`/api/admin/v2/bundles/${bundle.id}/history`);
 
   return (
     <>

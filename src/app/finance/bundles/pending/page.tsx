@@ -57,7 +57,7 @@ export default function PendingRequestsPage() {
   const { user, adminRole } = useAuth();
   const [status, setStatus] = React.useState<Status>("PENDING");
   const { data: requests, loading, refetch } = useApi<Request[]>(
-    `/admin/v2/bundle-requests?status=${status}`,
+    `/api/admin/v2/bundle-requests?status=${status}`,
   );
 
   return (
@@ -127,7 +127,7 @@ function RequestCard({
     }
     setBusy(kind);
     try {
-      await api.post(`/admin/v2/bundle-requests/${req.id}/${kind}`, {
+      await api.post(`/api/admin/v2/bundle-requests/${req.id}/${kind}`, {
         note: note.trim() || undefined,
       });
       toast.success(

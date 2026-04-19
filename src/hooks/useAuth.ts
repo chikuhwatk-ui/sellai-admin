@@ -91,7 +91,7 @@ export function useAuth() {
       // Prefer V2 endpoint; fall back to legacy if V2 isn't deployed yet.
       let me: AdminMeResponse;
       try {
-        me = await api.get<AdminMeResponse>('/admin/v2/me');
+        me = await api.get<AdminMeResponse>('/api/admin/v2/me');
       } catch {
         me = await api.get<AdminMeResponse>('/api/admin/me');
       }
