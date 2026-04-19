@@ -30,7 +30,7 @@ function LoginForm() {
     setError('');
     setSendingOtp(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/admin-request-otp`, {
+      const res = await fetch(`${API_BASE}/api/auth/admin-request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim() }),
@@ -53,7 +53,7 @@ function LoginForm() {
     setLoading(true);
 
     const isV2 = loginMode === 'email';
-    const endpoint = isV2 ? `${API_BASE}/auth/admin-login-v2` : `${API_BASE}/api/auth/admin-login`;
+    const endpoint = isV2 ? `${API_BASE}/api/auth/admin-login-v2` : `${API_BASE}/api/auth/admin-login`;
     const payload: any = { otp };
 
     if (loginMode === 'phone') {
