@@ -47,13 +47,20 @@ interface PriceChange {
 
 export default function BundlesPage() {
   const { hasPermission } = useAuth();
-  // Anyone with FINANCE_MANAGE can propose; a different SUPER_ADMIN must approve
-  // before a proposed change takes effect. The approval UI lives on /finance/bundles/pending.
+  // Any FINANCE_MANAGE admin can propose a change. Two distinct SUPER_ADMINs
+  // (neither of whom is the requester) must approve before the bundle actually
+  // changes — that's enforced server-side and in /finance/bundles/pending.
   const canEdit = hasPermission("FINANCE_MANAGE");
   const { data: bundles, loading, refetch } = useApi<Bundle[]>("/api/admin/v2/bundles");
-  const { data: pending } = useApi<Array<{ id: string; bundleId: string }>>(
+  // Include BOTH PENDING and AWAITING_SECOND_APPROVAL — both block a new proposal
+  // on the same bundle and should show as "pending" to the admin.
+  const { data: pendingA } = useApi<Array<{ id: string; bundleId: string }>>(
     "/api/admin/v2/bundle-requests?status=PENDING",
   );
+  const { data: pendingB } = useApi<Array<{ id: string; bundleId: string }>>(
+    "/api/admin/v2/bundle-requests?status=AWAITING_SECOND_APPROVAL",
+  );
+  const pending = React.useMemo(() => [...(pendingA || []), ...(pendingB || [])], [pendingA, pendingB]);
   const [editing, setEditing] = React.useState<Bundle | null>(null);
   const [viewingHistory, setViewingHistory] = React.useState<Bundle | null>(null);
   const pendingByBundle = React.useMemo(() => {
@@ -69,7 +76,7 @@ export default function BundlesPage() {
     <PageContainer>
       <PageHeader
         title="Bundle pricing"
-        description="Bundle changes require approval from a second super-admin. Propose changes here; another super-admin reviews them under Pending Requests."
+        description="Bundle changes require approval from TWO different super-admins. Propose changes here; both super-admin reviewers sign off under Pending Requests."
         actions={
           <Link href="/finance/bundles/pending" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-default bg-panel text-sm-compact text-fg-muted hover:border-strong hover:text-fg transition-colors">
             <Clock className="h-3.5 w-3.5" />
@@ -89,7 +96,7 @@ export default function BundlesPage() {
           <div className="flex-1 text-xs">
             <span className="text-warning font-medium">{pending.length} pending change{pending.length !== 1 ? "s" : ""} awaiting approval.</span>{" "}
             <Link href="/finance/bundles/pending" className="text-warning underline hover:text-fg">Review them</Link>{" "}
-            <span className="text-fg-muted">— another super-admin must approve before they take effect.</span>
+            <span className="text-fg-muted">— two different super-admins must approve before they take effect.</span>
           </div>
         </div>
       )}

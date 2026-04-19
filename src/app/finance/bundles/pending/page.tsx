@@ -17,7 +17,14 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 
-type Status = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "EXECUTED";
+type Status = "PENDING" | "AWAITING_SECOND_APPROVAL" | "APPROVED" | "REJECTED" | "CANCELLED" | "EXECUTED";
+type FilterStatus = "IN_FLIGHT" | "EXECUTED" | "REJECTED" | "CANCELLED";
+
+interface Approval {
+  approverAdminId: string;
+  approvedAt: string;
+  note: string | null;
+}
 
 interface Request {
   id: string;
@@ -34,6 +41,7 @@ interface Request {
   decidedAt: string | null;
   decisionNote: string | null;
   executedAt: string | null;
+  approvals: Approval[];
   bundle: {
     id: string;
     type: string;
@@ -45,20 +53,51 @@ interface Request {
   };
 }
 
-const STATUS_TONE: Record<Status, "warning" | "success" | "danger" | "neutral"> = {
+const REQUIRED_APPROVALS = 2;
+
+const STATUS_TONE: Record<Status, "warning" | "success" | "danger" | "neutral" | "accent"> = {
   PENDING: "warning",
+  AWAITING_SECOND_APPROVAL: "accent",
   EXECUTED: "success",
   APPROVED: "success",
   REJECTED: "danger",
   CANCELLED: "neutral",
 };
 
+const STATUS_LABEL: Record<Status, string> = {
+  PENDING: "0 / 2 approvals",
+  AWAITING_SECOND_APPROVAL: "1 / 2 approvals",
+  EXECUTED: "Approved",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
+};
+
 export default function PendingRequestsPage() {
   const { user, adminRole } = useAuth();
-  const [status, setStatus] = React.useState<Status>("PENDING");
-  const { data: requests, loading, refetch } = useApi<Request[]>(
-    `/api/admin/v2/bundle-requests?status=${status}`,
+  const [filter, setFilter] = React.useState<FilterStatus>("IN_FLIGHT");
+
+  // IN_FLIGHT pulls both PENDING and AWAITING_SECOND_APPROVAL, because from an
+  // operator's POV both still need action.
+  const { data: pending, loading: loadingA, refetch: refetchA } = useApi<Request[]>(
+    filter === "IN_FLIGHT" ? "/api/admin/v2/bundle-requests?status=PENDING" : null,
   );
+  const { data: awaiting, loading: loadingB, refetch: refetchB } = useApi<Request[]>(
+    filter === "IN_FLIGHT" ? "/api/admin/v2/bundle-requests?status=AWAITING_SECOND_APPROVAL" : null,
+  );
+  const { data: other, loading: loadingC, refetch: refetchC } = useApi<Request[]>(
+    filter !== "IN_FLIGHT" ? `/api/admin/v2/bundle-requests?status=${filter}` : null,
+  );
+
+  const requests = React.useMemo(() => {
+    if (filter !== "IN_FLIGHT") return other || [];
+    return [...(pending || []), ...(awaiting || [])].sort((a, b) =>
+      new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
+    );
+  }, [filter, pending, awaiting, other]);
+
+  const loading = loadingA || loadingB || loadingC;
+  const refetch = () => { refetchA(); refetchB(); refetchC(); };
 
   return (
     <PageContainer>
@@ -70,12 +109,12 @@ export default function PendingRequestsPage() {
       </Link>
       <PageHeader
         title="Bundle change requests"
-        description="Every bundle edit requires approval from a second super-admin. The requester cannot approve their own change."
+        description="Every bundle change needs two different super-admins to approve. The requester cannot approve. Rejecting takes only one super-admin."
       />
 
-      <Tabs value={status} onValueChange={(v) => setStatus(v as Status)}>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterStatus)}>
         <TabsList variant="pill">
-          <TabsTrigger value="PENDING" variant="pill">Pending</TabsTrigger>
+          <TabsTrigger value="IN_FLIGHT" variant="pill">Awaiting approval</TabsTrigger>
           <TabsTrigger value="EXECUTED" variant="pill">Approved</TabsTrigger>
           <TabsTrigger value="REJECTED" variant="pill">Rejected</TabsTrigger>
           <TabsTrigger value="CANCELLED" variant="pill">Cancelled</TabsTrigger>
@@ -86,13 +125,13 @@ export default function PendingRequestsPage() {
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
         </div>
-      ) : (requests || []).length === 0 ? (
+      ) : requests.length === 0 ? (
         <Card variant="ghost" className="text-center !py-10">
-          <div className="text-sm text-fg-muted">No {status.toLowerCase()} requests.</div>
+          <div className="text-sm text-fg-muted">No requests here.</div>
         </Card>
       ) : (
         <div className="space-y-2">
-          {(requests || []).map((r) => (
+          {requests.map((r) => (
             <RequestCard
               key={r.id}
               req={r}
@@ -116,6 +155,11 @@ function RequestCard({
   onChanged: () => void;
 }) {
   const isMine = req.requestedByAdminId === myAdminId;
+  const alreadyApproved = !!myAdminId && req.approvals.some((a) => a.approverAdminId === myAdminId);
+  const approvalCount = req.approvals.length;
+  const remaining = Math.max(REQUIRED_APPROVALS - approvalCount, 0);
+  const isInFlight = req.status === "PENDING" || req.status === "AWAITING_SECOND_APPROVAL";
+
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState<"approve" | "reject" | "cancel" | null>(null);
   const [showNote, setShowNote] = React.useState<null | "reject">(null);
@@ -130,13 +174,16 @@ function RequestCard({
       await api.post(`/api/admin/v2/bundle-requests/${req.id}/${kind}`, {
         note: note.trim() || undefined,
       });
-      toast.success(
-        kind === "approve"
-          ? "Change approved and applied."
-          : kind === "reject"
-            ? "Request rejected."
-            : "Request cancelled.",
-      );
+      // The approve action is multi-step: first super-admin → "1 of 2
+      // approvals recorded"; second → "applied and final". Decide the
+      // toast text from the server-side state we're about to refetch.
+      if (kind === "approve") {
+        // remaining was computed pre-click; after this click it drops by 1
+        const willBeFinal = remaining - 1 <= 0;
+        toast.success(willBeFinal ? "Change approved and applied." : "Approval recorded. One more super-admin needed.");
+      } else {
+        toast.success(kind === "reject" ? "Request rejected." : "Request cancelled.");
+      }
       onChanged();
     } catch (err: any) {
       toast.error(err?.message || "Action failed");
@@ -156,7 +203,9 @@ function RequestCard({
               {req.bundle.displayName || req.bundle.type}
             </div>
             <span className="text-2xs font-mono text-fg-subtle">{req.bundle.type}</span>
-            <Badge tone={STATUS_TONE[req.status]} size="sm" dot>{req.status}</Badge>
+            <Badge tone={STATUS_TONE[req.status]} size="sm" dot>
+              {isInFlight ? STATUS_LABEL[req.status] : req.status}
+            </Badge>
             {isMine && <Badge tone="accent" size="sm">Your request</Badge>}
           </div>
           <div className="text-2xs text-fg-muted mt-0.5 tabular">
@@ -185,6 +234,30 @@ function RequestCard({
           &ldquo;{req.reason}&rdquo;
         </div>
 
+        {/* Approval trail — who's already signed off, who's still needed */}
+        {(req.approvals.length > 0 || isInFlight) && (
+          <div className="text-xs border-l-2 border-accent pl-3">
+            <div className="text-2xs uppercase tracking-wider text-fg-subtle mb-0.5">
+              Approvals ({approvalCount} / {REQUIRED_APPROVALS})
+            </div>
+            {req.approvals.length === 0 ? (
+              <div className="text-fg-muted italic">Waiting on first super-admin…</div>
+            ) : (
+              <div className="space-y-0.5">
+                {req.approvals.map((a) => (
+                  <div key={a.approverAdminId} className="text-fg-muted tabular">
+                    ✓ {a.approverAdminId.slice(0, 12)}… on {new Date(a.approvedAt).toLocaleString()}
+                    {a.note ? ` · ${a.note}` : ""}
+                  </div>
+                ))}
+                {remaining > 0 && isInFlight && (
+                  <div className="text-warning italic">Waiting on {remaining} more super-admin approval…</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {req.decisionNote && (
           <div className="text-xs text-fg-muted border-l-2 border-accent pl-3">
             <span className="text-2xs uppercase tracking-wider text-fg-subtle">Decision note</span>
@@ -192,7 +265,7 @@ function RequestCard({
           </div>
         )}
 
-        {req.status === "PENDING" && (
+        {isInFlight && (
           <>
             {showNote === "reject" && (
               <Field label="Rejection note" required>
@@ -218,7 +291,7 @@ function RequestCard({
                   Cancel my request
                 </Button>
               )}
-              {!isMine && isSuperAdmin && (
+              {!isMine && isSuperAdmin && !alreadyApproved && (
                 <>
                   {showNote === "reject" ? (
                     <>
@@ -255,11 +328,14 @@ function RequestCard({
                         onClick={() => act("approve")}
                         leadingIcon={<Check className="h-3.5 w-3.5" />}
                       >
-                        Approve &amp; apply
+                        {remaining <= 1 ? "Approve & apply" : "Approve (1 of 2)"}
                       </Button>
                     </>
                   )}
                 </>
+              )}
+              {!isMine && isSuperAdmin && alreadyApproved && (
+                <span className="text-2xs text-fg-subtle">You have already approved this change. Another super-admin must approve.</span>
               )}
               {!isMine && !isSuperAdmin && (
                 <span className="text-2xs text-fg-subtle">Only SUPER_ADMIN can approve or reject.</span>
@@ -268,7 +344,7 @@ function RequestCard({
           </>
         )}
 
-        {req.status !== "PENDING" && req.decidedByAdminId && (
+        {!isInFlight && req.decidedByAdminId && (
           <div className="text-2xs text-fg-muted tabular">
             {req.status === "EXECUTED" ? "Approved" : req.status === "REJECTED" ? "Rejected" : "Decided"} by {req.decidedByAdminId.slice(0, 12)}… on {req.decidedAt ? new Date(req.decidedAt).toLocaleString() : "—"}
           </div>
