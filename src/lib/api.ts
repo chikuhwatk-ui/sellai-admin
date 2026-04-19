@@ -108,9 +108,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// Fetches a binary file (PDF / XLSX) with auth, 401-refresh, and retry
-// matching `request()`. Triggers a browser save using the server-provided
-// Content-Disposition filename, or `fallbackFilename` if absent.
+// Fetches a binary file (PDF / XLSX) with auth + 401-refresh + retry,
+// then triggers a browser save using the server's Content-Disposition
+// filename (or `fallbackFilename` if absent).
 async function downloadFile(path: string, fallbackFilename: string): Promise<void> {
   const headers = await getAuthHeaders();
   let res = await fetchWithRetry(`${API_BASE}${path}`, { headers });
