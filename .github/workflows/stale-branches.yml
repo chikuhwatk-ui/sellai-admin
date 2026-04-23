@@ -1,0 +1,91 @@
+name: Stale branch alert
+
+# Runs every Friday 09:00 UTC. Opens (or updates) a GitHub Issue listing
+# branches that have commits not merged to main and haven't been pushed in
+# 14+ days. Purpose: surface forgotten work-in-progress to a non-technical
+# founder who may not remember what's sitting on unmerged branches.
+
+on:
+  schedule:
+    - cron: '0 9 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find stale branches
+        id: stale
+        shell: bash
+        run: |
+          set -e
+          DEFAULT="${{ github.event.repository.default_branch }}"
+          git fetch --all --prune
+          CUTOFF=$(date -u -d '14 days ago' +%s)
+          echo "Default branch: $DEFAULT"
+          echo "Cutoff (UTC): $(date -u -d @$CUTOFF)"
+          {
+            echo "## Stale branches ($DEFAULT is default)"
+            echo ""
+            echo "Branches with unmerged commits and no pushes in 14+ days."
+            echo "If you don't recognize one, it's probably safe to delete; if"
+            echo "you do recognize it, either merge it, turn it into a PR, or"
+            echo "delete it on purpose."
+            echo ""
+            FOUND=0
+            for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin | grep -v "origin/HEAD" | grep -v "origin/$DEFAULT"); do
+              ts=$(git log -1 --format=%ct "$ref")
+              if [ "$ts" -lt "$CUTOFF" ]; then
+                ahead=$(git rev-list --count "origin/$DEFAULT..$ref" 2>/dev/null || echo 0)
+                if [ "$ahead" -gt 0 ]; then
+                  age_days=$(( ( $(date +%s) - ts ) / 86400 ))
+                  last=$(git log -1 --format='%h %s' "$ref")
+                  echo "- \`${ref#origin/}\` — $age_days days old, $ahead unmerged commit(s): $last"
+                  FOUND=1
+                fi
+              fi
+            done
+            if [ "$FOUND" = "0" ]; then
+              echo "_No stale unmerged branches. Nice._"
+            fi
+          } > stale-report.md
+          cat stale-report.md
+
+      - name: Open or update tracking issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('stale-report.md', 'utf8');
+            const title = 'Weekly stale-branch report';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'stale-branches',
+              per_page: 5,
+            });
+            if (issues.length) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['stale-branches'],
+              });
+            }

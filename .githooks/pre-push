@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Sellai admin: block pushes that fail TypeScript.
+# Enable once per clone:  git config core.hooksPath .githooks
+
+set -e
+
+echo "[pre-push] Running typecheck..."
+if ! npm run typecheck --silent; then
+  echo ""
+  echo "[pre-push] TypeScript errors above. Push BLOCKED."
+  echo "[pre-push] Fix the errors, then push again."
+  echo "[pre-push] To bypass in a genuine emergency: git push --no-verify"
+  exit 1
+fi
+
+echo "[pre-push] typecheck clean. Pushing."
