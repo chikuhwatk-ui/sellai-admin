@@ -143,6 +143,22 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleRecomputeTrustScore = async () => {
+    const sellerId = user?.sellerProfile?.id;
+    if (!sellerId) return;
+    setActionLoading(true);
+    setActionMsg(null);
+    try {
+      await api.patch(`/api/metrics/sellers/${sellerId}/trust-score`);
+      setActionMsg({ type: 'success', text: 'Trust score recomputed.' });
+      refetch();
+    } catch (err) {
+      setActionMsg({ type: 'error', text: err instanceof Error ? err.message : 'Failed to recompute trust score.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Build activity timeline from real data
   const timeline: { action: string; time: string; type: string }[] = [];
   if (recentOrders.length > 0) {
@@ -263,7 +279,17 @@ export default function UserDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Trust Score</div>
+                  <div className="text-xs text-text-muted mb-1 flex items-center justify-between">
+                    <span>Trust Score</span>
+                    <button
+                      onClick={handleRecomputeTrustScore}
+                      disabled={actionLoading}
+                      className="text-[10px] font-semibold uppercase tracking-wider text-primary hover:underline disabled:opacity-50"
+                      title="Recalculate from latest SellerMetrics"
+                    >
+                      Recompute
+                    </button>
+                  </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-border rounded-full overflow-hidden">
                       <div className="h-full bg-primary rounded-full" style={{ width: `${sellerMetrics?.trustScore ?? 0}%` }} />
