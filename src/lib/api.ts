@@ -17,15 +17,24 @@ async function tryRefreshToken(): Promise<boolean> {
     typeof window !== 'undefined' ? localStorage.getItem('adminRefreshToken') : null;
   if (!refreshToken) return false;
   try {
-    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+    // Admin v2 sessions issue refresh tokens with type='admin-refresh'; the
+    // /auth/refresh endpoint only accepts type='refresh' so it rejects them.
+    // /auth/admin-refresh is the matching endpoint.
+    const res = await fetch(`${API_BASE}/api/auth/admin-refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
     if (!res.ok) return false;
     const data = await res.json();
+    if (!data.access_token) return false;
     localStorage.setItem('adminToken', data.access_token);
-    localStorage.setItem('adminRefreshToken', data.refresh_token);
+    // /auth/admin-refresh only issues a new access_token; the refresh token
+    // stays valid until the admin re-logs in. Only overwrite if the server
+    // actually rotates it.
+    if (data.refresh_token) {
+      localStorage.setItem('adminRefreshToken', data.refresh_token);
+    }
     document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
     return true;
   } catch {
