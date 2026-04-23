@@ -21,7 +21,23 @@ import { VarianceView } from "./_components/VarianceView";
 import { AssumptionsEditor } from "./_components/AssumptionsEditor";
 import type { ForecastInputs, ForecastOutputs, ForecastScenario, VarianceRow } from "./_components/types";
 
-type Tab = "summary" | "schedule" | "assumptions" | "scenarios" | "variance";
+type Tab = "summary" | "schedule" | "assumptions" | "scenarios" | "variance" | "snapshots";
+
+type ForecastSnapshot = {
+  id: string;
+  year: number;
+  month: number;
+  yearMonth: string;
+  newSellerSignups?: number;
+  newBuyerSignups?: number;
+  newRunnerSignups?: number;
+  totalRevenue?: number;
+  totalExpenses?: number;
+  netIncome?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  [k: string]: any;
+};
 
 export default function ForecastPage() {
   const { hasPermission } = useAuth();
@@ -44,6 +60,9 @@ export default function ForecastPage() {
   const { data: varianceRows } = useApi<VarianceRow[]>(
     selectedId ? `/api/admin/forecast/scenarios/${selectedId}/variance` : null,
   );
+  const { data: snapshots, loading: loadingSnapshots, refetch: refetchSnapshots } =
+    useApi<ForecastSnapshot[]>(tab === "snapshots" ? "/api/admin/forecast/snapshots" : null);
+  const [recomputingMonth, setRecomputingMonth] = React.useState<string | null>(null);
 
   // ── Effects ──
 
@@ -181,8 +200,23 @@ export default function ForecastPage() {
       toast.info("Backfilling historical snapshots…");
       const result = await api.post<{ months: number }>("/api/admin/forecast/snapshots/backfill");
       toast.success(`Built ${result.months} monthly snapshots.`);
+      refetchSnapshots();
     } catch (err: any) {
       toast.error(err?.message || "Backfill failed");
+    }
+  }
+
+  async function recomputeSnapshotMonth(year: number, month: number) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    setRecomputingMonth(key);
+    try {
+      await api.post("/api/admin/forecast/snapshots/recompute", { year, month });
+      toast.success(`Recomputed ${key}.`);
+      refetchSnapshots();
+    } catch (err: any) {
+      toast.error(err?.message || "Recompute failed");
+    } finally {
+      setRecomputingMonth(null);
     }
   }
 
@@ -247,6 +281,7 @@ export default function ForecastPage() {
           <TabsTrigger value="assumptions" variant="pill">Assumptions</TabsTrigger>
           <TabsTrigger value="variance" variant="pill">Plan vs Actuals</TabsTrigger>
           <TabsTrigger value="scenarios" variant="pill">Scenarios</TabsTrigger>
+          <TabsTrigger value="snapshots" variant="pill">Snapshots</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -397,6 +432,86 @@ export default function ForecastPage() {
               </div>
             </Card>
           )}
+        </div>
+      )}
+
+      {/* ── SNAPSHOTS ── */}
+      {tab === "snapshots" && (
+        <div className="space-y-3">
+          <Card variant="ghost" className="!p-3">
+            <div className="text-2xs text-fg-subtle">
+              Monthly snapshots are the "what actually happened" ground truth the forecast engine
+              calibrates against. Backfill or recompute when accounting entries change for a month.
+            </div>
+          </Card>
+
+          <Card padding={false}>
+            <CardHeader>
+              <CardTitle>History ({snapshots?.length ?? 0} months)</CardTitle>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm-compact">
+                <thead>
+                  <tr className="border-b border-muted bg-panel">
+                    <th className="text-left h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Month</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Seller signups</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Buyer signups</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Runner signups</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Revenue</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Net income</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium">Updated</th>
+                    <th className="text-right h-8 px-3 text-2xs uppercase tracking-wider text-fg-subtle font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--color-border-muted)]">
+                  {loadingSnapshots ? (
+                    <tr><td colSpan={8} className="text-center py-6 text-xs text-fg-subtle">Loading…</td></tr>
+                  ) : (snapshots || []).length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-6 text-xs text-fg-subtle">
+                        No snapshots yet. Use "Refresh history" above to build them from your POSTED accounting entries.
+                      </td>
+                    </tr>
+                  ) : (
+                    (snapshots || []).map((s) => {
+                      const key = `${s.year}-${String(s.month).padStart(2, "0")}`;
+                      const busy = recomputingMonth === key;
+                      return (
+                        <tr key={s.id} className="hover:bg-raised">
+                          <td className="px-3 py-2 tabular font-medium text-fg">{s.yearMonth}</td>
+                          <td className="px-3 py-2 tabular text-fg-muted text-right">{s.newSellerSignups ?? 0}</td>
+                          <td className="px-3 py-2 tabular text-fg-muted text-right">{s.newBuyerSignups ?? 0}</td>
+                          <td className="px-3 py-2 tabular text-fg-muted text-right">{s.newRunnerSignups ?? 0}</td>
+                          <td className="px-3 py-2 tabular text-fg-muted text-right">
+                            {s.totalRevenue != null ? `$${Number(s.totalRevenue).toLocaleString()}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 tabular text-fg-muted text-right">
+                            {s.netIncome != null ? `$${Number(s.netIncome).toLocaleString()}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 tabular text-fg-subtle text-xs text-right">
+                            {s.updatedAt ? new Date(s.updatedAt).toLocaleDateString() : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {canEdit && (
+                              <Button
+                                size="xs"
+                                variant="ghost"
+                                onClick={() => recomputeSnapshotMonth(s.year, s.month)}
+                                loading={busy}
+                                leadingIcon={<RefreshCw className="h-3 w-3" />}
+                              >
+                                Recompute
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       )}
     </PageContainer>
