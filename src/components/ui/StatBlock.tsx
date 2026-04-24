@@ -3,9 +3,17 @@ import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /*
- * Dense stat block for dashboard rows. Replaces KPICard with smaller
- * footprint — 6 per row on desktop instead of 4. Optional sparkline
- * via children.
+ * StatBlock — dense stat tile. Prefer this over KPICard for any
+ * admin-grade dashboard row. It's ~half the height of KPICard so it
+ * fits 6 per row on desktop instead of 4, which matches the density
+ * admins actually want.
+ *
+ * Use KPICard only for marketing-style hero views (rare in an admin
+ * tool — probably only the top strip of a fresh signup page). If you
+ * find yourself reaching for KPICard inside a table-adjacent page,
+ * switch to StatBlock.
+ *
+ * Optional delta badge + optional sparkline via children.
  */
 export interface StatBlockProps {
   label: string;

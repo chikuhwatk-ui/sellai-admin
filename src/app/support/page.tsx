@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Trash2, ChevronDown, MessageCircle, Inbox, Star } from "lucide-react";
+import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { StatBlock } from "@/components/ui/StatBlock";
 import { Table } from "@/components/ui/Table";
@@ -94,9 +96,20 @@ export default function SupportPage() {
   };
 
   const deleteCanned = async (id: string) => {
-    if (!confirm("Delete this canned response?")) return;
-    await api.delete(`/api/admin/support/canned-responses/${id}`);
-    refetchCanned();
+    const ok = await confirmDialog({
+      title: "Delete this canned response?",
+      body: "Support agents won't be able to reuse it after this.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/api/admin/support/canned-responses/${id}`);
+      toast.success("Canned response deleted.");
+      refetchCanned();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete the canned response.");
+    }
   };
 
   const totalTickets = stats?.byStatusCount?.reduce((s, c) => s + c._count, 0) ?? 0;

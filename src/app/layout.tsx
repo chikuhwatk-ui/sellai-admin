@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ToasterProvider } from "@/components/providers/ToasterProvider";
+import { ConfirmDialogHost } from "@/components/ui/ConfirmDialog";
 
 export const metadata: Metadata = {
   title: "Sellai Admin",
@@ -29,6 +30,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <ToasterProvider />
+          <ConfirmDialogHost />
         </ThemeProvider>
       </body>
     </html>

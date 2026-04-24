@@ -5,6 +5,21 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
+/*
+ * Dialog — centered, scale-in modal. Use for:
+ *   - Confirmations (destructive or otherwise — prefer ConfirmDialog for a
+ *     pre-built imperative API over this)
+ *   - Short focused forms that don't deserve a full-screen sheet
+ *   - One-off prompts that require a decision before the user can continue
+ *
+ * For row-detail views or long-form editing (verification review, budget
+ * create, dispute thread), use <Sheet> instead — it slides in from the
+ * right and keeps the list in place.
+ *
+ * See ConfirmDialog.tsx for the imperative `await confirmDialog(...)`
+ * helper built on top of this primitive.
+ */
+
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogPortal = DialogPrimitive.Portal;

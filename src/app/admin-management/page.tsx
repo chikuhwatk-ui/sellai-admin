@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { api } from '@/lib/api';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   SUPER_ADMIN: { label: 'Super Admin', color: '#EF4444' },
@@ -60,29 +62,36 @@ export default function AdminManagementPage() {
   const handleChangeRole = async (adminId: string, newRole: string) => {
     try {
       await api.patch(`/api/admin/v2/management/${adminId}/role`, { adminRole: newRole });
+      toast.success('Role updated.');
       refetch();
     } catch (err: any) {
-      alert(`Failed: ${err.message}`);
+      toast.error(err?.message || 'Failed to change role.');
     }
   };
 
   const handleToggleActive = async (adminId: string, currentlyActive: boolean) => {
     try {
       await api.post(`/api/admin/v2/management/${adminId}/${currentlyActive ? 'deactivate' : 'reactivate'}`);
+      toast.success(currentlyActive ? 'Admin deactivated.' : 'Admin reactivated.');
       refetch();
     } catch (err: any) {
-      alert(`Failed: ${err.message}`);
+      toast.error(err?.message || 'Failed.');
     }
   };
 
   const handleForceLogout = async (adminId: string) => {
-    if (!confirm('Force logout this admin? Their current session will be invalidated.')) return;
+    const ok = await confirmDialog({
+      title: 'Force logout this admin?',
+      body: 'Their current session will be invalidated. They will need to log in again on every device.',
+      confirmLabel: 'Force logout',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.post(`/api/admin/v2/management/${adminId}/force-logout`);
-      setMessage({ text: 'Session invalidated successfully', type: 'success' });
-      setTimeout(() => setMessage(null), 3000);
+      toast.success('Session invalidated.');
     } catch (err: any) {
-      alert(`Failed: ${err.message}`);
+      toast.error(err?.message || 'Failed to invalidate session.');
     }
   };
 

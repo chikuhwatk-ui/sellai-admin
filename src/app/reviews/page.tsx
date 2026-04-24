@@ -6,6 +6,7 @@ import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { PageContainer, PageHeader } from '@/components/ui/PageHeader';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
@@ -122,7 +123,17 @@ export default function ReviewModerationPage() {
   };
 
   const handleRemove = async (review: FlaggedReview) => {
-    if (!confirm(`Remove this ${review.rating}-star review from ${review.seller?.businessName || 'seller'}? This will recalculate their rating.`)) return;
+    const ok = await confirmDialog({
+      title: `Remove this ${review.rating}-star review?`,
+      body: (
+        <>
+          From <strong>{review.seller?.businessName || 'this seller'}</strong>. Their rating will recalculate.
+        </>
+      ),
+      confirmLabel: 'Remove review',
+      destructive: true,
+    });
+    if (!ok) return;
     setActionLoading(review.id);
     try {
       await api.delete(`/api/admin/reviews/${review.id}`);

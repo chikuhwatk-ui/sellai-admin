@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 export default function JournalEntryDetailPage() {
   const { id } = useParams();
@@ -15,14 +16,14 @@ export default function JournalEntryDetailPage() {
   const [reason, setReason] = useState('');
 
   const handleReverse = async () => {
-    if (!reason.trim()) { alert('Reason is required'); return; }
+    if (!reason.trim()) { toast.error('Reason is required.'); return; }
     setReversing(true);
     try {
       await api.post(`/api/admin/accounting/journal-entries/${id}/reverse`, { reason });
-      alert('Entry reversed successfully');
+      toast.success('Entry reversed.');
       router.push('/finance/journal');
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err?.message || 'Failed to reverse entry.');
     } finally {
       setReversing(false);
     }

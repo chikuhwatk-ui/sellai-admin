@@ -78,9 +78,9 @@ export function DataTable<T extends Record<string, unknown>>({
                 <th
                   key={col.key}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                  className={`px-4 py-3 text-left font-medium text-text-muted whitespace-nowrap ${
+                  className={`px-4 py-3 text-left font-medium text-fg-muted whitespace-nowrap ${
                     col.sortable
-                      ? "cursor-pointer hover:text-text select-none"
+                      ? "cursor-pointer hover:text-fg select-none"
                       : ""
                   } ${col.className || ""}`}
                 >
@@ -150,7 +150,7 @@ export function DataTable<T extends Record<string, unknown>>({
                         d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
                       />
                     </svg>
-                    <p className="text-text-muted text-sm">{emptyMessage}</p>
+                    <p className="text-fg-muted text-sm">{emptyMessage}</p>
                   </div>
                 </td>
               </tr>
@@ -183,7 +183,7 @@ export function DataTable<T extends Record<string, unknown>>({
       </div>
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-          <span className="text-xs text-text-muted">
+          <span className="text-xs text-fg-muted">
             Showing {page * pageSize + 1}-
             {Math.min((page + 1) * pageSize, sorted.length)} of{" "}
             {sorted.length}
@@ -192,7 +192,7 @@ export function DataTable<T extends Record<string, unknown>>({
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-fg-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Prev
             </button>
@@ -214,7 +214,7 @@ export function DataTable<T extends Record<string, unknown>>({
                   className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
                     page === pageNum
                       ? "bg-primary text-white"
-                      : "bg-border/50 text-text-muted hover:bg-border"
+                      : "bg-border/50 text-fg-muted hover:bg-border"
                   }`}
                 >
                   {pageNum + 1}
@@ -224,7 +224,7 @@ export function DataTable<T extends Record<string, unknown>>({
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-text-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-border/50 text-fg-muted hover:bg-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>

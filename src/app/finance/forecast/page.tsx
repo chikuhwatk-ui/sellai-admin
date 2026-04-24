@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter } from "@/components/ui/Sheet";
 import { toast } from "sonner";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { SummaryView } from "./_components/SummaryView";
 import { ScheduleView } from "./_components/ScheduleView";
 import { VarianceView } from "./_components/VarianceView";
@@ -161,7 +162,13 @@ export default function ForecastPage() {
   }
 
   async function deleteScenario(id: string) {
-    if (!confirm("Delete this scenario? This cannot be undone.")) return;
+    const ok = await confirmDialog({
+      title: "Delete this scenario?",
+      body: "The scenario and all its projections will be removed permanently.",
+      confirmLabel: "Delete scenario",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/admin/forecast/scenarios/${id}`);
       toast.success("Scenario deleted.");

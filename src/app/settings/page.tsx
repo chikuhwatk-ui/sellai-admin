@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 const ACTION_COLORS: Record<string, string> = {
   ADMIN_LOGIN_SUCCESS: 'text-[#10B981] bg-[#10B981]/10',
@@ -39,15 +41,23 @@ export default function SettingsPage() {
 
   const handleForceLogoutAllSessions = async () => {
     if (!user?.id) return;
-    if (!confirm("This will sign you out of every device. Continue?")) return;
+    const ok = await confirmDialog({
+      title: "Sign out of every device?",
+      body: "You'll need to log in again on every browser and device you use.",
+      confirmLabel: "Sign out everywhere",
+      destructive: true,
+    });
+    if (!ok) return;
     setForcingLogout(true);
     setForceLogoutMsg(null);
     try {
       await api.post(`/api/admin/management/${user.id}/force-logout`);
-      setForceLogoutMsg("All sessions invalidated. Signing you out…");
+      toast.success("All sessions invalidated. Signing you out…");
       setTimeout(() => logout(), 1000);
     } catch (e) {
-      setForceLogoutMsg(e instanceof Error ? e.message : "Failed to invalidate sessions.");
+      const msg = e instanceof Error ? e.message : "Failed to invalidate sessions.";
+      setForceLogoutMsg(msg);
+      toast.error(msg);
     } finally {
       setForcingLogout(false);
     }

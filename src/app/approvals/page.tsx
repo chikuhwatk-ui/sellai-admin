@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { api } from '@/lib/api';
 
@@ -31,11 +32,12 @@ export default function ApprovalsPage() {
     setActionInProgress(id);
     try {
       await api.post(`/api/admin/approvals/${id}/approve`, { note: reviewNote || undefined });
+      toast.success('Approved.');
       setSelectedId(null);
       setReviewNote('');
       refetch();
     } catch (err: any) {
-      alert(`Failed to approve: ${err.message}`);
+      toast.error(`Failed to approve: ${err?.message || 'Unknown error'}`);
     } finally {
       setActionInProgress(null);
     }
@@ -43,17 +45,18 @@ export default function ApprovalsPage() {
 
   const handleReject = async (id: string) => {
     if (!reviewNote.trim()) {
-      alert('A reason is required to reject');
+      toast.error('A reason is required to reject.');
       return;
     }
     setActionInProgress(id);
     try {
       await api.post(`/api/admin/approvals/${id}/reject`, { note: reviewNote });
+      toast.success('Rejected.');
       setSelectedId(null);
       setReviewNote('');
       refetch();
     } catch (err: any) {
-      alert(`Failed to reject: ${err.message}`);
+      toast.error(`Failed to reject: ${err?.message || 'Unknown error'}`);
     } finally {
       setActionInProgress(null);
     }

@@ -35,16 +35,16 @@ export function KPICard({
   return (
     <div className="bg-surface border border-border rounded-xl p-5 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 group">
       <div className="flex items-start justify-between mb-3">
-        <span className="text-text-muted text-sm font-medium">{title}</span>
+        <span className="text-fg-muted text-sm font-medium">{title}</span>
         {icon && (
-          <span className="text-text-muted group-hover:text-primary transition-colors">
+          <span className="text-fg-muted group-hover:text-primary transition-colors">
             {icon}
           </span>
         )}
       </div>
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-2xl font-bold text-text">{formattedValue}</div>
+          <div className="text-2xl font-bold text-fg">{formattedValue}</div>
           <div className="flex items-center gap-2 mt-1">
             {change !== undefined && (
               <span
@@ -70,7 +70,7 @@ export function KPICard({
               </span>
             )}
             {subtitle && (
-              <span className="text-xs text-text-muted">{subtitle}</span>
+              <span className="text-xs text-fg-muted">{subtitle}</span>
             )}
           </div>
         </div>

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
+import { confirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function CommunicationsPage() {
   const { hasPermission } = useAuth();
@@ -104,7 +105,13 @@ export default function CommunicationsPage() {
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (!confirm('Delete this template?')) return;
+    const ok = await confirmDialog({
+      title: 'Delete this template?',
+      body: 'Agents and admins who had it bookmarked will lose it.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/admin/communications/templates/${id}`);
       toast.success('Template deleted.');

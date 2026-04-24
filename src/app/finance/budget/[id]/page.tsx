@@ -16,6 +16,7 @@ import { Field } from "@/components/ui/Label";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter } from "@/components/ui/Sheet";
 import { toast } from "sonner";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/cn";
 import type {
   BudgetSummary, BudgetLineItem, BudgetCategory, BudgetScalesWith,
@@ -76,7 +77,13 @@ export default function BudgetDetailPage() {
   }
 
   async function deletePeriod() {
-    if (!confirm("Delete this budget period? Line items go with it.")) return;
+    const ok = await confirmDialog({
+      title: "Delete this budget period?",
+      body: "Every line item in this period goes with it. This cannot be undone.",
+      confirmLabel: "Delete period",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/admin/budget/periods/${params.id}`);
       toast.success("Period deleted.");
@@ -87,7 +94,12 @@ export default function BudgetDetailPage() {
   }
 
   async function deleteLine(lineId: string) {
-    if (!confirm("Remove this line from the budget?")) return;
+    const ok = await confirmDialog({
+      title: "Remove this line from the budget?",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/api/admin/budget/lines/${lineId}`);
       toast.success("Line removed.");

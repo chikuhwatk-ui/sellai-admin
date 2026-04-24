@@ -10,6 +10,7 @@ import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { Table } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface Period {
   id: string; name: string;
@@ -30,8 +31,14 @@ export default function PeriodsPage() {
 
   const list = Array.isArray(periods) ? periods : [];
 
-  const close = (id: string, name: string) => {
-    if (!confirm(`Lock period ${name}? No further entries can be posted.`)) return;
+  const close = async (id: string, name: string) => {
+    const ok = await confirmDialog({
+      title: `Lock period ${name}?`,
+      body: "No further journal entries can be posted to this period after it's locked. This is intended to be permanent.",
+      confirmLabel: "Lock period",
+      destructive: true,
+    });
+    if (!ok) return;
     run({
       action: () => api.post(`/api/admin/accounting/periods/${id}/close`),
       label: `Period ${name} locked`,

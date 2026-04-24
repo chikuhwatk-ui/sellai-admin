@@ -40,7 +40,7 @@ export default function UserDetailPage() {
       <div className="min-h-screen p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-text-muted">Loading user...</p>
+          <p className="text-sm text-fg-muted">Loading user...</p>
         </div>
       </div>
     );
@@ -50,8 +50,8 @@ export default function UserDetailPage() {
     return (
       <div className="min-h-screen p-6 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold text-text mb-2">User Not Found</h2>
-          <p className="text-text-muted mb-4">No user found with ID: {userId}</p>
+          <h2 className="text-xl font-bold text-fgmb-2">User Not Found</h2>
+          <p className="text-fg-muted mb-4">No user found with ID: {userId}</p>
           <button onClick={() => router.push('/users')} className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-hover transition-colors">
             Back to Users
           </button>
@@ -197,7 +197,7 @@ export default function UserDetailPage() {
       {/* Back Button */}
       <button
         onClick={() => router.push('/users')}
-        className="flex items-center gap-2 text-sm text-text-muted hover:text-text transition-colors"
+        className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg transition-colors"
       >
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -216,11 +216,11 @@ export default function UserDetailPage() {
           </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h1 className="text-xl font-bold text-text">{userName}</h1>
+              <h1 className="text-xl font-bold text-fg">{userName}</h1>
               <RoleBadge role={user.role} />
               <StatusPill status={user.verificationStatus} />
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-text-muted">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-fg-muted">
               <span className="flex items-center gap-1.5">
                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72" />
@@ -247,16 +247,16 @@ export default function UserDetailPage() {
       {/* Activity Stats */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="text-center">
-          <div className="text-2xl font-bold text-text">{orderCount}</div>
-          <div className="text-xs text-text-muted mt-1">Orders</div>
+          <div className="text-2xl font-bold text-fg">{orderCount}</div>
+          <div className="text-xs text-fg-muted mt-1">Orders</div>
         </Card>
         <Card className="text-center">
-          <div className="text-2xl font-bold text-text">{recentIntents.length}</div>
-          <div className="text-xs text-text-muted mt-1">Demands Posted</div>
+          <div className="text-2xl font-bold text-fg">{recentIntents.length}</div>
+          <div className="text-xs text-fg-muted mt-1">Demands Posted</div>
         </Card>
         <Card className="text-center">
-          <div className="text-2xl font-bold text-text">{verification ? 1 : 0}</div>
-          <div className="text-xs text-text-muted mt-1">Verifications</div>
+          <div className="text-2xl font-bold text-fg">{verification ? 1 : 0}</div>
+          <div className="text-xs text-fg-muted mt-1">Verifications</div>
         </Card>
       </div>
 
@@ -265,21 +265,21 @@ export default function UserDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {isSeller && sellerProfile && (
             <Card>
-              <h3 className="text-sm font-semibold text-text mb-4">Seller Information</h3>
+              <h3 className="text-sm font-semibold text-fgmb-4">Seller Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Business Name</div>
-                  <div className="text-sm font-medium text-text">{sellerProfile.businessName || '--'}</div>
+                  <div className="text-xs text-fg-muted mb-1">Business Name</div>
+                  <div className="text-sm font-medium text-fg">{sellerProfile.businessName || '--'}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Rating</div>
+                  <div className="text-xs text-fg-muted mb-1">Rating</div>
                   <div className="flex items-center gap-1">
                     <span className="text-sm font-medium text-warning">{sellerMetrics?.rating?.toFixed(1) ?? '--'}</span>
                     <svg width="14" height="14" fill="#F59E0B" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1 flex items-center justify-between">
+                  <div className="text-xs text-fg-muted mb-1 flex items-center justify-between">
                     <span>Trust Score</span>
                     <button
                       onClick={handleRecomputeTrustScore}
@@ -298,12 +298,12 @@ export default function UserDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Credits</div>
-                  <div className="text-sm font-medium text-text">{sellerProfile.credits ?? 0} credits</div>
+                  <div className="text-xs text-fg-muted mb-1">Credits</div>
+                  <div className="text-sm font-medium text-fg">{sellerProfile.credits ?? 0} credits</div>
                 </div>
                 {sellerProfile.categories && sellerProfile.categories.length > 0 && (
                   <div className="col-span-2">
-                    <div className="text-xs text-text-muted mb-2">Categories</div>
+                    <div className="text-xs text-fg-muted mb-2">Categories</div>
                     <div className="flex flex-wrap gap-2">
                       {sellerProfile.categories.map((cat: string) => (
                         <Badge key={cat} variant="primary">{cat}</Badge>
@@ -317,25 +317,25 @@ export default function UserDetailPage() {
 
           {isRunner && deliveryPartner && (
             <Card>
-              <h3 className="text-sm font-semibold text-text mb-4">Runner Information</h3>
+              <h3 className="text-sm font-semibold text-fgmb-4">Runner Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Vehicle Type</div>
-                  <div className="text-sm font-medium text-text">{deliveryPartner.vehicleType || '--'}</div>
+                  <div className="text-xs text-fg-muted mb-1">Vehicle Type</div>
+                  <div className="text-sm font-medium text-fg">{deliveryPartner.vehicleType || '--'}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Delivery Count</div>
-                  <div className="text-sm font-medium text-text">{deliveryPartner.deliveryCount ?? 0}</div>
+                  <div className="text-xs text-fg-muted mb-1">Delivery Count</div>
+                  <div className="text-sm font-medium text-fg">{deliveryPartner.deliveryCount ?? 0}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Total Earnings</div>
+                  <div className="text-xs text-fg-muted mb-1">Total Earnings</div>
                   <div className="text-sm font-medium text-primary">${deliveryPartner.earnings?.toFixed(2) ?? '0.00'}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Status</div>
+                  <div className="text-xs text-fg-muted mb-1">Status</div>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${deliveryPartner.isOnline ? 'bg-primary' : 'bg-text-muted'}`} />
-                    <span className="text-sm font-medium text-text">{deliveryPartner.isOnline ? 'Online' : 'Offline'}</span>
+                    <span className="text-sm font-medium text-fg">{deliveryPartner.isOnline ? 'Online' : 'Offline'}</span>
                   </div>
                 </div>
               </div>
@@ -344,15 +344,15 @@ export default function UserDetailPage() {
 
           {!isSeller && !isRunner && (
             <Card>
-              <h3 className="text-sm font-semibold text-text mb-4">Buyer Information</h3>
+              <h3 className="text-sm font-semibold text-fgmb-4">Buyer Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Total Orders</div>
-                  <div className="text-sm font-medium text-text">{orderCount}</div>
+                  <div className="text-xs text-fg-muted mb-1">Total Orders</div>
+                  <div className="text-sm font-medium text-fg">{orderCount}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-text-muted mb-1">Last Active</div>
-                  <div className="text-sm font-medium text-text">
+                  <div className="text-xs text-fg-muted mb-1">Last Active</div>
+                  <div className="text-sm font-medium text-fg">
                     {user.lastActive
                       ? new Date(user.lastActive).toLocaleDateString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                       : '--'}
@@ -364,7 +364,7 @@ export default function UserDetailPage() {
 
           {/* Admin Actions */}
           <Card>
-            <h3 className="text-sm font-semibold text-text mb-4">Admin Actions</h3>
+            <h3 className="text-sm font-semibold text-fgmb-4">Admin Actions</h3>
 
             {actionMsg && (
               <div className={`mb-4 p-3 rounded-lg text-sm ${actionMsg.type === 'success' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-danger/10 text-danger border border-danger/20'}`}>
@@ -382,7 +382,7 @@ export default function UserDetailPage() {
                       <p className="text-xs text-danger/70 mt-0.5">Until {new Date(user.suspendedUntil).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     )}
                     {!user.suspendedUntil && <p className="text-xs text-danger/70 mt-0.5">Permanent suspension</p>}
-                    {user.suspendedReason && <p className="text-xs text-text-muted mt-1">Reason: {user.suspendedReason}</p>}
+                    {user.suspendedReason && <p className="text-xs text-fg-muted mt-1">Reason: {user.suspendedReason}</p>}
                   </div>
                   <button
                     onClick={handleUnsuspend}
@@ -428,18 +428,18 @@ export default function UserDetailPage() {
               <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowSuspendModal(false)} />
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-lg font-semibold text-text mb-4">Suspend User</h3>
-                  <p className="text-sm text-text-muted mb-4">
-                    Suspending <strong className="text-text">{userName}</strong> will set their role to PENDING and block access.
+                  <h3 className="text-lg font-semibold text-fgmb-4">Suspend User</h3>
+                  <p className="text-sm text-fg-muted mb-4">
+                    Suspending <strong className="text-fg">{userName}</strong> will set their role to PENDING and block access.
                   </p>
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-text mb-2">Duration</label>
+                      <label className="block text-sm font-medium text-fgmb-2">Duration</label>
                       <select
                         value={suspendDuration}
                         onChange={(e) => setSuspendDuration(e.target.value)}
-                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-fgfocus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                       >
                         <option value="1">1 day</option>
                         <option value="3">3 days</option>
@@ -451,13 +451,13 @@ export default function UserDetailPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-text mb-2">Reason</label>
+                      <label className="block text-sm font-medium text-fgmb-2">Reason</label>
                       <textarea
                         value={suspendReason}
                         onChange={(e) => setSuspendReason(e.target.value)}
                         placeholder="Reason for suspension..."
                         rows={3}
-                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none"
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-fgplaceholder:text-fg-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none"
                       />
                     </div>
                   </div>
@@ -465,7 +465,7 @@ export default function UserDetailPage() {
                   <div className="flex justify-end gap-3 mt-6">
                     <button
                       onClick={() => setShowSuspendModal(false)}
-                      className="px-4 py-2 text-sm font-medium rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-lg text-fg-muted hover:text-fg hover:bg-surface-hover transition-colors"
                     >
                       Cancel
                     </button>
@@ -488,33 +488,33 @@ export default function UserDetailPage() {
               <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowCreditsModal(false)} />
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div className="bg-surface border border-border rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-lg font-semibold text-text mb-4">Adjust Credits</h3>
-                  <p className="text-sm text-text-muted mb-1">
-                    Current balance: <strong className="text-text">{sellerProfile?.offerCredits ?? sellerProfile?.credits ?? 0} credits</strong>
+                  <h3 className="text-lg font-semibold text-fgmb-4">Adjust Credits</h3>
+                  <p className="text-sm text-fg-muted mb-1">
+                    Current balance: <strong className="text-fg">{sellerProfile?.offerCredits ?? sellerProfile?.credits ?? 0} credits</strong>
                   </p>
-                  <p className="text-xs text-text-muted mb-4">
+                  <p className="text-xs text-fg-muted mb-4">
                     Use a positive number to add credits, negative to deduct.
                   </p>
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-text mb-2">Amount</label>
+                      <label className="block text-sm font-medium text-fgmb-2">Amount</label>
                       <input
                         type="number"
                         value={creditAmount}
                         onChange={(e) => setCreditAmount(e.target.value)}
                         placeholder="e.g. 50 or -10"
-                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-fgplaceholder:text-fg-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-text mb-2">Reason</label>
+                      <label className="block text-sm font-medium text-fgmb-2">Reason</label>
                       <input
                         type="text"
                         value={creditReason}
                         onChange={(e) => setCreditReason(e.target.value)}
                         placeholder="e.g. Bonus for good performance"
-                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-text placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        className="w-full px-3 py-2 text-sm rounded-lg bg-background border border-border text-fgplaceholder:text-fg-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                       />
                     </div>
                   </div>
@@ -522,7 +522,7 @@ export default function UserDetailPage() {
                   <div className="flex justify-end gap-3 mt-6">
                     <button
                       onClick={() => setShowCreditsModal(false)}
-                      className="px-4 py-2 text-sm font-medium rounded-lg text-text-muted hover:text-text hover:bg-surface-hover transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-lg text-fg-muted hover:text-fg hover:bg-surface-hover transition-colors"
                     >
                       Cancel
                     </button>
@@ -543,7 +543,7 @@ export default function UserDetailPage() {
         {/* Activity Timeline */}
         <div>
           <Card>
-            <h3 className="text-sm font-semibold text-text mb-4">Recent Activity</h3>
+            <h3 className="text-sm font-semibold text-fgmb-4">Recent Activity</h3>
             <div className="space-y-0">
               {timeline.map((event, i) => (
                 <div key={i} className="flex gap-3 pb-4 last:pb-0">
@@ -554,8 +554,8 @@ export default function UserDetailPage() {
                     {i < timeline.length - 1 && <div className="w-px flex-1 bg-border mt-1" />}
                   </div>
                   <div className="pb-4 last:pb-0">
-                    <div className="text-sm text-text">{event.action}</div>
-                    <div className="text-xs text-text-muted mt-0.5">{event.time}</div>
+                    <div className="text-sm text-fg">{event.action}</div>
+                    <div className="text-xs text-fg-muted mt-0.5">{event.time}</div>
                   </div>
                 </div>
               ))}

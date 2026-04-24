@@ -36,7 +36,7 @@ const statusStyles: Record<string, string> = {
   ARRIVED: "bg-pending/15 text-pending border-pending/25",
   REJECTED: "bg-danger/15 text-danger border-danger/25",
   CANCELLED: "bg-danger/15 text-danger border-danger/25",
-  GUEST: "bg-border text-text-muted border-border",
+  GUEST: "bg-border text-fg-muted border-border",
 };
 
 interface StatusPillProps {
@@ -45,7 +45,7 @@ interface StatusPillProps {
 }
 
 export function StatusPill({ status, className = "" }: StatusPillProps) {
-  const style = statusStyles[status] || "bg-border text-text-muted border-border";
+  const style = statusStyles[status] || "bg-border text-fg-muted border-border";
   const label = status.replace(/_/g, " ");
 
   return (
