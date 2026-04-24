@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
 } from "recharts";
+import { ArrowUpRight } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -13,6 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { cn } from "@/lib/cn";
 
 const chartTheme = {
   grid: "oklch(0.30 0.018 255 / 0.5)",
@@ -80,14 +83,28 @@ export default function FinancePage() {
   const txTotal = txData?.total || 0;
   const txTotalPages = Math.ceil(txTotal / 10);
 
+  // Zone headline stats — one per zone. Lean on purpose; deep pages
+  // carry the full detail. Falls back to undefined until data arrives
+  // so ZoneCard can suppress the stat slot entirely.
+  const nowStat = overview?.revenue != null ? `$${Number(overview.revenue).toLocaleString()}` : undefined;
+  const ledgerStat = revRecog?.summary?.totalRecognized != null
+    ? `$${Number(revRecog.summary.totalRecognized).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : undefined;
+  const documentsStat = overview?.totalTransactions != null
+    ? `${overview.totalTransactions.toLocaleString()}`
+    : undefined;
+  const planningStat = revRecog?.summary?.totalDeferred != null
+    ? `$${Number(revRecog.summary.totalDeferred).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : undefined;
+
   return (
     <PageContainer>
       <PageHeader
-        title="Financial Management"
-        description="Revenue tracking and payment analytics"
+        title="Finance"
+        description="The ledger, the books, the plans."
       />
 
-      {/* Revenue KPIs */}
+      {/* Hero — revenue KPIs, where numbers get top billing. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px]" />)
@@ -101,16 +118,74 @@ export default function FinancePage() {
         )}
       </div>
 
-      {revRecog?.summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <StatBlock label="Recognized revenue" value={`$${revRecog.summary.totalRecognized?.toFixed(2) || "0.00"}`} />
-          <StatBlock label="Deferred revenue" value={`$${revRecog.summary.totalDeferred?.toFixed(2) || "0.00"}`} />
-          <StatBlock label="Credit deferred" value={`$${revRecog.summary.totalCreditDeferred?.toFixed(2) || "0.00"}`} />
-          <StatBlock label="Slot deferred" value={`$${revRecog.summary.totalSlotDeferred?.toFixed(2) || "0.00"}`} />
-        </div>
-      )}
+      {/* ── The Atrium ──────────────────────────────────────────────── */}
+      {/* Four zones replacing the old 12-tab strip. Asymmetric by
+       * design: NOW gets 2/3 of the width because it's where the
+       * money is moving right now. LEDGER + DOCUMENTS stack in the
+       * right column — reference material, quieter. PLANNING spans
+       * full width below — horizons deserve breathing room. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <ZoneCard
+          index="01"
+          eyebrow="Live operations"
+          live
+          title="Where the money moves"
+          description="Revenue, bundle economics, and the payment mix — updated as transactions land."
+          stat={nowStat}
+          statLabel="Revenue · last 30 days"
+          className="lg:col-span-2"
+          links={[
+            { href: "/finance/revenue", label: "Revenue detail", meta: "Credit + wallet + by method" },
+            { href: "/finance/bundles", label: "Bundle pricing", meta: "Manage tiers and rates" },
+            { href: "/finance/reports", label: "Reports", meta: "Monthly and on-demand exports" },
+          ]}
+        />
 
-      {/* Charts row */}
+        <div className="flex flex-col gap-4">
+          <ZoneCard
+            index="02"
+            eyebrow="Books of truth"
+            title="The ledger"
+            description="Double-entry bookkeeping — the version of events accountants audit against."
+            stat={ledgerStat}
+            statLabel="Revenue recognized"
+            links={[
+              { href: "/finance/accounts", label: "Chart of accounts" },
+              { href: "/finance/journal", label: "Journal entries" },
+              { href: "/finance/periods", label: "Accounting periods" },
+            ]}
+          />
+
+          <ZoneCard
+            index="03"
+            eyebrow="Artifacts"
+            title="Receipts & returns"
+            description="Invoices issued, expenses logged, tax filings prepared."
+            stat={documentsStat}
+            statLabel="Transactions this month"
+            links={[
+              { href: "/finance/invoices", label: "Invoices" },
+              { href: "/finance/expenses", label: "Expenses" },
+              { href: "/finance/tax", label: "Tax" },
+            ]}
+          />
+        </div>
+      </div>
+
+      <ZoneCard
+        index="04"
+        eyebrow="What's next"
+        title="Horizons"
+        description="Forecast the next quarter, stage the next budget, compare actuals against plan."
+        stat={planningStat}
+        statLabel="Deferred revenue"
+        links={[
+          { href: "/finance/forecast", label: "Forecast scenarios", meta: "Base / upside / downside" },
+          { href: "/finance/budget", label: "Budget periods", meta: "Monthly plans and variance" },
+        ]}
+      />
+
+      {/* ── Existing dashboard content below the atrium ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card padding={false}>
           <CardHeader className="px-5 py-4">
@@ -187,7 +262,6 @@ export default function FinancePage() {
         </Card>
       </div>
 
-      {/* Bundle + transactions row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card padding={false}>
           <CardHeader className="px-5 py-4"><CardTitle>Bundle popularity</CardTitle></CardHeader>
@@ -259,6 +333,120 @@ export default function FinancePage() {
         </Card>
       </div>
     </PageContainer>
+  );
+}
+
+/**
+ * ZoneCard — local primitive for the Finance Atrium.
+ *
+ * Each zone replaces a group of tabs from the old strip. The card is
+ * itself a composition:
+ *   - Magazine-style index number (01, 02, 03, 04) in the corner,
+ *     giving the atrium editorial pacing.
+ *   - Eyebrow label in uppercase Geist Mono, wide-tracked; pulsing
+ *     dot when `live=true` to mark real-time zones.
+ *   - Title in Fraunces — the one editorial serif moment per card.
+ *   - One sentence of editorial copy describing what lives here.
+ *   - Optional headline stat for the zone (e.g. revenue recognized).
+ *   - A vertical list of link rows — each sub-page in the zone, with
+ *     a meta line and an arrow that translates on hover.
+ *
+ * Kept local to this page on purpose: it's a page-specific shape and
+ * baking it into `src/components/ui/` would invite premature reuse
+ * before we know if another page wants this exact composition.
+ */
+interface ZoneLink { href: string; label: string; meta?: string }
+
+function ZoneCard({
+  index,
+  eyebrow,
+  live,
+  title,
+  description,
+  stat,
+  statLabel,
+  links,
+  className,
+}: {
+  index: string;
+  eyebrow: string;
+  live?: boolean;
+  title: string;
+  description: string;
+  stat?: string;
+  statLabel?: string;
+  links: ZoneLink[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative rounded-xl bg-panel border border-muted overflow-hidden",
+        "transition-colors duration-fast ease-out hover:border-strong",
+        className,
+      )}
+    >
+      {/* Editorial index — magazine-style pacing in the corner. */}
+      <span
+        className="absolute top-3 right-4 font-mono text-2xs text-fg-subtle tabular"
+        aria-hidden="true"
+      >
+        {index}
+      </span>
+
+      <div className="p-5 pb-0 flex flex-col gap-3">
+        {/* Eyebrow + optional live indicator */}
+        <div className="flex items-center gap-1.5">
+          {live && (
+            <span className="relative inline-flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-60 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+            </span>
+          )}
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-fg-muted">
+            {eyebrow}
+          </span>
+        </div>
+
+        {/* Title — the Fraunces moment */}
+        <h2 className="font-display text-[28px] leading-[1.1] font-medium text-fg tracking-tight">
+          {title}
+        </h2>
+
+        <p className="text-xs text-fg-muted leading-relaxed max-w-lg">
+          {description}
+        </p>
+
+        {/* Headline stat */}
+        {stat && (
+          <div className="pt-1">
+            <div className="text-2xs uppercase tracking-wider text-fg-subtle">{statLabel}</div>
+            <div className="text-2xl font-semibold text-fg tabular mt-0.5">{stat}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Link rows — flush to the card edges for an architectural feel. */}
+      <ul className="mt-4 divide-y divide-[color:var(--color-border-muted)] border-t border-muted">
+        {links.map((l) => (
+          <li key={l.href}>
+            <Link
+              href={l.href}
+              className={cn(
+                "group flex items-center justify-between gap-3 px-5 py-3",
+                "text-sm text-fg hover:bg-raised transition-colors duration-fast",
+              )}
+            >
+              <span className="min-w-0 flex-1 flex flex-col">
+                <span className="font-medium truncate">{l.label}</span>
+                {l.meta && <span className="text-2xs text-fg-muted mt-0.5 truncate">{l.meta}</span>}
+              </span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-fg-subtle group-hover:text-fg transition-transform duration-fast group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
