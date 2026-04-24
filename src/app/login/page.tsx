@@ -81,6 +81,11 @@ function LoginForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    // Double-submit guard: Enter-key + button-click within the same tick
+    // can trigger two submissions. The second one lands after the first
+    // has consumed the OTP, gets 401 "Invalid credentials", and briefly
+    // flashes the error on screen right before navigation completes.
+    if (loading || sendingOtp) return;
     if (step === 'email') {
       // First step is a "send code" submit, not a real login.
       void handleRequestOtp();
@@ -269,7 +274,7 @@ function LoginForm() {
                     'tabular text-fg placeholder:text-fg-subtle',
                     'transition-colors duration-fast',
                     'focus-visible:outline-none focus-visible:border-accent',
-                    error ? 'border-danger' : 'border-default hover:border-strong',
+                    error && !loading ? 'border-danger' : 'border-default hover:border-strong',
                   )}
                 />
                 <div className="flex items-center justify-between mt-2">
@@ -300,8 +305,10 @@ function LoginForm() {
               </div>
             )}
 
-            {/* Feedback */}
-            {error && (
+            {/* Feedback — hidden while a request is in flight so a stale
+                error from a prior attempt can't flash during the success
+                path between setError('') and router.push(). */}
+            {error && !loading && !sendingOtp && (
               <div role="alert" className="flex items-start gap-2.5 p-3 rounded-lg border border-danger/30 bg-danger-bg">
                 <AlertCircle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
                 <p className="text-xs text-danger leading-relaxed">{error}</p>
