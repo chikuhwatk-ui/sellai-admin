@@ -74,6 +74,13 @@ export function useAuth() {
   const router = useRouter();
 
   const logout = useCallback(() => {
+    sessionStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminRefreshToken');
+    sessionStorage.removeItem('adminUser');
+    sessionStorage.removeItem('adminRole');
+    sessionStorage.removeItem('adminPermissions');
+    sessionStorage.removeItem('lastActivity');
+    // Scrub any legacy localStorage values that a pre-migration build left.
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminRefreshToken');
     localStorage.removeItem('adminUser');
@@ -109,13 +116,13 @@ export function useAuth() {
       };
       setUser(next);
       setStale(false);
-      Sentry.setUser({
-        id: me.id,
-        username: me.email ?? me.phoneNumber ?? me.id,
-      });
+      // Privacy: only send the opaque admin id to Sentry. Previously we
+      // also sent email / phone number as `username`, which is raw PII
+      // leaking into a 3rd-party vendor.
+      Sentry.setUser({ id: me.id });
       Sentry.setTag('admin_role', me.adminRole);
       try {
-        localStorage.setItem(
+        sessionStorage.setItem(
           'adminUser',
           JSON.stringify({
             id: me.id,
@@ -124,8 +131,8 @@ export function useAuth() {
             email: me.email,
           }),
         );
-        localStorage.setItem('adminRole', me.adminRole);
-        localStorage.setItem('adminPermissions', JSON.stringify(me.permissions || []));
+        sessionStorage.setItem('adminRole', me.adminRole);
+        sessionStorage.setItem('adminPermissions', JSON.stringify(me.permissions || []));
       } catch { /* quota / private mode */ }
       if (me.isActive === false) {
         logout();
@@ -139,18 +146,18 @@ export function useAuth() {
     }
   }, [logout]);
 
-  // Hydrate from localStorage immediately so the UI doesn't flash unauthorized,
+  // Hydrate from sessionStorage immediately so the UI doesn't flash unauthorized,
   // then re-verify against /admin/me which is the server's source of truth.
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+    const token = typeof window !== 'undefined' ? sessionStorage.getItem('adminToken') : null;
     if (!token) {
       setLoading(false);
       return;
     }
 
-    const stored = localStorage.getItem('adminUser');
-    const storedRole = localStorage.getItem('adminRole');
-    const storedPerms = localStorage.getItem('adminPermissions');
+    const stored = sessionStorage.getItem('adminUser');
+    const storedRole = sessionStorage.getItem('adminRole');
+    const storedPerms = sessionStorage.getItem('adminPermissions');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);

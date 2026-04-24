@@ -5,9 +5,10 @@ const IDLE_TIMEOUT = 30 * 60 * 1000; // 30 minutes of inactivity
 
 export function useSessionTimeout() {
   const logout = useCallback(() => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminRefreshToken');
-    localStorage.removeItem('adminUser');
+    sessionStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminRefreshToken');
+    sessionStorage.removeItem('adminUser');
+    sessionStorage.removeItem('lastActivity');
     document.cookie = 'adminToken=;path=/;max-age=0';
     window.location.href = '/login?reason=idle';
   }, []);
@@ -19,7 +20,7 @@ export function useSessionTimeout() {
       clearTimeout(timer);
       timer = setTimeout(logout, IDLE_TIMEOUT);
       // Update last activity timestamp
-      localStorage.setItem('lastActivity', Date.now().toString());
+      sessionStorage.setItem('lastActivity', Date.now().toString());
     };
 
     // Listen for user activity
@@ -28,12 +29,12 @@ export function useSessionTimeout() {
 
     // Check if session already expired on mount — but only if lastActivity
     // was set during this session (not stale from a previous one)
-    const lastActivity = localStorage.getItem('lastActivity');
+    const lastActivity = sessionStorage.getItem('lastActivity');
     if (lastActivity) {
       const elapsed = Date.now() - parseInt(lastActivity);
       if (elapsed > IDLE_TIMEOUT) {
         // Reset lastActivity so a fresh login isn't immediately expired
-        localStorage.setItem('lastActivity', Date.now().toString());
+        sessionStorage.setItem('lastActivity', Date.now().toString());
       }
     }
 

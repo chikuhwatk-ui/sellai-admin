@@ -26,7 +26,7 @@ const meResponse = {
 describe('useAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('returns unauthenticated when no token is present', async () => {
@@ -36,10 +36,10 @@ describe('useAuth', () => {
     expect(result.current.user).toBeNull();
   });
 
-  it('hydrates from localStorage immediately and refreshes from /admin/me', async () => {
-    localStorage.setItem('adminToken', 'tok');
-    localStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1', name: 'Sam', phoneNumber: '+263770000000' }));
-    localStorage.setItem('adminRole', 'SUPPORT_AGENT');
+  it('hydrates from sessionStorage immediately and refreshes from /admin/me', async () => {
+    sessionStorage.setItem('adminToken', 'tok');
+    sessionStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1', name: 'Sam', phoneNumber: '+263770000000' }));
+    sessionStorage.setItem('adminRole', 'SUPPORT_AGENT');
     (api.get as any).mockResolvedValue(meResponse);
 
     const { result } = renderHook(() => useAuth());
@@ -52,9 +52,9 @@ describe('useAuth', () => {
   });
 
   it('hasPermission returns true only for permissions in the live list', async () => {
-    localStorage.setItem('adminToken', 'tok');
-    localStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1' }));
-    localStorage.setItem('adminRole', 'SUPPORT_AGENT');
+    sessionStorage.setItem('adminToken', 'tok');
+    sessionStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1' }));
+    sessionStorage.setItem('adminRole', 'SUPPORT_AGENT');
     (api.get as any).mockResolvedValue(meResponse);
 
     const { result } = renderHook(() => useAuth());
@@ -67,28 +67,28 @@ describe('useAuth', () => {
   });
 
   it('logs out automatically if /admin/me reports the account is inactive', async () => {
-    localStorage.setItem('adminToken', 'tok');
-    localStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1' }));
+    sessionStorage.setItem('adminToken', 'tok');
+    sessionStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1' }));
     (api.get as any).mockResolvedValue({ ...meResponse, isActive: false });
 
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.refreshing).toBe(false));
-    await waitFor(() => expect(localStorage.getItem('adminToken')).toBeNull());
+    await waitFor(() => expect(sessionStorage.getItem('adminToken')).toBeNull());
   });
 
   it('logout clears tokens and user', async () => {
-    localStorage.setItem('adminToken', 'tok');
-    localStorage.setItem('adminRefreshToken', 'rtok');
-    localStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1' }));
+    sessionStorage.setItem('adminToken', 'tok');
+    sessionStorage.setItem('adminRefreshToken', 'rtok');
+    sessionStorage.setItem('adminUser', JSON.stringify({ id: 'admin-1' }));
     (api.get as any).mockResolvedValue(meResponse);
 
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.refreshing).toBe(false));
 
     act(() => result.current.logout());
-    expect(localStorage.getItem('adminToken')).toBeNull();
-    expect(localStorage.getItem('adminRefreshToken')).toBeNull();
-    expect(localStorage.getItem('adminUser')).toBeNull();
+    expect(sessionStorage.getItem('adminToken')).toBeNull();
+    expect(sessionStorage.getItem('adminRefreshToken')).toBeNull();
+    expect(sessionStorage.getItem('adminUser')).toBeNull();
     expect(result.current.user).toBeNull();
   });
 });

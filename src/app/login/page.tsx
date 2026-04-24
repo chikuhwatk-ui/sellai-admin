@@ -90,22 +90,22 @@ function LoginForm() {
         if (!data.admin) {
           throw new Error('Unexpected login response shape');
         }
-        localStorage.setItem('adminToken', data.access_token);
-        localStorage.setItem('adminRefreshToken', data.refresh_token);
-        localStorage.setItem('adminUser', JSON.stringify(data.admin));
-        localStorage.setItem('adminRole', data.admin.adminRole);
-        localStorage.setItem('lastActivity', Date.now().toString());
+        sessionStorage.setItem('adminToken', data.access_token);
+        sessionStorage.setItem('adminRefreshToken', data.refresh_token);
+        sessionStorage.setItem('adminUser', JSON.stringify(data.admin));
+        sessionStorage.setItem('adminRole', data.admin.adminRole);
+        sessionStorage.setItem('lastActivity', Date.now().toString());
         document.cookie = `adminToken=${data.access_token};path=/;max-age=7200;SameSite=Strict;Secure`;
       } else {
         if (data.user?.role !== 'ADMIN') {
           throw new Error('Access denied. Admin privileges required.');
         }
-        localStorage.setItem('adminToken', data.access_token);
-        localStorage.setItem('adminRefreshToken', data.refresh_token);
-        localStorage.setItem('adminUser', JSON.stringify(data.user));
-        localStorage.setItem('lastActivity', Date.now().toString());
-        if (data.adminRole) localStorage.setItem('adminRole', data.adminRole);
-        if (data.permissions) localStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
+        sessionStorage.setItem('adminToken', data.access_token);
+        sessionStorage.setItem('adminRefreshToken', data.refresh_token);
+        sessionStorage.setItem('adminUser', JSON.stringify(data.user));
+        sessionStorage.setItem('lastActivity', Date.now().toString());
+        if (data.adminRole) sessionStorage.setItem('adminRole', data.adminRole);
+        if (data.permissions) sessionStorage.setItem('adminPermissions', JSON.stringify(data.permissions));
         document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
       }
 

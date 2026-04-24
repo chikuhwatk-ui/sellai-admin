@@ -4,8 +4,44 @@ const RETRY_STATUSES = new Set([502, 503, 504]);
 const MAX_RETRIES = 2;
 const BASE_BACKOFF_MS = 300;
 
+// Security: admin session state lives in sessionStorage — cleared when the
+// tab closes, bounding XSS blast radius to the current session. Was
+// previously in localStorage, which persists forever and gave an attacker
+// indefinite access if they ever captured the token once.
+//
+// One-time migration on first load moves any legacy localStorage entries
+// into sessionStorage and scrubs the old copies. Keys touched:
+//   adminToken, adminRefreshToken, adminUser, adminRole, adminPermissions,
+//   lastActivity
+const ADMIN_SESSION_KEYS = [
+  'adminToken',
+  'adminRefreshToken',
+  'adminUser',
+  'adminRole',
+  'adminPermissions',
+  'lastActivity',
+] as const;
+
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-extra-semi
+  (function migrateLegacyAdminSession() {
+    let migrated = false;
+    for (const k of ADMIN_SESSION_KEYS) {
+      const legacy = localStorage.getItem(k);
+      if (legacy && !sessionStorage.getItem(k)) {
+        sessionStorage.setItem(k, legacy);
+        migrated = true;
+      }
+      localStorage.removeItem(k);
+    }
+    if (migrated) {
+      console.info('[admin] migrated legacy localStorage session to sessionStorage');
+    }
+  })();
+}
+
 async function getAuthHeaders(): Promise<HeadersInit> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+  const token = typeof window !== 'undefined' ? sessionStorage.getItem('adminToken') : null;
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -14,7 +50,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 
 async function tryRefreshToken(): Promise<boolean> {
   const refreshToken =
-    typeof window !== 'undefined' ? localStorage.getItem('adminRefreshToken') : null;
+    typeof window !== 'undefined' ? sessionStorage.getItem('adminRefreshToken') : null;
   if (!refreshToken) return false;
   try {
     // Admin v2 sessions issue refresh tokens with type='admin-refresh'; the
@@ -28,12 +64,12 @@ async function tryRefreshToken(): Promise<boolean> {
     if (!res.ok) return false;
     const data = await res.json();
     if (!data.access_token) return false;
-    localStorage.setItem('adminToken', data.access_token);
+    sessionStorage.setItem('adminToken', data.access_token);
     // /auth/admin-refresh only issues a new access_token; the refresh token
     // stays valid until the admin re-logs in. Only overwrite if the server
     // actually rotates it.
     if (data.refresh_token) {
-      localStorage.setItem('adminRefreshToken', data.refresh_token);
+      sessionStorage.setItem('adminRefreshToken', data.refresh_token);
     }
     document.cookie = `adminToken=${data.access_token};path=/;max-age=14400;SameSite=Strict;Secure`;
     return true;
@@ -89,9 +125,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       });
     } else {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminRefreshToken');
-        localStorage.removeItem('adminUser');
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('adminRefreshToken');
+        sessionStorage.removeItem('adminUser');
         document.cookie = 'adminToken=;path=/;max-age=0';
         window.location.href = '/login';
       }
@@ -131,9 +167,9 @@ async function downloadFile(path: string, fallbackFilename: string): Promise<voi
       res = await fetchWithRetry(`${API_BASE}${path}`, { headers: newHeaders });
     } else {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminRefreshToken');
-        localStorage.removeItem('adminUser');
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.removeItem('adminRefreshToken');
+        sessionStorage.removeItem('adminUser');
         document.cookie = 'adminToken=;path=/;max-age=0';
         window.location.href = '/login';
       }

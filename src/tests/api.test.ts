@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 beforeEach(() => {
-  localStorage.clear();
+  sessionStorage.clear();
   vi.restoreAllMocks();
 });
 
 describe('api client', () => {
-  it('attaches Bearer token from localStorage on requests', async () => {
-    localStorage.setItem('adminToken', 'tok-123');
+  it('attaches Bearer token from sessionStorage on requests', async () => {
+    sessionStorage.setItem('adminToken', 'tok-123');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -23,8 +23,8 @@ describe('api client', () => {
   });
 
   it('refreshes the token on 401 and retries the original request', async () => {
-    localStorage.setItem('adminToken', 'old');
-    localStorage.setItem('adminRefreshToken', 'rtok');
+    sessionStorage.setItem('adminToken', 'old');
+    sessionStorage.setItem('adminRefreshToken', 'rtok');
     const fetchMock = vi
       .fn()
       // First request: 401
@@ -42,14 +42,14 @@ describe('api client', () => {
     const { api } = await import('@/lib/api');
     const result = await api.get<{ data: string }>('/api/admin/dashboard/kpis');
     expect(result.data).toBe('ok');
-    expect(localStorage.getItem('adminToken')).toBe('new');
-    expect(localStorage.getItem('adminRefreshToken')).toBe('newr');
+    expect(sessionStorage.getItem('adminToken')).toBe('new');
+    expect(sessionStorage.getItem('adminRefreshToken')).toBe('newr');
     // Three fetch calls: original, refresh, retry
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it('throws and reports the message on a 4xx error response', async () => {
-    localStorage.setItem('adminToken', 'tok');
+    sessionStorage.setItem('adminToken', 'tok');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false, status: 422,
       json: async () => ({ message: 'Validation failed' }),
