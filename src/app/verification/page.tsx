@@ -72,6 +72,15 @@ export default function VerificationPage() {
   const [claimedIds, setClaimedIds] = React.useState<Set<string>>(new Set());
   const [rejecting, setRejecting] = React.useState(false);
 
+  // Escape closes the zoom lightbox — keyboard users shouldn't have to
+  // hunt for the click target.
+  React.useEffect(() => {
+    if (!zoomedImage) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setZoomedImage(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomedImage]);
+
   const { data: pendingRaw, loading: pendingLoading, error: pendingError, refetch: refetchPending } = useApi<any>("/api/verification/queue?status=PENDING");
   const { data: processedRaw, error: processedError, refetch: refetchProcessed } = useApi<any>("/api/verification/queue?status=VERIFIED");
   const { data: rejectedRaw, error: rejectedError, refetch: refetchRejected } = useApi<any>("/api/verification/queue?status=REJECTED");
@@ -357,10 +366,21 @@ export default function VerificationPage() {
       {/* Image zoom lightbox */}
       {zoomedImage && (
         <div
-          className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Verification document zoom"
+          className="fixed inset-0 z-[60] backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          style={{ backgroundColor: "var(--color-overlay-scrim)" }}
           onClick={() => setZoomedImage(null)}
         >
-          <img src={zoomedImage} alt="Document" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomedImage}
+            alt="Verification document (zoomed). Click or press Escape to close."
+            width={1600}
+            height={1200}
+            className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg"
+          />
         </div>
       )}
     </>

@@ -78,11 +78,17 @@ export default function Header({ title, onMenuToggle, onOpenPalette }: HeaderPro
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 h-8 pl-1 pr-2 rounded-md hover:bg-raised transition-colors">
-              <div className="w-6 h-6 rounded-full bg-accent-bg text-accent flex items-center justify-center text-xs font-medium">
+            <button
+              className="flex items-center gap-2 h-8 pl-1 pr-2 rounded-md hover:bg-raised transition-colors"
+              aria-label={`Account menu for ${user?.name || "admin"}`}
+            >
+              <div
+                className="w-6 h-6 rounded-full bg-accent-bg text-accent flex items-center justify-center text-xs font-medium"
+                aria-hidden="true"
+              >
                 {user?.name?.charAt(0)?.toUpperCase() || "A"}
               </div>
-              <ChevronDown className="h-3 w-3 text-fg-subtle" />
+              <ChevronDown className="h-3 w-3 text-fg-subtle" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

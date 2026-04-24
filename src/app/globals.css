@@ -164,7 +164,9 @@
     color: var(--color-fg);
   }
 
-  /* Focus-visible only — never show rings on mouse click */
+  /* Focus-visible only — never show rings on mouse click. Ring animates
+   * from 0 → 4px over 200ms so keyboard nav feels alive instead of
+   * snapping. Reduced-motion users get the static ring. */
   :focus {
     outline: none;
   }
@@ -172,6 +174,23 @@
     outline: none;
     box-shadow: var(--shadow-focus-ring);
     border-radius: inherit;
+    animation: focus-ring-pulse 200ms var(--ease-out);
+  }
+  @keyframes focus-ring-pulse {
+    from { box-shadow: 0 0 0 2px var(--color-canvas), 0 0 0 0 var(--color-focus-ring); }
+    to   { box-shadow: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-focus-ring); }
+  }
+
+  /* Disabled state clarity — opacity alone reads as "washed out content"
+   * on dense backgrounds. Adding grayscale makes controls unambiguously
+   * non-interactive while still visible enough to understand what they
+   * are. Applies to any element that carries the `disabled` attribute. */
+  button[disabled],
+  input[disabled],
+  textarea[disabled],
+  select[disabled],
+  [aria-disabled='true'] {
+    filter: grayscale(25%);
   }
 }
 
@@ -214,8 +233,27 @@
 }
 
 @layer utilities {
+  /* Display font — editorial serif used on page titles only. Falls back
+   * to the sans stack before Fraunces loads so the first paint isn't
+   * blocked by font swap. */
+  .font-display {
+    font-family: var(--font-display), ui-serif, Georgia, Cambria, serif;
+    font-feature-settings: normal;
+    letter-spacing: -0.015em;
+  }
+
   .bg-canvas { background-color: var(--color-canvas); }
-  .bg-panel { background-color: var(--color-panel); }
+  /* Subtle gradient on surface panels — 2° shift toward the cooler end of
+   * the grey scale adds depth without calling attention. Flat fallback
+   * (`background-color`) is set first so forced-colors mode still paints. */
+  .bg-panel {
+    background-color: var(--color-panel);
+    background-image: linear-gradient(
+      135deg,
+      var(--color-panel) 0%,
+      color-mix(in oklch, var(--color-panel) 96%, var(--color-raised)) 100%
+    );
+  }
   .bg-raised { background-color: var(--color-raised); }
   .bg-overlay { background-color: var(--color-overlay); }
 

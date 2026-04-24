@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Fraunces } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ToasterProvider } from "@/components/providers/ToasterProvider";
 import { ConfirmDialogHost } from "@/components/ui/ConfirmDialog";
+
+// Display serif used ONLY for page titles. Fraunces gives the admin a
+// single editorial moment per page without replacing the body/mono
+// stack, and without the ~$700 Söhne license. Scoped via the
+// `--font-display` CSS variable + the `.font-display` utility.
+const fraunces = Fraunces({
+    subsets: ["latin"],
+    weight: ["500", "600"],
+    axes: ["opsz", "SOFT"],
+    display: "swap",
+    variable: "--font-display",
+});
 
 export const metadata: Metadata = {
   title: "Sellai Admin",
@@ -17,12 +30,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} h-full antialiased`}
+    >
       <head>
         <style>{`
           :root {
             --font-sans: ${GeistSans.style.fontFamily};
             --font-mono: ${GeistMono.style.fontFamily};
+            --font-display: ${fraunces.style.fontFamily};
           }
         `}</style>
       </head>

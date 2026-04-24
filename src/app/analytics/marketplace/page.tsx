@@ -134,7 +134,14 @@ export default function MarketplaceHealthPage() {
           ) : demands.length < 2 && offers.length < 2 ? (
             <div className="text-sm text-fg-muted py-8 text-center">No data for this period.</div>
           ) : (
-            <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+            <svg
+              viewBox={`0 0 ${chartW} ${chartH}`}
+              className="w-full"
+              preserveAspectRatio="xMidYMid meet"
+              role="img"
+              aria-label={`Supply and demand over the last ${period} days`}
+            >
+              <title>{`Supply vs demand — ${period}-day window`}</title>
               {/* Horizontal gridlines + Y-axis labels */}
               {[0, 0.25, 0.5, 0.75, 1].map((f) => {
                 const y = pad.top + innerH * (1 - f);
@@ -263,7 +270,14 @@ export default function MarketplaceHealthPage() {
             ) : histogramBins.length === 0 ? (
               <div className="text-sm text-fg-muted py-8 text-center">No histogram data.</div>
             ) : (
-              <svg viewBox="0 0 400 250" className="w-full" preserveAspectRatio="xMidYMid meet">
+              <svg
+                viewBox="0 0 400 250"
+                className="w-full"
+                preserveAspectRatio="xMidYMid meet"
+                role="img"
+                aria-label="Histogram of time to first offer, by bucket"
+              >
+                <title>Time to first offer — distribution across buckets</title>
                 {histogramBins.map((bin) => {
                   const i = histogramBins.indexOf(bin);
                   const barW = 50;
