@@ -14,6 +14,9 @@ import { StatBlock } from "@/components/ui/StatBlock";
 import { Table } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter } from "@/components/ui/Sheet";
+import { Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Label";
 import { cn } from "@/lib/cn";
 
 interface DisputeStats {
@@ -81,16 +84,28 @@ export default function DisputesPage() {
   const canManage = hasPermission("DISPUTES_MANAGE");
   const { run } = useOptimisticAction();
 
-  const assign = React.useCallback((id: string) => {
-    const adminId = prompt("Enter admin ID to assign (blank = assign to yourself):");
-    const assignTo = adminId?.trim() || user?.id;
+  // Assign flow: previously used window.prompt() which is ugly, not
+  // keyboard-friendly, and blocks the tab. Replaced with a small Sheet.
+  const [assignFor, setAssignFor] = React.useState<string | null>(null);
+  const [assignInput, setAssignInput] = React.useState("");
+
+  const openAssign = React.useCallback((id: string) => {
+    setAssignInput("");
+    setAssignFor(id);
+  }, []);
+
+  const confirmAssign = React.useCallback(() => {
+    const id = assignFor;
+    if (!id) return;
+    const assignTo = assignInput.trim() || user?.id;
     if (!assignTo) return;
     run({
       action: () => api.patch(`/api/admin/disputes/${id}/assign`, { adminId: assignTo }),
       label: "Dispute assigned",
       onSuccess: () => refetch(),
     });
-  }, [run, refetch, user?.id]);
+    setAssignFor(null);
+  }, [assignFor, assignInput, run, refetch, user?.id]);
 
   const columns: ColumnDef<Dispute>[] = [
     {
@@ -153,7 +168,7 @@ export default function DisputesPage() {
             <Link href={`/disputes/${row.original.id}`}>View</Link>
           </Button>
           {canManage && !row.original.assignedTo && (
-            <Button size="xs" variant="ghost" onClick={() => assign(row.original.id)}>Assign</Button>
+            <Button size="xs" variant="ghost" onClick={() => openAssign(row.original.id)}>Assign</Button>
           )}
         </div>
       ),
@@ -233,6 +248,28 @@ export default function DisputesPage() {
           </div>
         </div>
       )}
+
+      {/* Assign-to modal — replaces the old window.prompt() call */}
+      <Sheet open={!!assignFor} onOpenChange={(o) => { if (!o) setAssignFor(null); }}>
+        <SheetContent width="sm">
+          <SheetHeader title="Assign dispute" subtitle="Leave blank to assign to yourself." />
+          <SheetBody>
+            <Field label="Admin ID" hint="optional">
+              <Input
+                autoFocus
+                value={assignInput}
+                onChange={(e) => setAssignInput(e.target.value)}
+                placeholder={user?.id ? `Default: ${user.id.slice(0, 8)}…` : "Admin user id"}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmAssign(); }}
+              />
+            </Field>
+          </SheetBody>
+          <SheetFooter>
+            <Button variant="ghost" size="sm" onClick={() => setAssignFor(null)}>Cancel</Button>
+            <Button variant="primary" size="sm" onClick={confirmAssign}>Assign</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </PageContainer>
   );
 }

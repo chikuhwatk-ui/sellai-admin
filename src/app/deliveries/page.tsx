@@ -86,16 +86,12 @@ const STATUS_TONE: Record<string, "danger" | "warning" | "info" | "accent" | "pe
   CANCELLED: "neutral",
 };
 
-const STATUS_HEX: Record<string, string> = {
-  REQUESTED: "oklch(0.68 0.22 25)",
-  BID_PENDING: "oklch(0.75 0.17 50)",
-  BID_ACCEPTED: "oklch(0.80 0.16 80)",
-  PICKED_UP: "oklch(0.72 0.15 240)",
-  EN_ROUTE: "oklch(0.72 0.18 155)",
-  ARRIVED: "oklch(0.70 0.20 290)",
-  COMPLETED: "oklch(0.55 0.015 255)",
-  CANCELLED: "oklch(0.42 0.012 255)",
-};
+// STATUS_HEX + LIVEMAP_LEGEND factored into ./status-colors so every
+// consumer (map pins, route strokes, legend) reads the same palette.
+// Colours are semantic on purpose and do NOT flip in dark mode — a
+// status visualisation must keep the same meaning across themes.
+// See status-colors.ts for the full rationale.
+import { STATUS_HEX, LIVEMAP_LEGEND, UNKNOWN_STATUS_HEX } from "./status-colors";
 
 const TABS = [
   "ALL", "REQUESTED", "BID_PENDING", "BID_ACCEPTED",
@@ -326,7 +322,7 @@ function LiveMap({ deliveries, runners, onSelect }: {
             const to = toXY(d.deliveryLat, d.deliveryLng);
             return (
               <line key={d.id} x1={`${from.x}%`} y1={`${from.y}%`} x2={`${to.x}%`} y2={`${to.y}%`}
-                stroke={STATUS_HEX[d.status] || "oklch(0.55 0.015 255)"} strokeWidth="1.5" strokeDasharray="4 3" opacity="0.55" />
+                stroke={STATUS_HEX[d.status] || UNKNOWN_STATUS_HEX} strokeWidth="1.5" strokeDasharray="4 3" opacity="0.55" />
             );
           })}
         </svg>
@@ -369,13 +365,7 @@ function LiveMap({ deliveries, runners, onSelect }: {
       </div>
 
       <div className="absolute bottom-3 right-3 flex items-center gap-2 px-2 py-1.5 bg-canvas/80 backdrop-blur-sm border border-muted rounded-md flex-wrap">
-        {[
-          { color: "oklch(0.72 0.18 155)", label: "En route" },
-          { color: "oklch(0.72 0.15 240)", label: "Picked" },
-          { color: "oklch(0.80 0.16 80)", label: "Accepted" },
-          { color: "oklch(0.68 0.22 25)", label: "Requested" },
-          { color: "oklch(0.72 0.15 240)", label: "Runner", square: true },
-        ].map((i) => (
+        {LIVEMAP_LEGEND.map((i) => (
           <span key={i.label} className="flex items-center gap-1 text-[10px] text-fg-muted">
             <span className={cn("w-1.5 h-1.5", i.square ? "rounded-sm rotate-45" : "rounded-full")} style={{ backgroundColor: i.color }} />
             {i.label}

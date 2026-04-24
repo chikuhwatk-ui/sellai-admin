@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShieldCheck, Ban, Download, Users as UsersIcon } from "lucide-react";
+import { Search, ShieldCheck, Ban, Download, Users as UsersIcon, X } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
 import { useApi } from "@/hooks/useApi";
 import { useOptimisticAction } from "@/hooks/useOptimisticAction";
 import { api } from "@/lib/api";
@@ -17,6 +18,43 @@ import { Checkbox } from "@/components/ui/Checkbox";
 import { Kbd } from "@/components/ui/Kbd";
 import { pushRecent } from "@/hooks/useRecent";
 import { cn } from "@/lib/cn";
+
+// CSV export helpers. Client-side export keeps this feature available
+// without waiting for a backend /admin/users/export endpoint — it uses
+// whatever rows are currently loaded in the table, filters included.
+// When the dataset grows beyond what a single page holds, switch this
+// to a streaming GET /api/admin/users/export on the backend.
+function csvEscape(value: unknown): string {
+  const s = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function usersToCsv(rows: Array<{ id: string; name: string; phoneNumber: string; role: string; verificationStatus: string; location?: string; createdAt: string; }>): string {
+  const header = ["id", "name", "phoneNumber", "role", "status", "location", "createdAt"];
+  const body = rows.map((u) => [
+    u.id,
+    u.name,
+    u.phoneNumber,
+    u.role,
+    u.verificationStatus,
+    u.location || "",
+    u.createdAt,
+  ].map(csvEscape).join(","));
+  return [header.join(","), ...body].join("\n");
+}
+
+function triggerCsvDownload(filename: string, csv: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 type User = {
   id: string;
@@ -71,6 +109,20 @@ export default function UsersPage() {
       label: `${ids.length} user${ids.length === 1 ? "" : "s"} ${action === "verify" ? "verified" : action === "suspend" ? "suspended" : "updated"}`,
     });
   };
+
+  const handleExport = React.useCallback(() => {
+    if (users.length === 0) {
+      toast.error("Nothing to export — the current view is empty.");
+      return;
+    }
+    const ts = new Date().toISOString().slice(0, 10);
+    const suffix = selectedIds.size > 0 ? `selected-${selectedIds.size}` : `page-${page}`;
+    const rows = selectedIds.size > 0
+      ? users.filter((u) => selectedIds.has(u.id))
+      : users;
+    triggerCsvDownload(`sellai-users-${ts}-${suffix}.csv`, usersToCsv(rows));
+    toast.success(`Exported ${rows.length} user${rows.length === 1 ? "" : "s"}.`);
+  }, [users, selectedIds, page]);
 
   const toggleAll = (on: boolean) => {
     setSelectedIds(on ? new Set(users.map((u) => u.id)) : new Set());
@@ -177,7 +229,14 @@ export default function UsersPage() {
         title="Users"
         description={`${total.toLocaleString()} total`}
         actions={
-          <Button variant="secondary" size="sm" leadingIcon={<Download className="h-3.5 w-3.5" />}>
+          <Button
+            variant="secondary"
+            size="sm"
+            leadingIcon={<Download className="h-3.5 w-3.5" />}
+            onClick={handleExport}
+            disabled={users.length === 0}
+            title={selectedIds.size > 0 ? `Export ${selectedIds.size} selected row${selectedIds.size === 1 ? "" : "s"}` : "Export the current page"}
+          >
             Export
           </Button>
         }
@@ -225,6 +284,25 @@ export default function UsersPage() {
           <span className="text-2xs text-fg-subtle ml-1">
             Showing {users.length} of {total}
           </span>
+        )}
+
+        {selectedIds.size > 0 && (
+          // Header-level clear-selection affordance so users don't have to
+          // scroll to the bottom BulkToolbar to deselect.
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className={cn(
+              "ml-auto inline-flex items-center gap-1 h-7 px-2.5 rounded-md",
+              "text-xs font-medium text-fg-muted hover:text-fg",
+              "border border-muted hover:border-strong bg-raised",
+              "transition-colors"
+            )}
+            title="Clear the selection"
+          >
+            <X className="h-3 w-3" />
+            Clear {selectedIds.size} selected
+          </button>
         )}
       </div>
 

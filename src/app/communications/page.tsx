@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
@@ -13,7 +14,6 @@ export default function CommunicationsPage() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tab, setTab] = useState<'compose' | 'history' | 'templates' | 'system'>('compose');
-  const [sendStatus, setSendStatus] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
 
@@ -31,7 +31,6 @@ export default function CommunicationsPage() {
   const [sysImageUrl, setSysImageUrl] = useState('');
   const [sysActionUrl, setSysActionUrl] = useState('');
   const [sysSending, setSysSending] = useState(false);
-  const [sysStatus, setSysStatus] = useState<string | null>(null);
   const [sysHistoryPage, setSysHistoryPage] = useState(1);
   const [userSearch, setUserSearch] = useState('');
   const [userResults, setUserResults] = useState<any[]>([]);
@@ -66,8 +65,7 @@ export default function CommunicationsPage() {
 
   const handleSend = async () => {
     if (!title.trim() || !body.trim()) {
-      setSendStatus('error');
-      setTimeout(() => setSendStatus(null), 3000);
+      toast.error('Please fill in both title and message body.');
       return;
     }
 
@@ -78,13 +76,11 @@ export default function CommunicationsPage() {
         body: body.trim(),
         segment: selectedSegment,
       });
-      setSendStatus('Broadcast sent successfully!');
+      toast.success('Broadcast sent.');
       setTitle('');
       setBody('');
-      setTimeout(() => setSendStatus(null), 4000);
     } catch (err: any) {
-      setSendStatus(`Failed to send: ${err.message || 'Unknown error'}`);
-      setTimeout(() => setSendStatus(null), 5000);
+      toast.error(`Failed to send: ${err?.message || 'Unknown error'}`);
     } finally {
       setSending(false);
     }
@@ -97,12 +93,13 @@ export default function CommunicationsPage() {
         name: newTemplateName.trim(),
         body: newTemplateBody.trim(),
       });
+      toast.success('Template saved.');
       setNewTemplateName('');
       setNewTemplateBody('');
       setShowNewTemplate(false);
       refetchTemplates();
     } catch (err: any) {
-      alert(`Failed to create template: ${err.message}`);
+      toast.error(`Failed to create template: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -110,9 +107,10 @@ export default function CommunicationsPage() {
     if (!confirm('Delete this template?')) return;
     try {
       await api.delete(`/api/admin/communications/templates/${id}`);
+      toast.success('Template deleted.');
       refetchTemplates();
     } catch (err: any) {
-      alert(`Failed to delete: ${err.message}`);
+      toast.error(`Failed to delete: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -130,13 +128,11 @@ export default function CommunicationsPage() {
 
   const handleSendSystemMessage = async () => {
     if (!sysTitle.trim() || !sysBody.trim()) {
-      setSysStatus('error');
-      setTimeout(() => setSysStatus(null), 3000);
+      toast.error('Please fill in both title and message.');
       return;
     }
     if (sysMode === 'individual' && !sysRecipientId) {
-      setSysStatus('Please select a recipient user');
-      setTimeout(() => setSysStatus(null), 3000);
+      toast.error('Please select a recipient user.');
       return;
     }
 
@@ -151,18 +147,16 @@ export default function CommunicationsPage() {
 
       if (sysMode === 'individual') {
         await api.post('/api/admin/communications/system-message', { ...payload, recipientId: sysRecipientId });
-        setSysStatus('System message sent to user!');
+        toast.success('System message sent to user.');
       } else {
         await api.post('/api/admin/communications/system-message/segment', { ...payload, segment: sysSegment });
-        setSysStatus('System message sent to segment!');
+        toast.success('System message sent to segment.');
       }
       setSysTitle(''); setSysBody(''); setSysImageUrl(''); setSysActionUrl('');
       setSysRecipientId(''); setUserSearch(''); setUserResults([]);
       refetchSysHistory();
-      setTimeout(() => setSysStatus(null), 4000);
     } catch (err: any) {
-      setSysStatus(`Failed: ${err.message || 'Unknown error'}`);
-      setTimeout(() => setSysStatus(null), 5000);
+      toast.error(`Failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setSysSending(false);
     }
@@ -248,17 +242,6 @@ export default function CommunicationsPage() {
               <div className="text-xs text-[#6B7280] mt-1">{body.length}/500 characters</div>
             </div>
 
-            {sendStatus && (
-              <div className={`mb-3 text-sm px-4 py-2 rounded-lg ${
-                sendStatus === 'error'
-                  ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                  : sendStatus.startsWith('Failed')
-                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                    : 'bg-[#10B981]/10 text-[#10B981]'
-              }`}>
-                {sendStatus === 'error' ? 'Please fill in both title and message body' : sendStatus}
-              </div>
-            )}
             <div className="flex gap-3 items-center">
               <button
                 onClick={handleSend}
@@ -536,16 +519,6 @@ export default function CommunicationsPage() {
                   />
                 </div>
               </div>
-
-              {sysStatus && (
-                <div className={`mb-3 text-sm px-4 py-2 rounded-lg ${
-                  sysStatus === 'error' || sysStatus.startsWith('Failed') || sysStatus.startsWith('Please')
-                    ? 'bg-[#EF4444]/10 text-[#EF4444]'
-                    : 'bg-[#10B981]/10 text-[#10B981]'
-                }`}>
-                  {sysStatus === 'error' ? 'Please fill in both title and message' : sysStatus}
-                </div>
-              )}
 
               <button
                 onClick={handleSendSystemMessage}

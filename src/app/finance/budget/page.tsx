@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, ArrowRight } from "lucide-react";
 import { useApi } from "@/hooks/useApi";
 import { api } from "@/lib/api";
@@ -110,6 +111,7 @@ export default function BudgetIndexPage() {
 }
 
 function CreatePeriodSheet({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const router = useRouter();
   const [name, setName] = React.useState("Launch month");
   const defaultYm = React.useMemo(() => {
     const d = new Date();
@@ -147,8 +149,9 @@ function CreatePeriodSheet({ onClose, onCreated }: { onClose: () => void; onCrea
       });
       toast.success("Budget period created.");
       onCreated();
-      // Navigate to detail
-      if (typeof window !== "undefined") window.location.href = `/finance/budget/${created.id}`;
+      // SPA navigation — previously window.location.href, which triggered a
+      // full page reload and lost client state (open sheets, scroll, etc.).
+      router.push(`/finance/budget/${created.id}`);
     } catch (err: any) {
       toast.error(err?.message || "Create failed");
     } finally {

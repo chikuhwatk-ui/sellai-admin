@@ -72,10 +72,17 @@ export default function VerificationPage() {
   const [claimedIds, setClaimedIds] = React.useState<Set<string>>(new Set());
   const [rejecting, setRejecting] = React.useState(false);
 
-  const { data: pendingRaw, loading: pendingLoading, refetch: refetchPending } = useApi<any>("/api/verification/queue?status=PENDING");
-  const { data: processedRaw, refetch: refetchProcessed } = useApi<any>("/api/verification/queue?status=VERIFIED");
-  const { data: rejectedRaw, refetch: refetchRejected } = useApi<any>("/api/verification/queue?status=REJECTED");
-  const { data: stats } = useApi<any>("/api/admin/verification/stats");
+  const { data: pendingRaw, loading: pendingLoading, error: pendingError, refetch: refetchPending } = useApi<any>("/api/verification/queue?status=PENDING");
+  const { data: processedRaw, error: processedError, refetch: refetchProcessed } = useApi<any>("/api/verification/queue?status=VERIFIED");
+  const { data: rejectedRaw, error: rejectedError, refetch: refetchRejected } = useApi<any>("/api/verification/queue?status=REJECTED");
+  const { data: stats, error: statsError, refetch: refetchStats } = useApi<any>("/api/admin/verification/stats");
+
+  // Any of the four useApi calls can fail silently — surface the first
+  // failure so the page doesn't render partial data with no explanation.
+  const loadError = pendingError || processedError || rejectedError || statsError;
+  const retryAll = React.useCallback(() => {
+    refetchPending(); refetchProcessed(); refetchRejected(); refetchStats();
+  }, [refetchPending, refetchProcessed, refetchRejected, refetchStats]);
 
   const pendingItems: Verification[] = React.useMemo(() => pendingRaw?.queue || [], [pendingRaw]);
   const processedItems: Verification[] = React.useMemo(() => processedRaw?.queue || [], [processedRaw]);
@@ -160,6 +167,18 @@ export default function VerificationPage() {
           title="Verification"
           description="Review and process identity verification requests. Use J/K to move, Enter to open, A to approve, R to reject."
         />
+
+        {loadError ? (
+          <Card>
+            <div className="p-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-fg">Couldn&apos;t load the verification queue.</div>
+                <div className="text-2xs text-fg-muted mt-0.5">{loadError}</div>
+              </div>
+              <Button size="sm" variant="secondary" onClick={retryAll}>Retry</Button>
+            </div>
+          </Card>
+        ) : null}
 
         {/* Stat row — 4 dense blocks */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

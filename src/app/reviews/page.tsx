@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { PageContainer, PageHeader } from '@/components/ui/PageHeader';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
@@ -95,9 +97,11 @@ export default function ReviewModerationPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const severityParam = activeTab === 'ALL' ? '' : `&severity=${activeTab}`;
-  const { data: stats, loading: statsLoading } = useApi<ModerationStats>('/api/admin/reviews/moderation-stats');
-  const { data: flagged, loading: flaggedLoading, refetch } = useApi<FlaggedResponse>(
-    `/api/admin/reviews/flagged?page=1&limit=50${severityParam}`
+  const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useApi<ModerationStats>(
+    '/api/admin/reviews/moderation-stats',
+  );
+  const { data: flagged, loading: flaggedLoading, error: flaggedError, refetch } = useApi<FlaggedResponse>(
+    `/api/admin/reviews/flagged?page=1&limit=50${severityParam}`,
   );
 
   const canManage = hasPermission('DISPUTES_MANAGE');
@@ -106,9 +110,12 @@ export default function ReviewModerationPage() {
     setActionLoading(flagId);
     try {
       await api.post(`/api/admin/reviews/${flagId}/dismiss`);
+      toast.success('Flag dismissed — review marked as safe.');
       refetch();
-    } catch (e) {
-      console.error('Failed to dismiss:', e);
+    } catch (e: any) {
+      // Previously swallowed with console.error — the user saw nothing when
+      // the action failed, making the button feel broken.
+      toast.error(e?.message || 'Failed to dismiss the flag.');
     } finally {
       setActionLoading(null);
     }
@@ -118,26 +125,43 @@ export default function ReviewModerationPage() {
     if (!confirm(`Remove this ${review.rating}-star review from ${review.seller?.businessName || 'seller'}? This will recalculate their rating.`)) return;
     setActionLoading(review.id);
     try {
-      // The review ID is stored in the audit log's targetId — we need to extract it
-      // For now we delete by the flag ID and the backend handles it
       await api.delete(`/api/admin/reviews/${review.id}`);
+      toast.success(`${review.rating}-star review removed. Seller rating will recalculate.`);
       refetch();
-    } catch (e) {
-      console.error('Failed to remove:', e);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to remove the review.');
     } finally {
       setActionLoading(null);
     }
   };
 
+  // Load error banner — if either fetch failed, surface it instead of
+  // rendering stale/empty state silently.
+  const loadError = flaggedError || statsError;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Review Moderation</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Automatically flagged reviews based on suspicious patterns. Review and take action.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Review Moderation"
+        description="Automatically flagged reviews based on suspicious patterns. Review and take action."
+      />
+
+      {loadError ? (
+        <Card>
+          <div className="p-5 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-fg">Couldn&apos;t load moderation data.</div>
+              <div className="text-2xs text-fg-muted mt-0.5">{loadError}</div>
+            </div>
+            <button
+              onClick={() => { refetch(); refetchStats(); }}
+              className="text-xs font-medium text-accent hover:underline"
+            >
+              Retry
+            </button>
+          </div>
+        </Card>
+      ) : null}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -288,6 +312,6 @@ export default function ReviewModerationPage() {
           })}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
