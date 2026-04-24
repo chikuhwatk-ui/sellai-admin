@@ -7,193 +7,99 @@ import {
   Clock,
   X,
   LayoutDashboard,
-  Users,
-  ShieldCheck,
-  ClipboardList,
-  Truck,
-  AlertTriangle,
-  Star,
-  Sparkles,
-  MessagesSquare,
-  LifeBuoy,
+  Store,
+  Scale,
   Banknote,
-  Megaphone,
   BarChart3,
-  DollarSign,
-  Globe,
-  ShieldHalf,
-  FolderTree,
-  Gauge,
-  TrendingUp,
-  CheckCircle2,
-  UserCog,
-  Settings,
-  FileText,
+  KeyRound,
+  Settings as SettingsIcon,
+  ChevronsLeft,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRecent } from "@/hooks/useRecent";
+import { cn } from "@/lib/cn";
+
+/*
+ * Sidebar — 7 top-level destinations.
+ *
+ * Previous iteration had 23 items across 5 groups and felt like a
+ * phone book. The new shape maps onto atrium landings that group
+ * sub-pages semantically: Dashboard, Trade, Moderation, Finance,
+ * Analytics, Admin — plus Settings pinned to the bottom.
+ *
+ * Each top-level item is visible only if the user has at least ONE
+ * of its `permissions`. Atrium pages do a second layer of filtering
+ * on the individual zone-card links, so a support agent landing on
+ * /moderation sees only the moderation surfaces they can open.
+ */
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
-  permission?: string;
+  /** Any-of — item is visible if the user holds at least one. */
+  permissions?: string[];
 }
 
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
+const PRIMARY: NavItem[] = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: <LayoutDashboard className="w-5 h-5" strokeWidth={1.5} />,
+    permissions: ["DASHBOARD_VIEW"],
+  },
+  {
+    label: "Trade",
+    href: "/trade",
+    icon: <Store className="w-5 h-5" strokeWidth={1.5} />,
+    permissions: [
+      "USERS_VIEW",
+      "ORDERS_VIEW",
+      "DELIVERIES_VIEW",
+      "FINANCE_VIEW",
+      "COMMUNICATIONS_VIEW",
+    ],
+  },
+  {
+    label: "Moderation",
+    href: "/moderation",
+    icon: <Scale className="w-5 h-5" strokeWidth={1.5} />,
+    permissions: [
+      "VERIFICATION_VIEW",
+      "VERIFICATION_REVIEW",
+      "DISPUTES_VIEW",
+      "DISPUTES_MANAGE",
+      "SUPPORT_VIEW",
+      "CHAT_VIEW_MESSAGES",
+    ],
+  },
+  {
+    label: "Finance",
+    href: "/finance",
+    icon: <Banknote className="w-5 h-5" strokeWidth={1.5} />,
+    permissions: ["FINANCE_VIEW", "FINANCE_MANAGE"],
+  },
+  {
+    label: "Analytics",
+    href: "/analytics",
+    icon: <BarChart3 className="w-5 h-5" strokeWidth={1.5} />,
+    permissions: ["ANALYTICS_VIEW"],
+  },
+  {
+    label: "Admin",
+    href: "/admin",
+    icon: <KeyRound className="w-5 h-5" strokeWidth={1.5} />,
+    permissions: ["ADMIN_MANAGE", "APPROVAL_REVIEW", "AUDIT_LOGS_VIEW"],
+  },
+];
 
-const navGroups: NavGroup[] = [
+const UTILITY: NavItem[] = [
   {
-    title: "OVERVIEW",
-    items: [
-      {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: <LayoutDashboard className="w-5 h-5" strokeWidth={1.5} />,
-      },
-    ],
-  },
-  {
-    title: "OPERATIONS",
-    items: [
-      {
-        label: "Users",
-        href: "/users",
-        icon: <Users className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Verification",
-        href: "/verification",
-        icon: <ShieldCheck className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Demands",
-        href: "/orders",
-        icon: <ClipboardList className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Deliveries",
-        href: "/deliveries",
-        icon: <Truck className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Disputes",
-        href: "/disputes",
-        permission: "DISPUTES_VIEW",
-        icon: <AlertTriangle className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Review Moderation",
-        href: "/reviews",
-        permission: "DISPUTES_VIEW",
-        icon: <Star className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Seller Success",
-        href: "/seller-success",
-        permission: "SELLER_SUCCESS_VIEW",
-        icon: <Sparkles className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Chat Inspector",
-        href: "/chats",
-        permission: "CHAT_VIEW_MESSAGES",
-        icon: <MessagesSquare className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Support",
-        href: "/support",
-        permission: "SUPPORT_VIEW",
-        icon: <LifeBuoy className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Finance",
-        href: "/finance",
-        permission: "FINANCE_VIEW",
-        icon: <Banknote className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Communications",
-        href: "/communications",
-        icon: <Megaphone className="w-5 h-5" strokeWidth={1.5} />,
-      },
-    ],
-  },
-  {
-    title: "ANALYTICS",
-    items: [
-      {
-        label: "Marketplace",
-        href: "/analytics/marketplace",
-        icon: <BarChart3 className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "User Economics",
-        href: "/analytics/users-economics",
-        icon: <DollarSign className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Geographic",
-        href: "/analytics/geographic",
-        icon: <Globe className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Trust & Quality",
-        href: "/analytics/trust",
-        icon: <ShieldHalf className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Categories",
-        href: "/analytics/categories",
-        icon: <FolderTree className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Operations",
-        href: "/analytics/operations",
-        icon: <Gauge className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Predictive",
-        href: "/analytics/predictive",
-        icon: <TrendingUp className="w-5 h-5" strokeWidth={1.5} />,
-      },
-    ],
-  },
-  {
-    title: "ADMIN",
-    items: [
-      {
-        label: "Approvals",
-        href: "/approvals",
-        permission: "APPROVAL_REVIEW",
-        icon: <CheckCircle2 className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Admin Management",
-        href: "/admin-management",
-        permission: "ADMIN_MANAGE",
-        icon: <UserCog className="w-5 h-5" strokeWidth={1.5} />,
-      },
-    ],
-  },
-  {
-    title: "SYSTEM",
-    items: [
-      {
-        label: "Settings",
-        href: "/settings",
-        icon: <Settings className="w-5 h-5" strokeWidth={1.5} />,
-      },
-      {
-        label: "Audit Log",
-        href: "/settings/audit-log",
-        permission: "AUDIT_LOGS_VIEW",
-        icon: <FileText className="w-5 h-5" strokeWidth={1.5} />,
-      },
-    ],
+    label: "Settings",
+    href: "/settings",
+    icon: <SettingsIcon className="w-5 h-5" strokeWidth={1.5} />,
+    // No permission guard — every authenticated admin can reach their
+    // own preferences + sign out.
   },
 ];
 
@@ -233,22 +139,71 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     }
   };
 
+  // A top-level item is "active" if the URL is that section or any of
+  // its sub-pages. Dashboard is an exact match so deep-linking to a
+  // user detail page doesn't light up Dashboard.
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
-    return pathname.startsWith(href);
+    return pathname === href || pathname?.startsWith(`${href}/`);
+  };
+
+  const visible = (item: NavItem) =>
+    !item.permissions || item.permissions.some((p) => hasPermission(p));
+
+  const primaryItems = PRIMARY.filter(visible);
+  const utilityItems = UTILITY.filter(visible);
+
+  const renderItem = (item: NavItem) => {
+    const active = isActive(item.href);
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          className={cn(
+            "flex items-center gap-2.5 h-[34px] px-2 rounded-md",
+            "text-sm-compact font-medium transition-colors duration-fast group",
+            active
+              ? "bg-accent-bg text-accent"
+              : "text-fg-muted hover:text-fg hover:bg-raised",
+            collapsed && "justify-center",
+          )}
+          title={collapsed ? item.label : undefined}
+          aria-current={active ? "page" : undefined}
+        >
+          <span
+            className={cn(
+              "shrink-0",
+              active ? "text-accent" : "text-fg-subtle group-hover:text-fg-muted",
+            )}
+          >
+            {item.icon}
+          </span>
+          {!collapsed && <span className="truncate">{item.label}</span>}
+        </Link>
+      </li>
+    );
   };
 
   const sidebarContent = (
     <aside
-      className={`flex flex-col h-screen bg-canvas border-r border-muted transition-[width] duration-base ease-out ${
-        collapsed ? "w-[60px]" : "w-[232px]"
-      }`}
+      className={cn(
+        "flex flex-col h-screen bg-canvas border-r border-muted",
+        "transition-[width] duration-base ease-out",
+        collapsed ? "w-[60px]" : "w-[232px]",
+      )}
     >
       {/* Brand */}
       <div className="flex items-center h-12 px-3 border-b border-muted shrink-0">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center shrink-0 shadow-elev-1">
-            <svg className="w-4 h-4 text-accent-fg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              className="w-4 h-4 text-accent-fg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden="true"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l6-4 6 4M6 8v8l6 4 6-4V8M6 8l6 4m0 0l6-4m-6 4v8" />
             </svg>
           </div>
@@ -258,76 +213,40 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             </span>
           )}
         </div>
-        {/* Mobile close button */}
+        {/* Mobile close */}
         {mobileOpen && onMobileClose && (
           <button
             onClick={onMobileClose}
-            className="ml-auto lg:hidden p-1 rounded text-fg-muted hover:text-fg hover:bg-surface-hover"
+            className="ml-auto lg:hidden p-1 rounded text-fg-muted hover:text-fg hover:bg-raised"
             aria-label="Close sidebar"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Navigation */}
-      <nav ref={navRef} onScroll={handleNavScroll} className="flex-1 overflow-y-auto py-3 px-2">
-        {navGroups.map((group) => {
-          const visibleItems = group.items.filter(
-            (item) => !item.permission || hasPermission(item.permission)
-          );
-          if (visibleItems.length === 0) return null;
-          return (
-          <div key={group.title} className="mb-4">
-            {!collapsed && (
-              <p className="px-2 mb-1 text-[10px] font-medium tracking-wider text-fg-subtle uppercase">
-                {group.title}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {visibleItems.map((item) => {
-                const active = isActive(item.href);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={`flex items-center gap-2.5 h-[30px] px-2 rounded-md text-sm-compact font-medium transition-colors duration-fast group ${
-                        active
-                          ? "bg-accent-bg text-accent"
-                          : "text-fg-muted hover:text-fg hover:bg-raised"
-                      } ${collapsed ? "justify-center" : ""}`}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      <span
-                        className={`shrink-0 [&_svg]:w-[18px] [&_svg]:h-[18px] ${
-                          active ? "text-accent" : "text-fg-subtle group-hover:text-fg-muted"
-                        }`}
-                      >
-                        {item.icon}
-                      </span>
-                      {!collapsed && (
-                        <span className="truncate">{item.label}</span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-          );
-        })}
+      {/* Primary nav */}
+      <nav
+        ref={navRef}
+        onScroll={handleNavScroll}
+        className="flex-1 overflow-y-auto py-3 px-2"
+        aria-label="Primary navigation"
+      >
+        <ul className="space-y-0.5">
+          {primaryItems.map(renderItem)}
+        </ul>
 
-        {/* Recent items — last visited users/orders/disputes */}
+        {/* Recent items — last visited users / orders / disputes */}
         {!collapsed && recentItems.length > 0 && (
-          <div className="mb-4">
+          <div className="mt-6">
             <div className="flex items-center justify-between px-2 mb-1">
-              <p className="text-[10px] font-medium tracking-wider text-fg-subtle uppercase">Recent</p>
+              <p className="text-[10px] font-medium tracking-[0.12em] text-fg-subtle uppercase">
+                Recent
+              </p>
               <button
                 onClick={clearRecent}
                 className="text-fg-subtle hover:text-fg p-0.5 rounded"
-                aria-label="Clear recent"
+                aria-label="Clear recent items"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -349,28 +268,29 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         )}
       </nav>
 
+      {/* Utility row — Settings lives here, separated from primary nav */}
+      {utilityItems.length > 0 && (
+        <div className="shrink-0 border-t border-muted py-2 px-2">
+          <ul className="space-y-0.5">
+            {utilityItems.map(renderItem)}
+          </ul>
+        </div>
+      )}
+
       {/* Collapse toggle — hidden on mobile */}
-      <div className="border-t border-border p-3 shrink-0 hidden lg:block">
+      <div className="border-t border-muted p-2 shrink-0 hidden lg:block">
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-full py-2 rounded-lg text-fg-muted hover:text-fg hover:bg-surface-hover transition-colors"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center justify-center w-full h-8 rounded-md text-fg-muted hover:text-fg hover:bg-raised transition-colors"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <svg
-            className={`w-5 h-5 transition-transform duration-300 ${
-              collapsed ? "rotate-180" : ""
-            }`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"
-            />
-          </svg>
+          <ChevronsLeft
+            className={cn(
+              "w-4 h-4 transition-transform duration-base",
+              collapsed && "rotate-180",
+            )}
+          />
         </button>
       </div>
     </aside>
@@ -378,21 +298,17 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
   return (
     <>
-      {/* Desktop sidebar — always visible */}
-      <div className="hidden lg:block shrink-0">
-        {sidebarContent}
-      </div>
+      {/* Desktop — always visible */}
+      <div className="hidden lg:block shrink-0">{sidebarContent}</div>
 
-      {/* Mobile sidebar — overlay drawer */}
+      {/* Mobile — overlay drawer */}
       {mobileOpen && (
         <>
           <div
             className="fixed inset-0 z-40 bg-black/50 lg:hidden"
             onClick={onMobileClose}
           />
-          <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
-            {sidebarContent}
-          </div>
+          <div className="fixed inset-y-0 left-0 z-50 lg:hidden">{sidebarContent}</div>
         </>
       )}
     </>
