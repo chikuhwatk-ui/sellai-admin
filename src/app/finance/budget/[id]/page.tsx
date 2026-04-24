@@ -39,7 +39,7 @@ export default function BudgetDetailPage() {
   const router = useRouter();
   const { hasPermission } = useAuth();
   const canEdit = hasPermission("FINANCE_MANAGE");
-  const { data: summary, loading, refetch } = useApi<BudgetSummary>(
+  const { data: summary, refetch } = useApi<BudgetSummary>(
     `/api/admin/budget/periods/${params.id}`,
   );
   const [editingLine, setEditingLine] = React.useState<BudgetLineItem | null>(null);
@@ -109,7 +109,11 @@ export default function BudgetDetailPage() {
     }
   }
 
-  if (loading || !summary) {
+  // Only show the skeleton before the first successful fetch. During a
+  // background refetch (e.g. after saving a projection), keep the whole
+  // page — including any open Add/Edit sheet — mounted so the user
+  // doesn't lose their in-progress form.
+  if (!summary) {
     return <PageContainer><Skeleton className="h-96" /></PageContainer>;
   }
 

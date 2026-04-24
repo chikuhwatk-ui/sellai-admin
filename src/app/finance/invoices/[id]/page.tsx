@@ -80,7 +80,7 @@ export default function InvoiceDetailPage() {
   const params = useParams<{ id: string }>();
   const { hasPermission } = useAuth();
   const canManage = hasPermission("FINANCE_MANAGE");
-  const { data: invoice, loading, refetch } = useApi<InvoiceDetail>(`/api/admin/invoices/${params.id}`);
+  const { data: invoice, refetch } = useApi<InvoiceDetail>(`/api/admin/invoices/${params.id}`);
   const [action, setAction] = React.useState<null | "void" | "credit-note">(null);
   const [reason, setReason] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
@@ -117,7 +117,7 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  if (loading || !invoice) {
+  if (!invoice) {
     return (
       <PageContainer>
         <Skeleton className="h-96" />
