@@ -47,9 +47,8 @@ export function Pagination({
     // Numeric window — try to keep `page` centered; clamp at both ends.
     const numbers: number[] = [];
     const half = Math.floor(siblings / 2);
-    let start = Math.max(1, page - half);
-    let end = Math.min(totalPages, start + siblings - 1);
-    if (end - start + 1 < siblings) start = Math.max(1, end - siblings + 1);
+    const end = Math.min(totalPages, Math.max(1, page - half) + siblings - 1);
+    const start = Math.max(1, end - siblings + 1);
     for (let n = start; n <= end; n++) numbers.push(n);
 
     return (

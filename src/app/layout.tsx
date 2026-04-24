@@ -11,9 +11,13 @@ import { ConfirmDialogHost } from "@/components/ui/ConfirmDialog";
 // single editorial moment per page without replacing the body/mono
 // stack, and without the ~$700 Söhne license. Scoped via the
 // `--font-display` CSS variable + the `.font-display` utility.
+//
+// Loaded as a variable font (no `weight` list) so the `opsz` + `SOFT`
+// axes can be driven from CSS via `font-variation-settings`. Mixing
+// `weight: [...]` with `axes: [...]` is a next/font build error —
+// pick one or the other.
 const fraunces = Fraunces({
     subsets: ["latin"],
-    weight: ["500", "600"],
     axes: ["opsz", "SOFT"],
     display: "swap",
     variable: "--font-display",

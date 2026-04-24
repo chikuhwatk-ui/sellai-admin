@@ -23,7 +23,6 @@ const ADMIN_SESSION_KEYS = [
 ] as const;
 
 if (typeof window !== 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-extra-semi
   (function migrateLegacyAdminSession() {
     let migrated = false;
     for (const k of ADMIN_SESSION_KEYS) {
