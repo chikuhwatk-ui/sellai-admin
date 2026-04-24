@@ -183,58 +183,67 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Action queues */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <QueueCard
-          title="Verification queue"
-          subtitle={`${verificationList.length} pending`}
-          tone="warning"
-          href="/verification"
-          icon={<ShieldCheck className="h-4 w-4" />}
-        >
-          {verificationList.slice(0, 5).map((v: any) => (
-            <QueueRow
-              key={v.id}
-              title={v.fullName}
-              subtitle={`ID ${v.idNumber}`}
-              time={v.submittedAt}
-              badge={v.isPriority ? <Badge tone="danger" size="sm">Priority</Badge> : null}
-            />
-          ))}
-          {verificationList.length === 0 && (
-            <div className="text-center py-6 text-xs text-fg-subtle">Queue empty</div>
-          )}
-        </QueueCard>
+      {/* Action queues — staggered vertically on ≥lg to break the form-grid
+       * rhythm and read as a control room rather than a table. Mobile +
+       * tablet stay on a flat stack so scan order is obvious on narrow
+       * viewports. Stagger offsets: 0 / 24px / 48px. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
+        <div className="lg:mt-0">
+          <QueueCard
+            title="Verification queue"
+            subtitle={`${verificationList.length} pending`}
+            tone="warning"
+            href="/verification"
+            icon={<ShieldCheck className="h-4 w-4" />}
+          >
+            {verificationList.slice(0, 5).map((v: any) => (
+              <QueueRow
+                key={v.id}
+                title={v.fullName}
+                subtitle={`ID ${v.idNumber}`}
+                time={v.submittedAt}
+                badge={v.isPriority ? <Badge tone="danger" size="sm">Priority</Badge> : null}
+              />
+            ))}
+            {verificationList.length === 0 && (
+              <div className="text-center py-6 text-xs text-fg-subtle">Queue empty</div>
+            )}
+          </QueueCard>
+        </div>
 
-        <QueueCard
-          title="Flagged content"
-          subtitle={`${flaggedContent.length} items`}
-          tone="danger"
-          href="/disputes"
-          icon={<AlertTriangle className="h-4 w-4" />}
-        >
-          {flaggedContent.slice(0, 5).map((f: any, i: number) => (
-            <QueueRow key={i} title={f.reason || "Flagged"} subtitle={f.description} time={f.createdAt} />
-          ))}
-          {flaggedContent.length === 0 && (
-            <div className="text-center py-6 text-xs text-fg-subtle">Nothing flagged</div>
-          )}
-        </QueueCard>
+        <div className="lg:mt-6">
+          <QueueCard
+            title="Flagged content"
+            subtitle={`${flaggedContent.length} items`}
+            tone="danger"
+            href="/disputes"
+            icon={<AlertTriangle className="h-4 w-4" />}
+          >
+            {flaggedContent.slice(0, 5).map((f: any, i: number) => (
+              <QueueRow key={i} title={f.reason || "Flagged"} subtitle={f.description} time={f.createdAt} />
+            ))}
+            {flaggedContent.length === 0 && (
+              <div className="text-center py-6 text-xs text-fg-subtle">Nothing flagged</div>
+            )}
+          </QueueCard>
+        </div>
 
-        <QueueCard
-          title="System alerts"
-          subtitle={`${systemAlerts.length} active`}
-          tone="info"
-          href="/settings/audit-log"
-          icon={<Activity className="h-4 w-4" />}
-        >
-          {systemAlerts.slice(0, 5).map((a: any, i: number) => (
-            <QueueRow key={i} title={a.title} subtitle={a.description} time={a.createdAt} />
-          ))}
-          {systemAlerts.length === 0 && (
-            <div className="text-center py-6 text-xs text-fg-subtle">All clear</div>
-          )}
-        </QueueCard>
+        <div className="lg:mt-12">
+          <QueueCard
+            title="System alerts"
+            subtitle={`${systemAlerts.length} active`}
+            tone="info"
+            href="/settings/audit-log"
+            icon={<Activity className="h-4 w-4" />}
+          >
+            {systemAlerts.slice(0, 5).map((a: any, i: number) => (
+              <QueueRow key={i} title={a.title} subtitle={a.description} time={a.createdAt} />
+            ))}
+            {systemAlerts.length === 0 && (
+              <div className="text-center py-6 text-xs text-fg-subtle">All clear</div>
+            )}
+          </QueueCard>
+        </div>
       </div>
 
       {/* Quick nav */}
