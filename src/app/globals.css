@@ -43,15 +43,21 @@
     --color-accent-bg-hover: oklch(0.72 0.18 155 / 0.18);
     --color-accent-fg: oklch(0.18 0.03 155);
 
-    /* Semantic — success / warning / danger / info */
+    /* Semantic — success / warning / danger / info. The `*-fg` variants are the
+     * text colour to use on top of a filled `*` surface (e.g. white text on a
+     * solid danger button), mirroring the accent-fg pattern. */
     --color-success: oklch(0.72 0.17 155);
     --color-success-bg: oklch(0.72 0.17 155 / 0.12);
+    --color-success-fg: oklch(0.18 0.03 155);
     --color-warning: oklch(0.80 0.16 80);
     --color-warning-bg: oklch(0.80 0.16 80 / 0.14);
+    --color-warning-fg: oklch(0.20 0.03 80);
     --color-danger: oklch(0.68 0.22 25);
     --color-danger-bg: oklch(0.68 0.22 25 / 0.14);
+    --color-danger-fg: oklch(0.99 0.01 25);
     --color-info: oklch(0.72 0.15 240);
     --color-info-bg: oklch(0.72 0.15 240 / 0.14);
+    --color-info-fg: oklch(0.18 0.03 240);
     --color-pending: oklch(0.70 0.20 290);
     --color-pending-bg: oklch(0.70 0.20 290 / 0.14);
 
@@ -91,12 +97,16 @@
 
     --color-success: oklch(0.55 0.16 155);
     --color-success-bg: oklch(0.72 0.15 155 / 0.16);
+    --color-success-fg: oklch(0.99 0.01 155);
     --color-warning: oklch(0.68 0.16 70);
     --color-warning-bg: oklch(0.82 0.14 70 / 0.22);
+    --color-warning-fg: oklch(0.99 0.01 70);
     --color-danger: oklch(0.58 0.22 25);
     --color-danger-bg: oklch(0.75 0.18 25 / 0.20);
+    --color-danger-fg: oklch(0.99 0.01 25);
     --color-info: oklch(0.58 0.15 240);
     --color-info-bg: oklch(0.72 0.14 240 / 0.18);
+    --color-info-fg: oklch(0.99 0.01 240);
     --color-pending: oklch(0.58 0.20 290);
     --color-pending-bg: oklch(0.72 0.16 290 / 0.18);
 
@@ -275,18 +285,22 @@
   .bg-danger { background-color: var(--color-danger); }
   .bg-danger-bg { background-color: var(--color-danger-bg); }
   .text-danger { color: var(--color-danger); }
+  .text-danger-fg { color: var(--color-danger-fg); }
 
   .bg-warning { background-color: var(--color-warning); }
   .bg-warning-bg { background-color: var(--color-warning-bg); }
   .text-warning { color: var(--color-warning); }
+  .text-warning-fg { color: var(--color-warning-fg); }
 
   .bg-success { background-color: var(--color-success); }
   .bg-success-bg { background-color: var(--color-success-bg); }
   .text-success { color: var(--color-success); }
+  .text-success-fg { color: var(--color-success-fg); }
 
   .bg-info { background-color: var(--color-info); }
   .bg-info-bg { background-color: var(--color-info-bg); }
   .text-info { color: var(--color-info); }
+  .text-info-fg { color: var(--color-info-fg); }
 
   .bg-pending { background-color: var(--color-pending); }
   .bg-pending-bg { background-color: var(--color-pending-bg); }

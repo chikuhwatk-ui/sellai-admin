@@ -71,13 +71,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ id: strin
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link href="/chats" className="text-xs text-[#6B7280] hover:text-white">← Back to Chat Inspector</Link>
-          <h1 className="text-2xl font-bold text-white mt-1">Chat thread</h1>
-          <p className="text-xs text-[#6B7280] mt-1 font-mono">{id}</p>
+          <Link href="/chats" className="text-xs text-fg-muted hover:text-fg">← Back to Chat Inspector</Link>
+          <h1 className="text-2xl font-bold text-fg mt-1">Chat thread</h1>
+          <p className="text-xs text-fg-muted mt-1 font-mono">{id}</p>
         </div>
         <Link
           href="/chats/audit-log"
-          className="text-xs text-[#3B82F6] hover:underline"
+          className="text-xs text-info hover:underline"
         >
           View access log →
         </Link>
@@ -85,17 +85,17 @@ export default function ChatThreadPage({ params }: { params: Promise<{ id: strin
 
       {/* Reason form (visible if no data yet, or to re-fetch) */}
       {!data && (
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 space-y-4">
-          <p className="text-sm text-white">Provide a reason to decrypt this chat. Your access will be logged.</p>
+        <div className="bg-panel border border-muted rounded-xl p-6 space-y-4">
+          <p className="text-sm text-fg">Provide a reason to decrypt this chat. Your access will be logged.</p>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. Dispute #DS-2031 — fraud investigation"
             rows={3}
-            className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#10B981] focus:outline-none focus:ring-1 focus:ring-[#10B981] resize-none"
+            className="w-full bg-canvas border border-muted rounded-lg px-4 py-2.5 text-sm text-fg focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent resize-none"
           />
           {error && (
-            <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 text-[#EF4444] rounded-lg px-4 py-2.5 text-sm">
+            <div className="bg-danger-bg border border-danger/30 text-danger rounded-lg px-4 py-2.5 text-sm">
               {error}
             </div>
           )}
@@ -103,13 +103,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ id: strin
             <button
               onClick={() => loadThread(reason)}
               disabled={loading}
-              className="bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
+              className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-accent-fg font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
             >
               {loading ? 'Decrypting…' : 'Decrypt thread'}
             </button>
             <button
               onClick={() => router.push('/chats')}
-              className="text-[#6B7280] hover:text-white text-sm"
+              className="text-fg-muted hover:text-fg text-sm"
             >
               Cancel
             </button>
@@ -120,39 +120,39 @@ export default function ChatThreadPage({ params }: { params: Promise<{ id: strin
       {data && (
         <>
           {/* Header card with parties + audit note */}
-          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-panel border border-muted rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <div className="text-xs text-[#6B7280] uppercase tracking-wider">Buyer</div>
-              <div className="text-sm text-white font-medium mt-1">{buyerName}</div>
+              <div className="text-xs text-fg-muted uppercase tracking-wider">Buyer</div>
+              <div className="text-sm text-fg font-medium mt-1">{buyerName}</div>
               {data.chat.buyer?.id && (
-                <Link href={`/users/${data.chat.buyer.id}`} className="text-[10px] text-[#3B82F6] hover:underline mt-1 inline-block">
+                <Link href={`/users/${data.chat.buyer.id}`} className="text-[10px] text-info hover:underline mt-1 inline-block">
                   Open user →
                 </Link>
               )}
             </div>
             <div>
-              <div className="text-xs text-[#6B7280] uppercase tracking-wider">Seller</div>
-              <div className="text-sm text-white font-medium mt-1">{sellerName}</div>
+              <div className="text-xs text-fg-muted uppercase tracking-wider">Seller</div>
+              <div className="text-sm text-fg font-medium mt-1">{sellerName}</div>
               {data.chat.seller?.id && (
-                <Link href={`/users/${data.chat.seller.id}`} className="text-[10px] text-[#3B82F6] hover:underline mt-1 inline-block">
+                <Link href={`/users/${data.chat.seller.id}`} className="text-[10px] text-info hover:underline mt-1 inline-block">
                   Open seller →
                 </Link>
               )}
             </div>
             <div className="md:text-right">
-              <div className="text-xs text-[#6B7280] uppercase tracking-wider">Messages</div>
-              <div className="text-sm text-white font-medium mt-1">{data.messages.length}</div>
+              <div className="text-xs text-fg-muted uppercase tracking-wider">Messages</div>
+              <div className="text-sm text-fg font-medium mt-1">{data.messages.length}</div>
             </div>
           </div>
 
-          <div className="bg-[#3B82F6]/10 border border-[#3B82F6]/30 rounded-xl p-4 text-sm text-[#9CA3AF]">
+          <div className="bg-info-bg border border-info/30 rounded-xl p-4 text-sm text-fg-muted">
             {data.auditNote}
           </div>
 
           {/* Thread */}
-          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
+          <div className="bg-panel border border-muted rounded-xl p-6">
             {data.messages.length === 0 ? (
-              <p className="text-sm text-[#6B7280] text-center py-12">No messages in this chat.</p>
+              <p className="text-sm text-fg-muted text-center py-12">No messages in this chat.</p>
             ) : (
               <div className="space-y-3">
                 {data.messages.map((m) => {
@@ -161,13 +161,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ id: strin
                     <div key={m.id} className={`flex ${fromBuyer ? 'justify-start' : 'justify-end'}`}>
                       <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
                         fromBuyer
-                          ? 'bg-[#0F1117] border border-[#2A2D37] text-white rounded-bl-sm'
-                          : 'bg-[#10B981]/15 border border-[#10B981]/30 text-white rounded-br-sm'
+                          ? 'bg-canvas border border-muted text-fg rounded-bl-sm'
+                          : 'bg-accent-bg border border-accent/30 text-fg rounded-br-sm'
                       }`}>
                         <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">
                           {fromBuyer ? buyerName : sellerName}
                           {m.type && m.type !== 'TEXT' && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded bg-[#3B82F6]/20 text-[#3B82F6]">{m.type}</span>
+                            <span className="ml-2 px-1.5 py-0.5 rounded bg-info-bg text-info">{m.type}</span>
                           )}
                         </div>
                         <div className="text-sm whitespace-pre-wrap break-words">{m.content || '(empty)'}</div>

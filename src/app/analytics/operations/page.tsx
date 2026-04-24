@@ -14,7 +14,7 @@ export default function OperationalEfficiencyPage() {
     return [];
   }, [notifications]);
 
-  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
+  if (loading) return <div className="p-8 text-fg-muted">Loading...</div>;
 
   const matchingRaw = data?.matching || {};
   // Backend returns waves with { wave, offerRate, ... } — map to expected { wave, rate }
@@ -73,11 +73,13 @@ export default function OperationalEfficiencyPage() {
   const clampedUtilization = Math.min(Math.max(utilization, 0), 100);
   const gaugeAngle = gaugeStart + (clampedUtilization / 100) * gaugeRange;
 
-  // Normalize matching stats for display
+  // Normalize matching stats for display. Stat colours are pulled from theme tokens so
+  // they flip automatically with light/dark mode. The `#06B6D4` / `#8B5CF6` literals
+  // are secondary chart accents that don't exist in the token palette — keep them.
   const matchingDisplay = [
-    { label: 'Notifications Sent', value: String(matchingRaw.totalNotifications ?? 0), sub: `Last ${period} days`, color: '#10B981' },
+    { label: 'Notifications Sent', value: String(matchingRaw.totalNotifications ?? 0), sub: `Last ${period} days`, color: 'var(--color-accent)' },
     { label: 'View Rate', value: `${matchingRaw.viewRate ?? 0}%`, sub: `${matchingRaw.totalIntents ?? 0} intents`, color: '#06B6D4' },
-    { label: 'Response Rate', value: `${matchingRaw.responseRate ?? 0}%`, sub: `${matchingRaw.totalOffers ?? 0} offers`, color: '#F59E0B' },
+    { label: 'Response Rate', value: `${matchingRaw.responseRate ?? 0}%`, sub: `${matchingRaw.totalOffers ?? 0} offers`, color: 'var(--color-warning)' },
     { label: 'Offer Rate', value: `${matchingRaw.offerRate ?? 0}%`, sub: 'Intents with offers', color: '#8B5CF6' },
   ];
 
@@ -85,16 +87,16 @@ export default function OperationalEfficiencyPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Operational Efficiency</h1>
-          <p className="text-[#6B7280] text-sm">Matching, payments, notifications, and runner performance</p>
+          <h1 className="text-2xl font-bold text-fg mb-1">Operational Efficiency</h1>
+          <p className="text-fg-muted text-sm">Matching, payments, notifications, and runner performance</p>
         </div>
-        <div className="flex bg-[#1A1D27] border border-[#2A2D37] rounded-lg overflow-hidden">
+        <div className="flex bg-panel border border-muted rounded-lg overflow-hidden">
           {([7, 30, 90] as const).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
-                period === p ? 'bg-[#10B981] text-white' : 'text-[#6B7280] hover:text-white'
+                period === p ? 'bg-accent text-accent-fg' : 'text-fg-muted hover:text-fg'
               }`}
             >
               {p}d
@@ -106,20 +108,20 @@ export default function OperationalEfficiencyPage() {
       {/* Matching Performance */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {matchingDisplay.map((stat: any) => (
-          <div key={stat.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-            <div className="text-[#6B7280] text-sm mb-1">{stat.label}</div>
+          <div key={stat.label} className="bg-panel border border-muted rounded-xl p-6">
+            <div className="text-fg-muted text-sm mb-1">{stat.label}</div>
             <div className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</div>
-            <div className="text-xs text-[#6B7280] mt-1">{stat.sub}</div>
+            <div className="text-xs text-fg-muted mt-1">{stat.sub}</div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Wave Effectiveness */}
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Wave Effectiveness</h2>
+        <div className="bg-panel border border-muted rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-fg mb-4">Wave Effectiveness</h2>
           {waves.length === 0 ? (
-            <div className="text-sm text-[#6B7280] p-4 text-center">No wave data available</div>
+            <div className="text-sm text-fg-muted p-4 text-center">No wave data available</div>
           ) : (
           <svg viewBox="0 0 400 220" className="w-full" preserveAspectRatio="xMidYMid meet">
             {waves.map((w: any, i: number) => {
@@ -132,8 +134,8 @@ export default function OperationalEfficiencyPage() {
               return (
                 <g key={String(w.wave)}>
                   <rect x={x} y={y} width={barW} height={barH} rx="4" fill="#06B6D4" />
-                  <text x={x + barW / 2} y={y - 8} textAnchor="middle" fill="#E5E7EB" fontSize="12" fontWeight="600">{rate}%</text>
-                  <text x={x + barW / 2} y={205} textAnchor="middle" fill="#6B7280" fontSize="11">{String(w.wave)}</text>
+                  <text x={x + barW / 2} y={y - 8} textAnchor="middle" fill="var(--color-fg)" fontSize="12" fontWeight="600">{rate}%</text>
+                  <text x={x + barW / 2} y={205} textAnchor="middle" fill="var(--color-fg-muted)" fontSize="11">{String(w.wave)}</text>
                 </g>
               );
             })}
@@ -142,22 +144,22 @@ export default function OperationalEfficiencyPage() {
         </div>
 
         {/* Runner Utilization Gauge */}
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Runner Utilization</h2>
+        <div className="bg-panel border border-muted rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-fg mb-4">Runner Utilization</h2>
           <div className="flex flex-col items-center">
             <svg viewBox="0 0 220 155" className="w-56 h-40 mx-auto">
               {/* Background arc */}
-              <path d={describeArc(110, 90, 65, gaugeStart, gaugeEnd)} fill="none" stroke="#2A2D37" strokeWidth="12" strokeLinecap="round" />
+              <path d={describeArc(110, 90, 65, gaugeStart, gaugeEnd)} fill="none" stroke="var(--color-border-muted)" strokeWidth="12" strokeLinecap="round" />
               {/* Value arc */}
-              <path d={describeArc(110, 90, 65, gaugeStart, gaugeAngle)} fill="none" stroke="#10B981" strokeWidth="12" strokeLinecap="round" />
-              <text x="110" y="88" textAnchor="middle" fill="#E5E7EB" fontSize="24" fontWeight="bold">{utilization}%</text>
-              <text x="110" y="105" textAnchor="middle" fill="#6B7280" fontSize="10">Utilization</text>
+              <path d={describeArc(110, 90, 65, gaugeStart, gaugeAngle)} fill="none" stroke="var(--color-accent)" strokeWidth="12" strokeLinecap="round" />
+              <text x="110" y="88" textAnchor="middle" fill="var(--color-fg)" fontSize="24" fontWeight="bold">{utilization}%</text>
+              <text x="110" y="105" textAnchor="middle" fill="var(--color-fg-muted)" fontSize="10">Utilization</text>
             </svg>
             <div className="grid grid-cols-3 gap-4 mt-4 w-full">
               {runnerStats.map((s: any) => (
                 <div key={String(s.label)} className="text-center">
-                  <div className="text-lg font-bold text-white">{String(s.value ?? 0)}</div>
-                  <div className="text-xs text-[#6B7280]">{String(s.label)}</div>
+                  <div className="text-lg font-bold text-fg">{String(s.value ?? 0)}</div>
+                  <div className="text-xs text-fg-muted">{String(s.label)}</div>
                 </div>
               ))}
             </div>
@@ -166,30 +168,30 @@ export default function OperationalEfficiencyPage() {
       </div>
 
       {/* Payment Processing */}
-      <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Payment Processing</h2>
+      <div className="bg-panel border border-muted rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-fg mb-4">Payment Processing</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2A2D37]">
-                <th className="text-left py-2 text-[#6B7280] font-medium">Method</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Success Rate</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Avg Time</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Failure Rate</th>
-                <th className="text-right py-2 text-[#6B7280] font-medium">Volume</th>
+              <tr className="border-b border-muted">
+                <th className="text-left py-2 text-fg-muted font-medium">Method</th>
+                <th className="text-right py-2 text-fg-muted font-medium">Success Rate</th>
+                <th className="text-right py-2 text-fg-muted font-medium">Avg Time</th>
+                <th className="text-right py-2 text-fg-muted font-medium">Failure Rate</th>
+                <th className="text-right py-2 text-fg-muted font-medium">Volume</th>
               </tr>
             </thead>
             <tbody>
               {payments.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-sm text-[#6B7280]">No payment data available</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-sm text-fg-muted">No payment data available</td></tr>
               )}
               {payments.map((p: any) => (
-                <tr key={String(p.method)} className="border-b border-[#2A2D37]/50">
-                  <td className="py-2 text-[#E5E7EB] font-medium">{String(p.method || 'Unknown')}</td>
-                  <td className="py-2 text-right text-[#10B981]">{Number(p.successRate || 0)}%</td>
-                  <td className="py-2 text-right text-[#E5E7EB]">{String(p.avgTime || '--')}</td>
-                  <td className="py-2 text-right text-[#EF4444]">{Number(p.failureRate || 0)}%</td>
-                  <td className="py-2 text-right text-[#E5E7EB]">{String(p.volume || 0)}</td>
+                <tr key={String(p.method)} className="border-b border-muted/50">
+                  <td className="py-2 text-fg font-medium">{String(p.method || 'Unknown')}</td>
+                  <td className="py-2 text-right text-accent">{Number(p.successRate || 0)}%</td>
+                  <td className="py-2 text-right text-fg">{String(p.avgTime || '--')}</td>
+                  <td className="py-2 text-right text-danger">{Number(p.failureRate || 0)}%</td>
+                  <td className="py-2 text-right text-fg">{String(p.volume || 0)}</td>
                 </tr>
               ))}
             </tbody>
@@ -198,10 +200,10 @@ export default function OperationalEfficiencyPage() {
       </div>
 
       {/* Notification Timing */}
-      <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Notification-to-Action Rate by Hour</h2>
+      <div className="bg-panel border border-muted rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-fg mb-4">Notification-to-Action Rate by Hour</h2>
         {hourlyRates.length === 0 ? (
-          <div className="text-sm text-[#6B7280] p-4 text-center">No notification data available</div>
+          <div className="text-sm text-fg-muted p-4 text-center">No notification data available</div>
         ) : (
         <svg viewBox="0 0 800 200" className="w-full" preserveAspectRatio="xMidYMid meet">
           {hourlyRates.map((h: any, i: number) => {
@@ -211,11 +213,11 @@ export default function OperationalEfficiencyPage() {
             const barH = (h.rate / maxHourly) * 140;
             const y = 170 - barH;
             const intensity = h.rate / maxHourly;
-            const color = intensity > 0.7 ? '#10B981' : intensity > 0.4 ? '#F59E0B' : '#6B7280';
+            const color = intensity > 0.7 ? 'var(--color-accent)' : intensity > 0.4 ? 'var(--color-warning)' : 'var(--color-fg-muted)';
             return (
               <g key={h.hour}>
                 <rect x={x} y={y} width={barW} height={barH} rx="2" fill={color} opacity="0.8" />
-                <text x={x + barW / 2} y={185} textAnchor="middle" fill="#6B7280" fontSize="8">
+                <text x={x + barW / 2} y={185} textAnchor="middle" fill="var(--color-fg-muted)" fontSize="8">
                   {String(h.hour).padStart(2, '0')}
                 </text>
               </g>

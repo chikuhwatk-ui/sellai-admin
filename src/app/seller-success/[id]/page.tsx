@@ -81,7 +81,7 @@ const TIER_VARIANT: Record<string, 'success' | 'warning' | 'info' | 'primary' | 
 // ── Skeleton ──────────────────────────────────────────────────────────
 
 function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`bg-[#1A1D27] border border-[#2A2D37] rounded-xl animate-pulse ${className}`} />;
+  return <div className={`bg-panel border border-muted rounded-xl animate-pulse ${className}`} />;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ export default function SellerDetailPage() {
   if (error || !seller) {
     return (
       <div className="space-y-4">
-        <Link href="/seller-success" className="text-[#10B981] hover:underline text-sm inline-flex items-center gap-1">
+        <Link href="/seller-success" className="text-accent hover:underline text-sm inline-flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
@@ -167,7 +167,7 @@ export default function SellerDetailPage() {
     <div className="space-y-8">
       {/* ── Header ── */}
       <div>
-        <Link href="/seller-success" className="text-[#10B981] hover:underline text-sm inline-flex items-center gap-1 mb-3">
+        <Link href="/seller-success" className="text-accent hover:underline text-sm inline-flex items-center gap-1 mb-3">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
@@ -248,8 +248,8 @@ export default function SellerDetailPage() {
           <Card padding={false}>
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-[#1A1D27]">
-                  <tr className="border-b border-[#2A2D37]">
+                <thead className="sticky top-0 bg-panel">
+                  <tr className="border-b border-muted">
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Amount</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Reason</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Date</th>
@@ -257,7 +257,7 @@ export default function SellerDetailPage() {
                 </thead>
                 <tbody>
                   {seller.creditSpendHistory.map((cs) => (
-                    <tr key={cs.id} className="border-b border-[#2A2D37] last:border-b-0 hover:bg-[#1A1D27]/50">
+                    <tr key={cs.id} className="border-b border-muted last:border-b-0 hover:bg-panel/50">
                       <td className="px-4 py-3">
                         <span className={cs.amount < 0 ? 'text-red-400' : 'text-emerald-400'}>
                           {cs.amount < 0 ? '' : '+'}{cs.amount}
@@ -289,8 +289,8 @@ export default function SellerDetailPage() {
           <Card padding={false}>
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-[#1A1D27]">
-                  <tr className="border-b border-[#2A2D37]">
+                <thead className="sticky top-0 bg-panel">
+                  <tr className="border-b border-muted">
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Status</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Price</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Intent</th>
@@ -299,7 +299,7 @@ export default function SellerDetailPage() {
                 </thead>
                 <tbody>
                   {seller.recentOffers.map((offer) => (
-                    <tr key={offer.id} className="border-b border-[#2A2D37] last:border-b-0 hover:bg-[#1A1D27]/50">
+                    <tr key={offer.id} className="border-b border-muted last:border-b-0 hover:bg-panel/50">
                       <td className="px-4 py-3">
                         <Badge variant={OFFER_STATUS_VARIANT[offer.status] ?? 'default'}>
                           {offer.status}
@@ -369,12 +369,12 @@ export default function SellerDetailPage() {
                 value={bonusAmount}
                 onChange={(e) => setBonusAmount(e.target.value)}
                 placeholder="Amount"
-                className="w-32 px-3 py-2 text-sm rounded-lg bg-[#0F1117] border border-[#2A2D37] text-white placeholder-gray-500 focus:outline-none focus:border-[#10B981]/50 focus:ring-1 focus:ring-[#10B981]/30"
+                className="w-32 px-3 py-2 text-sm rounded-lg bg-canvas border border-muted text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/30"
               />
               <button
                 onClick={handleGrantCredits}
                 disabled={grantingCredits || !bonusAmount || parseInt(bonusAmount, 10) <= 0}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/20 hover:bg-[#10B981]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-accent-bg text-accent border border-accent/20 hover:bg-accent-bg-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {grantingCredits ? 'Granting...' : 'Grant Credits'}
               </button>

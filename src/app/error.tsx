@@ -14,28 +14,28 @@ export default function RootError({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0F1117] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-canvas px-4">
       <div className="text-center max-w-md">
-        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="w-12 h-12 rounded-full bg-danger-bg flex items-center justify-center mx-auto mb-4">
+          <svg className="w-6 h-6 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-[#E5E7EB] mb-2">Something went wrong</h2>
-        <p className="text-sm text-[#6B7280] mb-2">{error?.message || 'An unexpected error occurred'}</p>
+        <h2 className="text-lg font-semibold text-fg mb-2">Something went wrong</h2>
+        <p className="text-sm text-fg-muted mb-2">{error?.message || 'An unexpected error occurred'}</p>
         {error?.digest && (
-          <p className="text-xs text-[#4B5563] mb-4 font-mono">Digest: {error.digest}</p>
+          <p className="text-xs text-fg-subtle mb-4 font-mono">Digest: {error.digest}</p>
         )}
         <div className="flex gap-3 justify-center">
           <button
             onClick={reset}
-            className="px-4 py-2 bg-[#10B981] text-white rounded-lg text-sm font-medium hover:bg-[#059669] transition-colors"
+            className="px-4 py-2 bg-accent text-accent-fg rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
           >
             Try again
           </button>
           <button
             onClick={() => window.location.href = '/dashboard'}
-            className="px-4 py-2 bg-[#1A1D27] text-[#E5E7EB] border border-[#2A2D37] rounded-lg text-sm font-medium hover:bg-[#2A2D37] transition-colors"
+            className="px-4 py-2 bg-panel text-fg border border-muted rounded-lg text-sm font-medium hover:bg-raised transition-colors"
           >
             Go to Dashboard
           </button>

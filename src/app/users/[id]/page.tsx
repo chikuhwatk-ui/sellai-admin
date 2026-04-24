@@ -13,7 +13,8 @@ function getInitials(name: string) {
 }
 
 function getAvatarColor(name: string) {
-  const colors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899'];
+  // Avatar palette — mixes theme tokens (accent/info/warning/danger) with two decorative accents.
+  const colors = ['var(--color-accent)', 'var(--color-info)', '#8B5CF6', 'var(--color-warning)', 'var(--color-danger)', '#EC4899'];
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
@@ -275,7 +276,7 @@ export default function UserDetailPage() {
                   <div className="text-xs text-fg-muted mb-1">Rating</div>
                   <div className="flex items-center gap-1">
                     <span className="text-sm font-medium text-warning">{sellerMetrics?.rating?.toFixed(1) ?? '--'}</span>
-                    <svg width="14" height="14" fill="#F59E0B" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                    <svg width="14" height="14" fill="var(--color-warning)" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
                   </div>
                 </div>
                 <div>
@@ -472,7 +473,7 @@ export default function UserDetailPage() {
                     <button
                       onClick={handleSuspend}
                       disabled={actionLoading}
-                      className="px-4 py-2 text-sm font-medium rounded-lg bg-danger text-white hover:bg-danger/90 disabled:opacity-50 transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-lg bg-danger text-danger-fg hover:bg-danger/90 disabled:opacity-50 transition-colors"
                     >
                       {actionLoading ? 'Suspending...' : 'Suspend User'}
                     </button>
@@ -529,7 +530,7 @@ export default function UserDetailPage() {
                     <button
                       onClick={handleAdjustCredits}
                       disabled={actionLoading || !creditAmount || parseInt(creditAmount, 10) === 0}
-                      className="px-4 py-2 text-sm font-medium rounded-lg bg-info text-white hover:bg-info/90 disabled:opacity-50 transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-lg bg-info text-info-fg hover:bg-info/90 disabled:opacity-50 transition-colors"
                     >
                       {actionLoading ? 'Adjusting...' : 'Adjust Credits'}
                     </button>

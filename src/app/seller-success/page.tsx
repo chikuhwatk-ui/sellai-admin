@@ -69,7 +69,7 @@ const SEGMENT_CONFIG: Record<string, { label: string; color: string; bg: string;
 // ── Skeleton ──────────────────────────────────────────────────────────
 
 function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`bg-[#1A1D27] border border-[#2A2D37] rounded-xl animate-pulse ${className}`} />;
+  return <div className={`bg-panel border border-muted rounded-xl animate-pulse ${className}`} />;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -228,7 +228,7 @@ export default function SellerSuccessPage() {
                     <p className="text-sm text-gray-400 mb-1">{stage.label}</p>
                     <p className="text-2xl font-bold text-white">{stage.count.toLocaleString()}</p>
                     {idx > 0 && (
-                      <p className="text-xs text-[#10B981] mt-1">
+                      <p className="text-xs text-accent mt-1">
                         {convRate(funnelStages[idx - 1].count, stage.count)} from prev
                       </p>
                     )}
@@ -267,7 +267,7 @@ export default function SellerSuccessPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#2A2D37]">
+                  <tr className="border-b border-muted">
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Seller</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Type</th>
                     <th className="text-left text-gray-400 font-medium px-4 py-3">Severity</th>
@@ -278,12 +278,12 @@ export default function SellerSuccessPage() {
                 </thead>
                 <tbody>
                   {alerts.map((alert) => (
-                    <tr key={alert.id} className="border-b border-[#2A2D37] last:border-b-0 hover:bg-[#1A1D27]/50">
+                    <tr key={alert.id} className="border-b border-muted last:border-b-0 hover:bg-panel/50">
                       <td className="px-4 py-3">
                         {alert.seller ? (
                           <Link
                             href={`/seller-success/${alert.seller.id}`}
-                            className="text-[#10B981] hover:text-emerald-300 hover:underline font-medium"
+                            className="text-accent hover:text-accent-hover hover:underline font-medium"
                           >
                             {alert.seller.businessName || alert.seller.userName || 'Unknown'}
                           </Link>
@@ -307,7 +307,7 @@ export default function SellerSuccessPage() {
                         <button
                           onClick={() => handleResolve(alert.id)}
                           disabled={resolvingId === alert.id}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#10B981]/15 text-[#10B981] border border-[#10B981]/20 hover:bg-[#10B981]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-bg text-accent border border-accent/20 hover:bg-accent-bg-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           {resolvingId === alert.id ? 'Resolving...' : 'Resolve'}
                         </button>

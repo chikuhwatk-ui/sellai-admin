@@ -5,7 +5,7 @@ import { useApi } from '@/hooks/useApi';
 export default function UserEconomicsPage() {
   const { data, loading } = useApi<any>('/api/admin/analytics/user-economics');
 
-  if (loading) return <div className="p-8 text-[#6B7280]">Loading...</div>;
+  if (loading) return <div className="p-8 text-fg-muted">Loading...</div>;
 
   const cohorts = data?.cohorts || [];
   const sellerSegments = data?.sellerSegments || [];
@@ -28,32 +28,32 @@ export default function UserEconomicsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white mb-1">User Economics</h1>
-        <p className="text-[#6B7280] text-sm">Cohort retention, lifetime value, and segment analysis</p>
+        <h1 className="text-2xl font-bold text-fg mb-1">User Economics</h1>
+        <p className="text-fg-muted text-sm">Cohort retention, lifetime value, and segment analysis</p>
       </div>
 
       {/* Cohort Retention Grid */}
-      <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Cohort Retention</h2>
+      <div className="bg-panel border border-muted rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-fg mb-4">Cohort Retention</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2A2D37]">
-                <th className="text-left py-2 text-[#6B7280] font-medium">Cohort</th>
-                <th className="text-left py-2 text-[#6B7280] font-medium">Size</th>
+              <tr className="border-b border-muted">
+                <th className="text-left py-2 text-fg-muted font-medium">Cohort</th>
+                <th className="text-left py-2 text-fg-muted font-medium">Size</th>
                 {Array.from({ length: 6 }, (_, i) => (
-                  <th key={i} className="text-center py-2 text-[#6B7280] font-medium px-2">M{i}</th>
+                  <th key={i} className="text-center py-2 text-fg-muted font-medium px-2">M{i}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {cohorts.length === 0 && (
-                <tr><td colSpan={8} className="py-8 text-center text-sm text-[#6B7280]">No cohort data available</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center text-sm text-fg-muted">No cohort data available</td></tr>
               )}
               {cohorts.map((c: any) => (
-                <tr key={c.cohort} className="border-b border-[#2A2D37]/50">
-                  <td className="py-2 text-[#E5E7EB] font-medium">{c.cohort}</td>
-                  <td className="py-2 text-[#E5E7EB]">{c.size}</td>
+                <tr key={c.cohort} className="border-b border-muted/50">
+                  <td className="py-2 text-fg font-medium">{c.cohort}</td>
+                  <td className="py-2 text-fg">{c.size}</td>
                   {Array.from({ length: 6 }, (_, j) => {
                     const val = c.retention?.[j];
                     if (val === undefined) return <td key={j} className="px-2" />;
@@ -61,8 +61,8 @@ export default function UserEconomicsPage() {
                     return (
                       <td key={j} className="text-center px-2 py-2">
                         <div
-                          className="rounded px-2 py-1 text-xs font-medium text-white"
-                          style={{ backgroundColor: `rgba(16, 185, 129, ${Math.max(0.1, opacity)})` }}
+                          className="rounded px-2 py-1 text-xs font-medium text-accent-fg"
+                          style={{ backgroundColor: `color-mix(in oklch, var(--color-accent) ${Math.max(10, opacity * 100)}%, transparent)` }}
                         >
                           {val}%
                         </div>
@@ -77,10 +77,10 @@ export default function UserEconomicsPage() {
       </div>
 
       {/* Buyer LTV Chart */}
-      <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Buyer LTV by Cohort</h2>
+      <div className="bg-panel border border-muted rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-fg mb-4">Buyer LTV by Cohort</h2>
         {ltvData.length === 0 ? (
-          <div className="text-sm text-[#6B7280] p-4 text-center">No LTV data available</div>
+          <div className="text-sm text-fg-muted p-4 text-center">No LTV data available</div>
         ) : (
         <svg viewBox="0 0 600 250" className="w-full" preserveAspectRatio="xMidYMid meet">
           {ltvData.map((d: any, i: number) => {
@@ -91,9 +91,9 @@ export default function UserEconomicsPage() {
             const y = 200 - barH;
             return (
               <g key={d.cohort}>
-                <rect x={x} y={y} width={barW} height={barH} rx="4" fill="#10B981" />
-                <text x={x + barW / 2} y={y - 8} textAnchor="middle" fill="#E5E7EB" fontSize="12" fontWeight="600">${d.ltv}</text>
-                <text x={x + barW / 2} y={220} textAnchor="middle" fill="#6B7280" fontSize="10">{d.cohort}</text>
+                <rect x={x} y={y} width={barW} height={barH} rx="4" fill="var(--color-accent)" />
+                <text x={x + barW / 2} y={y - 8} textAnchor="middle" fill="var(--color-fg)" fontSize="12" fontWeight="600">${d.ltv}</text>
+                <text x={x + barW / 2} y={220} textAnchor="middle" fill="var(--color-fg-muted)" fontSize="10">{d.cohort}</text>
               </g>
             );
           })}
@@ -103,8 +103,8 @@ export default function UserEconomicsPage() {
             const val = Math.round(maxLtv * f);
             return (
               <g key={f}>
-                <line x1="55" y1={y} x2="570" y2={y} stroke="#2A2D37" strokeWidth="1" />
-                <text x="48" y={y + 4} textAnchor="end" fill="#6B7280" fontSize="10">${val}</text>
+                <line x1="55" y1={y} x2="570" y2={y} stroke="var(--color-border-muted)" strokeWidth="1" />
+                <text x="48" y={y + 4} textAnchor="end" fill="var(--color-fg-muted)" fontSize="10">${val}</text>
               </g>
             );
           })}
@@ -116,17 +116,17 @@ export default function UserEconomicsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {sellerSegments.map((seg: any) => {
           const segConfig: Record<string, { icon: string; color: string }> = {
-            Power: { icon: '\u{1F451}', color: '#10B981' },
-            Growing: { icon: '\u{1F4C8}', color: '#3B82F6' },
-            Dormant: { icon: '\u{1F4A4}', color: '#F59E0B' },
-            Churned: { icon: '\u{26A0}\uFE0F', color: '#EF4444' },
+            Power: { icon: '\u{1F451}', color: 'var(--color-accent)' },
+            Growing: { icon: '\u{1F4C8}', color: 'var(--color-info)' },
+            Dormant: { icon: '\u{1F4A4}', color: 'var(--color-warning)' },
+            Churned: { icon: '\u{26A0}️', color: 'var(--color-danger)' },
           };
-          const cfg = segConfig[seg.name] || { icon: '\u{1F4CA}', color: '#6B7280' };
+          const cfg = segConfig[seg.name] || { icon: '\u{1F4CA}', color: 'var(--color-fg-muted)' };
           return (
-            <div key={seg.name} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6 text-center">
+            <div key={seg.name} className="bg-panel border border-muted rounded-xl p-6 text-center">
               <div className="text-3xl mb-2">{cfg.icon}</div>
-              <div className="text-2xl font-bold text-white">{seg.count}</div>
-              <div className="text-xs text-[#6B7280] mt-0.5">{seg.percentage}% of total</div>
+              <div className="text-2xl font-bold text-fg">{seg.count}</div>
+              <div className="text-xs text-fg-muted mt-0.5">{seg.percentage}% of total</div>
               <div className="text-sm font-medium mt-1" style={{ color: cfg.color }}>{seg.name}</div>
             </div>
           );
@@ -136,25 +136,25 @@ export default function UserEconomicsPage() {
       {/* Credit Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {creditDisplay.map((stat: any) => (
-          <div key={stat.label} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-            <div className="text-[#6B7280] text-sm mb-1">{stat.label}</div>
-            <div className="text-2xl font-bold text-white">{stat.value}</div>
-            <div className="text-xs text-[#10B981] mt-1">{stat.sub}</div>
+          <div key={stat.label} className="bg-panel border border-muted rounded-xl p-6">
+            <div className="text-fg-muted text-sm mb-1">{stat.label}</div>
+            <div className="text-2xl font-bold text-fg">{stat.value}</div>
+            <div className="text-xs text-accent mt-1">{stat.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Runner Earnings Distribution */}
-      <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Runner Earnings Distribution</h2>
+      <div className="bg-panel border border-muted rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-fg mb-4">Runner Earnings Distribution</h2>
         <div className="space-y-3">
           {earningsBands.length === 0 && (
-            <div className="text-sm text-[#6B7280] p-4 text-center">No earnings data available</div>
+            <div className="text-sm text-fg-muted p-4 text-center">No earnings data available</div>
           )}
           {earningsBands.map((band: any) => (
             <div key={band.band} className="flex items-center gap-4">
-              <div className="w-24 text-sm text-[#E5E7EB]">{band.band}</div>
-              <div className="flex-1 h-8 bg-[#0F1117] rounded overflow-hidden">
+              <div className="w-24 text-sm text-fg">{band.band}</div>
+              <div className="flex-1 h-8 bg-canvas rounded overflow-hidden">
                 <div
                   className="h-full rounded bg-[#8B5CF6] flex items-center pl-3"
                   style={{ width: `${(band.count / maxEarnings) * 100}%` }}

@@ -175,11 +175,11 @@ export default function CommunicationsPage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-white mb-1">Communications</h1>
-      <p className="text-[#6B7280] mb-6">Broadcast notifications and manage messaging</p>
+      <h1 className="text-2xl font-bold text-fg mb-1">Communications</h1>
+      <p className="text-fg-muted mb-6">Broadcast notifications and manage messaging</p>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-[#1A1D27] rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-panel rounded-lg p-1 w-fit">
         {([
           { key: 'compose', label: 'Compose' },
           { key: 'system', label: 'System Messages' },
@@ -190,7 +190,7 @@ export default function CommunicationsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t.key ? 'bg-[#10B981] text-white' : 'text-[#6B7280] hover:text-white'
+              tab === t.key ? 'bg-accent text-accent-fg' : 'text-fg-muted hover:text-fg'
             }`}
           >
             {t.label}
@@ -201,11 +201,11 @@ export default function CommunicationsPage() {
       {tab === 'compose' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Compose Form */}
-          <div className="lg:col-span-2 bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">New Broadcast</h2>
+          <div className="lg:col-span-2 bg-panel border border-muted rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-fg mb-4">New Broadcast</h2>
 
             <div className="mb-4">
-              <label className="block text-sm text-[#6B7280] mb-2">Target Segment</label>
+              <label className="block text-sm text-fg-muted mb-2">Target Segment</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {SEGMENTS.map((seg: any) => (
                   <button
@@ -213,40 +213,40 @@ export default function CommunicationsPage() {
                     onClick={() => setSelectedSegment(seg.id)}
                     className={`p-3 rounded-lg border text-left transition-all ${
                       selectedSegment === seg.id
-                        ? 'border-[#10B981] bg-[#10B981]/10'
-                        : 'border-[#2A2D37] hover:border-[#3A3D47]'
+                        ? 'border-accent bg-accent-bg'
+                        : 'border-muted hover:border-strong'
                     }`}
                   >
-                    <div className={`text-sm font-medium ${selectedSegment === seg.id ? 'text-[#10B981]' : 'text-white'}`}>
+                    <div className={`text-sm font-medium ${selectedSegment === seg.id ? 'text-accent' : 'text-fg'}`}>
                       {seg.label}
                     </div>
-                    <div className="text-xs text-[#6B7280]">{Number(seg.count || 0).toLocaleString()} users</div>
+                    <div className="text-xs text-fg-muted">{Number(seg.count || 0).toLocaleString()} users</div>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-[#6B7280] mb-2">Notification Title</label>
+              <label className="block text-sm text-fg-muted mb-2">Notification Title</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter notification title..."
-                className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-3 text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981] transition-colors"
+                className="w-full bg-canvas border border-muted rounded-lg px-4 py-3 text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent transition-colors"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-[#6B7280] mb-2">Message Body</label>
+              <label className="block text-sm text-fg-muted mb-2">Message Body</label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="Enter notification message..."
                 rows={4}
-                className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-3 text-white placeholder-[#4B5563] focus:outline-none focus:border-[#10B981] transition-colors resize-none"
+                className="w-full bg-canvas border border-muted rounded-lg px-4 py-3 text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent transition-colors resize-none"
               />
-              <div className="text-xs text-[#6B7280] mt-1">{body.length}/500 characters</div>
+              <div className="text-xs text-fg-muted mt-1">{body.length}/500 characters</div>
             </div>
 
             <div className="flex gap-3 items-center">
@@ -255,10 +255,10 @@ export default function CommunicationsPage() {
                 disabled={sending || !canBroadcast}
                 className={`px-6 py-3 font-semibold rounded-lg transition-colors ${
                   !canBroadcast
-                    ? 'bg-[#2A2D37] text-[#6B7280] cursor-not-allowed'
+                    ? 'bg-raised text-fg-muted cursor-not-allowed'
                     : sending
-                      ? 'bg-[#10B981]/40 text-white/60 cursor-wait'
-                      : 'bg-[#10B981] hover:bg-[#059669] text-white'
+                      ? 'bg-accent/40 text-accent-fg/60 cursor-wait'
+                      : 'bg-accent hover:bg-accent-hover text-accent-fg'
                 }`}
                 title={!canBroadcast ? 'You do not have permission to send broadcasts' : undefined}
               >
@@ -268,71 +268,71 @@ export default function CommunicationsPage() {
           </div>
 
           {/* Preview */}
-          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Preview</h2>
-            <div className="bg-[#0F1117] rounded-xl p-4 border border-[#2A2D37]">
+          <div className="bg-panel border border-muted rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-fg mb-4">Preview</h2>
+            <div className="bg-canvas rounded-xl p-4 border border-muted">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-[#10B981]/20 flex items-center justify-center text-[#10B981] text-xs font-bold">S</div>
+                <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center text-accent text-xs font-bold">S</div>
                 <div>
-                  <div className="text-xs text-[#6B7280]">Sellai</div>
-                  <div className="text-xs text-[#4B5563]">now</div>
+                  <div className="text-xs text-fg-muted">Sellai</div>
+                  <div className="text-xs text-fg-subtle">now</div>
                 </div>
               </div>
-              <div className="text-sm font-semibold text-white mb-1">{title || 'Notification Title'}</div>
-              <div className="text-sm text-[#9CA3AF]">{body || 'Notification message will appear here...'}</div>
+              <div className="text-sm font-semibold text-fg mb-1">{title || 'Notification Title'}</div>
+              <div className="text-sm text-fg-muted">{body || 'Notification message will appear here...'}</div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[#2A2D37]">
-              <div className="text-sm text-[#6B7280] mb-2">Delivery Estimate</div>
-              <div className="text-2xl font-bold text-white">
+            <div className="mt-4 pt-4 border-t border-muted">
+              <div className="text-sm text-fg-muted mb-2">Delivery Estimate</div>
+              <div className="text-2xl font-bold text-fg">
                 {Number(SEGMENTS.find((s: any) => s.id === selectedSegment)?.count || 0).toLocaleString()}
               </div>
-              <div className="text-xs text-[#6B7280]">recipients</div>
+              <div className="text-xs text-fg-muted">recipients</div>
             </div>
           </div>
         </div>
       )}
 
       {tab === 'history' && (
-        <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
+        <div className="bg-panel border border-muted rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#2A2D37]">
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Campaign</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Segment</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Recipients</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Sent By</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Status</th>
-                <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-4">Date</th>
+              <tr className="border-b border-muted">
+                <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-4">Campaign</th>
+                <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-4">Segment</th>
+                <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-4">Recipients</th>
+                <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-4">Sent By</th>
+                <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-4">Status</th>
+                <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-4">Date</th>
               </tr>
             </thead>
             <tbody>
               {history.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-[#6B7280]">
+                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-fg-muted">
                     No campaigns sent yet. Compose your first broadcast above.
                   </td>
                 </tr>
               ) : (
                 history.map((b: any) => (
-                  <tr key={b.id} className="border-b border-[#2A2D37]/50 hover:bg-[#1A1D27]/50">
+                  <tr key={b.id} className="border-b border-muted/50 hover:bg-panel/50">
                     <td className="px-6 py-3">
-                      <div className="text-sm font-medium text-white">{b.title}</div>
-                      <div className="text-xs text-[#6B7280] truncate max-w-[200px]">{b.body}</div>
+                      <div className="text-sm font-medium text-fg">{b.title}</div>
+                      <div className="text-xs text-fg-muted truncate max-w-[200px]">{b.body}</div>
                     </td>
-                    <td className="px-6 py-3 text-sm text-[#9CA3AF] capitalize">{b.segment}</td>
-                    <td className="px-6 py-3 text-sm text-white">{Number(b.recipientCount || 0).toLocaleString()}</td>
-                    <td className="px-6 py-3 text-sm text-[#9CA3AF]">{b.sentByName || 'Admin'}</td>
+                    <td className="px-6 py-3 text-sm text-fg-muted capitalize">{b.segment}</td>
+                    <td className="px-6 py-3 text-sm text-fg">{Number(b.recipientCount || 0).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-sm text-fg-muted">{b.sentByName || 'Admin'}</td>
                     <td className="px-6 py-3">
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        b.status === 'SENT' ? 'bg-[#10B981]/15 text-[#10B981]' :
-                        b.status === 'FAILED' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                        'bg-[#F59E0B]/15 text-[#F59E0B]'
+                        b.status === 'SENT' ? 'bg-accent-bg text-accent' :
+                        b.status === 'FAILED' ? 'bg-danger-bg text-danger' :
+                        'bg-warning-bg text-warning'
                       }`}>
                         {b.status}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-sm text-[#6B7280]">
+                    <td className="px-6 py-3 text-sm text-fg-muted">
                       {b.sentAt ? new Date(b.sentAt).toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '--'}
                     </td>
                   </tr>
@@ -341,19 +341,19 @@ export default function CommunicationsPage() {
             </tbody>
           </table>
           {historyTotalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-[#2A2D37]">
+            <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-muted">
               <button
                 onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
                 disabled={historyPage === 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-raised/50 text-fg-muted hover:bg-raised disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Prev
               </button>
-              <span className="text-xs text-[#6B7280]">Page {historyPage} of {historyTotalPages}</span>
+              <span className="text-xs text-fg-muted">Page {historyPage} of {historyTotalPages}</span>
               <button
                 onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
                 disabled={historyPage >= historyTotalPages}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-raised/50 text-fg-muted hover:bg-raised disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Next
               </button>
@@ -369,7 +369,7 @@ export default function CommunicationsPage() {
             <button
               onClick={() => setSysMode('segment')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                sysMode === 'segment' ? 'bg-[#6366F1] text-white' : 'bg-[#1A1D27] text-[#6B7280] hover:text-white border border-[#2A2D37]'
+                sysMode === 'segment' ? 'bg-[#6366F1] text-white' : 'bg-panel text-fg-muted hover:text-fg border border-muted'
               }`}
             >
               Send to Segment
@@ -377,7 +377,7 @@ export default function CommunicationsPage() {
             <button
               onClick={() => setSysMode('individual')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                sysMode === 'individual' ? 'bg-[#6366F1] text-white' : 'bg-[#1A1D27] text-[#6B7280] hover:text-white border border-[#2A2D37]'
+                sysMode === 'individual' ? 'bg-[#6366F1] text-white' : 'bg-panel text-fg-muted hover:text-fg border border-muted'
               }`}
             >
               Send to User
@@ -386,16 +386,16 @@ export default function CommunicationsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Compose Form */}
-            <div className="lg:col-span-2 bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-1">New System Message</h2>
-              <p className="text-xs text-[#6B7280] mb-4">
+            <div className="lg:col-span-2 bg-panel border border-muted rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-fg mb-1">New System Message</h2>
+              <p className="text-xs text-fg-muted mb-4">
                 Appears in users&apos; chat list as a message from &quot;Sellai&quot; — like WhatsApp system updates.
               </p>
 
               {/* Segment Selector (segment mode) */}
               {sysMode === 'segment' && (
                 <div className="mb-4">
-                  <label className="block text-sm text-[#6B7280] mb-2">Target Segment</label>
+                  <label className="block text-sm text-fg-muted mb-2">Target Segment</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {SEGMENTS.map((seg: any) => (
                       <button
@@ -404,13 +404,13 @@ export default function CommunicationsPage() {
                         className={`p-3 rounded-lg border text-left transition-all ${
                           sysSegment === seg.id
                             ? 'border-[#6366F1] bg-[#6366F1]/10'
-                            : 'border-[#2A2D37] hover:border-[#3A3D47]'
+                            : 'border-muted hover:border-strong'
                         }`}
                       >
-                        <div className={`text-sm font-medium ${sysSegment === seg.id ? 'text-[#6366F1]' : 'text-white'}`}>
+                        <div className={`text-sm font-medium ${sysSegment === seg.id ? 'text-[#6366F1]' : 'text-fg'}`}>
                           {seg.label}
                         </div>
-                        <div className="text-xs text-[#6B7280]">{Number(seg.count || 0).toLocaleString()} users</div>
+                        <div className="text-xs text-fg-muted">{Number(seg.count || 0).toLocaleString()} users</div>
                       </button>
                     ))}
                   </div>
@@ -420,21 +420,21 @@ export default function CommunicationsPage() {
               {/* User Search (individual mode) */}
               {sysMode === 'individual' && (
                 <div className="mb-4">
-                  <label className="block text-sm text-[#6B7280] mb-2">Recipient</label>
+                  <label className="block text-sm text-fg-muted mb-2">Recipient</label>
                   {sysRecipientId ? (
                     <div className="flex items-center gap-2 bg-[#6366F1]/10 border border-[#6366F1]/30 rounded-lg px-4 py-3">
                       <div className="w-8 h-8 rounded-full bg-[#6366F1]/20 flex items-center justify-center text-[#6366F1] text-xs font-bold">
                         {(userResults.find((u: any) => u.id === sysRecipientId)?.name || '?')[0]?.toUpperCase()}
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm text-white font-medium">
+                        <div className="text-sm text-fg font-medium">
                           {userResults.find((u: any) => u.id === sysRecipientId)?.name || 'User'}
                         </div>
-                        <div className="text-xs text-[#6B7280]">
+                        <div className="text-xs text-fg-muted">
                           {userResults.find((u: any) => u.id === sysRecipientId)?.phoneNumber || sysRecipientId}
                         </div>
                       </div>
-                      <button onClick={() => { setSysRecipientId(''); setUserResults([]); setUserSearch(''); }} className="text-xs text-[#EF4444] hover:text-[#DC2626]">
+                      <button onClick={() => { setSysRecipientId(''); setUserResults([]); setUserSearch(''); }} className="text-xs text-danger hover:text-danger/80">
                         Remove
                       </button>
                     </div>
@@ -447,7 +447,7 @@ export default function CommunicationsPage() {
                           onChange={(e) => setUserSearch(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
                           placeholder="Search by name or phone..."
-                          className="flex-1 bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-2.5 text-white text-sm placeholder-[#4B5563] focus:outline-none focus:border-[#6366F1]"
+                          className="flex-1 bg-canvas border border-muted rounded-lg px-4 py-2.5 text-fg text-sm placeholder:text-fg-subtle focus:outline-none focus:border-[#6366F1]"
                         />
                         <button
                           onClick={handleSearchUsers}
@@ -458,19 +458,19 @@ export default function CommunicationsPage() {
                         </button>
                       </div>
                       {userResults.length > 0 && (
-                        <div className="mt-2 bg-[#0F1117] border border-[#2A2D37] rounded-lg overflow-hidden">
+                        <div className="mt-2 bg-canvas border border-muted rounded-lg overflow-hidden">
                           {userResults.map((u: any) => (
                             <button
                               key={u.id}
                               onClick={() => setSysRecipientId(u.id)}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#1A1D27] text-left border-b border-[#2A2D37]/50 last:border-0"
+                              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-panel text-left border-b border-muted/50 last:border-0"
                             >
                               <div className="w-7 h-7 rounded-full bg-[#6366F1]/20 flex items-center justify-center text-[#6366F1] text-xs font-bold">
                                 {(u.name || '?')[0]?.toUpperCase()}
                               </div>
                               <div>
-                                <div className="text-sm text-white">{u.name || 'No name'}</div>
-                                <div className="text-xs text-[#6B7280]">{u.phoneNumber} · {u.role}</div>
+                                <div className="text-sm text-fg">{u.name || 'No name'}</div>
+                                <div className="text-xs text-fg-muted">{u.phoneNumber} · {u.role}</div>
                               </div>
                             </button>
                           ))}
@@ -482,47 +482,47 @@ export default function CommunicationsPage() {
               )}
 
               <div className="mb-4">
-                <label className="block text-sm text-[#6B7280] mb-2">Title</label>
+                <label className="block text-sm text-fg-muted mb-2">Title</label>
                 <input
                   type="text"
                   value={sysTitle}
                   onChange={(e) => setSysTitle(e.target.value)}
                   placeholder="e.g., New Feature Available!"
-                  className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-3 text-white placeholder-[#4B5563] focus:outline-none focus:border-[#6366F1] transition-colors"
+                  className="w-full bg-canvas border border-muted rounded-lg px-4 py-3 text-fg placeholder:text-fg-subtle focus:outline-none focus:border-[#6366F1] transition-colors"
                 />
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm text-[#6B7280] mb-2">Message</label>
+                <label className="block text-sm text-fg-muted mb-2">Message</label>
                 <textarea
                   value={sysBody}
                   onChange={(e) => setSysBody(e.target.value)}
                   placeholder="Write your message to users..."
                   rows={4}
-                  className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-3 text-white placeholder-[#4B5563] focus:outline-none focus:border-[#6366F1] transition-colors resize-none"
+                  className="w-full bg-canvas border border-muted rounded-lg px-4 py-3 text-fg placeholder:text-fg-subtle focus:outline-none focus:border-[#6366F1] transition-colors resize-none"
                 />
-                <div className="text-xs text-[#6B7280] mt-1">{sysBody.length}/1000 characters</div>
+                <div className="text-xs text-fg-muted mt-1">{sysBody.length}/1000 characters</div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm text-[#6B7280] mb-2">Image URL <span className="text-[#4B5563]">(optional)</span></label>
+                  <label className="block text-sm text-fg-muted mb-2">Image URL <span className="text-fg-subtle">(optional)</span></label>
                   <input
                     type="text"
                     value={sysImageUrl}
                     onChange={(e) => setSysImageUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-2.5 text-white text-sm placeholder-[#4B5563] focus:outline-none focus:border-[#6366F1]"
+                    className="w-full bg-canvas border border-muted rounded-lg px-4 py-2.5 text-fg text-sm placeholder:text-fg-subtle focus:outline-none focus:border-[#6366F1]"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[#6B7280] mb-2">Action Deep Link <span className="text-[#4B5563]">(optional)</span></label>
+                  <label className="block text-sm text-fg-muted mb-2">Action Deep Link <span className="text-fg-subtle">(optional)</span></label>
                   <input
                     type="text"
                     value={sysActionUrl}
                     onChange={(e) => setSysActionUrl(e.target.value)}
                     placeholder="sellai://wallet"
-                    className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-4 py-2.5 text-white text-sm placeholder-[#4B5563] focus:outline-none focus:border-[#6366F1]"
+                    className="w-full bg-canvas border border-muted rounded-lg px-4 py-2.5 text-fg text-sm placeholder:text-fg-subtle focus:outline-none focus:border-[#6366F1]"
                   />
                 </div>
               </div>
@@ -532,7 +532,7 @@ export default function CommunicationsPage() {
                 disabled={sysSending || !canBroadcast}
                 className={`px-6 py-3 font-semibold rounded-lg transition-colors ${
                   !canBroadcast
-                    ? 'bg-[#2A2D37] text-[#6B7280] cursor-not-allowed'
+                    ? 'bg-raised text-fg-muted cursor-not-allowed'
                     : sysSending
                       ? 'bg-[#6366F1]/40 text-white/60 cursor-wait'
                       : 'bg-[#6366F1] hover:bg-[#4F46E5] text-white'
@@ -543,40 +543,40 @@ export default function CommunicationsPage() {
             </div>
 
             {/* Preview */}
-            <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Chat Preview</h2>
-              <div className="bg-[#0F1117] rounded-xl overflow-hidden border border-[#2A2D37]">
+            <div className="bg-panel border border-muted rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-fg mb-4">Chat Preview</h2>
+              <div className="bg-canvas rounded-xl overflow-hidden border border-muted">
                 {/* Chat header */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-[#2A2D37]">
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-muted">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6366F1] to-[#A78BFA] flex items-center justify-center text-white text-sm font-bold">S</div>
                   <div>
-                    <div className="text-sm font-semibold text-white">Sellai</div>
-                    <div className="text-xs text-[#6B7280]">System</div>
+                    <div className="text-sm font-semibold text-fg">Sellai</div>
+                    <div className="text-xs text-fg-muted">System</div>
                   </div>
                 </div>
                 {/* Message bubble */}
                 <div className="p-4 space-y-2">
                   {sysImageUrl && (
-                    <div className="w-full h-32 bg-[#2A2D37] rounded-lg flex items-center justify-center text-xs text-[#6B7280]">Image</div>
+                    <div className="w-full h-32 bg-raised rounded-lg flex items-center justify-center text-xs text-fg-muted">Image</div>
                   )}
                   <div className="bg-[#6366F1]/10 border border-[#6366F1]/20 rounded-lg p-3">
-                    <div className="text-sm font-semibold text-white mb-1">{sysTitle || 'Message Title'}</div>
-                    <div className="text-sm text-[#9CA3AF]">{sysBody || 'Your message will appear here...'}</div>
+                    <div className="text-sm font-semibold text-fg mb-1">{sysTitle || 'Message Title'}</div>
+                    <div className="text-sm text-fg-muted">{sysBody || 'Your message will appear here...'}</div>
                   </div>
-                  <div className="text-xs text-[#4B5563] text-right">Just now</div>
+                  <div className="text-xs text-fg-subtle text-right">Just now</div>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-[#2A2D37]">
-                <div className="text-sm text-[#6B7280] mb-2">Delivery</div>
+              <div className="mt-4 pt-4 border-t border-muted">
+                <div className="text-sm text-fg-muted mb-2">Delivery</div>
                 {sysMode === 'individual' ? (
-                  <div className="text-sm text-white">{sysRecipientId ? '1 user' : 'No user selected'}</div>
+                  <div className="text-sm text-fg">{sysRecipientId ? '1 user' : 'No user selected'}</div>
                 ) : (
                   <>
-                    <div className="text-2xl font-bold text-white">
+                    <div className="text-2xl font-bold text-fg">
                       {Number(SEGMENTS.find((s: any) => s.id === sysSegment)?.count || 0).toLocaleString()}
                     </div>
-                    <div className="text-xs text-[#6B7280]">recipients</div>
+                    <div className="text-xs text-fg-muted">recipients</div>
                   </>
                 )}
               </div>
@@ -584,38 +584,38 @@ export default function CommunicationsPage() {
           </div>
 
           {/* System Message History */}
-          <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#2A2D37]">
-              <h3 className="text-sm font-semibold text-white">Broadcast History</h3>
+          <div className="bg-panel border border-muted rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-muted">
+              <h3 className="text-sm font-semibold text-fg">Broadcast History</h3>
             </div>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2A2D37]">
-                  <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Message</th>
-                  <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Segment</th>
-                  <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Recipients</th>
-                  <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Sent By</th>
-                  <th className="text-left text-xs font-medium text-[#6B7280] uppercase tracking-wider px-6 py-3">Date</th>
+                <tr className="border-b border-muted">
+                  <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-3">Message</th>
+                  <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-3">Segment</th>
+                  <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-3">Recipients</th>
+                  <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-3">Sent By</th>
+                  <th className="text-left text-xs font-medium text-fg-muted uppercase tracking-wider px-6 py-3">Date</th>
                 </tr>
               </thead>
               <tbody>
                 {sysHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#6B7280]">
+                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-fg-muted">
                       No system messages sent yet. Compose your first message above.
                     </td>
                   </tr>
                 ) : (
                   sysHistory.map((b: any) => (
-                    <tr key={b.id} className="border-b border-[#2A2D37]/50 hover:bg-[#1A1D27]/50">
+                    <tr key={b.id} className="border-b border-muted/50 hover:bg-panel/50">
                       <td className="px-6 py-3">
-                        <div className="text-sm font-medium text-white">{b.title}</div>
-                        <div className="text-xs text-[#6B7280] truncate max-w-[250px]">{b.body}</div>
+                        <div className="text-sm font-medium text-fg">{b.title}</div>
+                        <div className="text-xs text-fg-muted truncate max-w-[250px]">{b.body}</div>
                       </td>
-                      <td className="px-6 py-3 text-sm text-[#9CA3AF] capitalize">{b.segment}</td>
-                      <td className="px-6 py-3 text-sm text-white">{Number(b.recipientCount || 0).toLocaleString()}</td>
-                      <td className="px-6 py-3 text-sm text-[#9CA3AF]">{b.sentByName || 'Admin'}</td>
-                      <td className="px-6 py-3 text-sm text-[#6B7280]">
+                      <td className="px-6 py-3 text-sm text-fg-muted capitalize">{b.segment}</td>
+                      <td className="px-6 py-3 text-sm text-fg">{Number(b.recipientCount || 0).toLocaleString()}</td>
+                      <td className="px-6 py-3 text-sm text-fg-muted">{b.sentByName || 'Admin'}</td>
+                      <td className="px-6 py-3 text-sm text-fg-muted">
                         {b.createdAt ? new Date(b.createdAt).toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '--'}
                       </td>
                     </tr>
@@ -624,19 +624,19 @@ export default function CommunicationsPage() {
               </tbody>
             </table>
             {sysHistoryTotalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-[#2A2D37]">
+              <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-muted">
                 <button
                   onClick={() => setSysHistoryPage(p => Math.max(1, p - 1))}
                   disabled={sysHistoryPage === 1}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-raised/50 text-fg-muted hover:bg-raised disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Prev
                 </button>
-                <span className="text-xs text-[#6B7280]">Page {sysHistoryPage} of {sysHistoryTotalPages}</span>
+                <span className="text-xs text-fg-muted">Page {sysHistoryPage} of {sysHistoryTotalPages}</span>
                 <button
                   onClick={() => setSysHistoryPage(p => Math.min(sysHistoryTotalPages, p + 1))}
                   disabled={sysHistoryPage >= sysHistoryTotalPages}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#2A2D37]/50 text-[#6B7280] hover:bg-[#2A2D37] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-raised/50 text-fg-muted hover:bg-raised disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                 </button>
@@ -649,56 +649,56 @@ export default function CommunicationsPage() {
       {tab === 'templates' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {templates.map((t: any) => (
-            <div key={t.id} className="bg-[#1A1D27] border border-[#2A2D37] rounded-xl p-5 hover:border-[#3A3D47] transition-colors">
+            <div key={t.id} className="bg-panel border border-muted rounded-xl p-5 hover:border-strong transition-colors">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-white">{t.name}</h3>
+                <h3 className="text-sm font-semibold text-fg">{t.name}</h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => { setTitle(t.name); setBody(t.body); setTab('compose'); }}
-                    className="text-xs text-[#10B981] hover:text-[#059669] font-medium"
+                    className="text-xs text-accent hover:text-accent-hover font-medium"
                   >
                     Use →
                   </button>
                   <button
                     onClick={() => handleDeleteTemplate(t.id)}
-                    className="text-xs text-[#EF4444] hover:text-[#DC2626] font-medium"
+                    className="text-xs text-danger hover:text-danger/80 font-medium"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-              <p className="text-sm text-[#9CA3AF]">{t.body}</p>
+              <p className="text-sm text-fg-muted">{t.body}</p>
             </div>
           ))}
 
           {/* New Template Form / Button */}
           {showNewTemplate ? (
-            <div className="bg-[#1A1D27] border border-[#10B981]/30 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-white mb-3">New Template</h3>
+            <div className="bg-panel border border-accent/30 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-fg mb-3">New Template</h3>
               <input
                 type="text"
                 value={newTemplateName}
                 onChange={(e) => setNewTemplateName(e.target.value)}
                 placeholder="Template name..."
-                className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-white text-sm placeholder-[#4B5563] focus:outline-none focus:border-[#10B981] mb-2"
+                className="w-full bg-canvas border border-muted rounded-lg px-3 py-2 text-fg text-sm placeholder:text-fg-subtle focus:outline-none focus:border-accent mb-2"
               />
               <textarea
                 value={newTemplateBody}
                 onChange={(e) => setNewTemplateBody(e.target.value)}
                 placeholder="Template message..."
                 rows={3}
-                className="w-full bg-[#0F1117] border border-[#2A2D37] rounded-lg px-3 py-2 text-white text-sm placeholder-[#4B5563] focus:outline-none focus:border-[#10B981] resize-none mb-3"
+                className="w-full bg-canvas border border-muted rounded-lg px-3 py-2 text-fg text-sm placeholder:text-fg-subtle focus:outline-none focus:border-accent resize-none mb-3"
               />
               <div className="flex gap-2">
                 <button
                   onClick={handleCreateTemplate}
-                  className="px-4 py-2 bg-[#10B981] text-white text-xs font-medium rounded-lg hover:bg-[#059669]"
+                  className="px-4 py-2 bg-accent text-accent-fg text-xs font-medium rounded-lg hover:bg-accent-hover"
                 >
                   Save
                 </button>
                 <button
                   onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); setNewTemplateBody(''); }}
-                  className="px-4 py-2 bg-[#2A2D37] text-[#6B7280] text-xs font-medium rounded-lg hover:text-white"
+                  className="px-4 py-2 bg-raised text-fg-muted text-xs font-medium rounded-lg hover:text-fg"
                 >
                   Cancel
                 </button>
@@ -707,11 +707,11 @@ export default function CommunicationsPage() {
           ) : (
             <button
               onClick={() => setShowNewTemplate(true)}
-              className="bg-[#1A1D27] border border-dashed border-[#2A2D37] rounded-xl p-5 flex items-center justify-center hover:border-[#10B981]/50 transition-colors cursor-pointer"
+              className="bg-panel border border-dashed border-muted rounded-xl p-5 flex items-center justify-center hover:border-accent/50 transition-colors cursor-pointer"
             >
               <div className="text-center">
-                <div className="text-2xl text-[#6B7280] mb-1">+</div>
-                <div className="text-sm text-[#6B7280]">Create Template</div>
+                <div className="text-2xl text-fg-muted mb-1">+</div>
+                <div className="text-sm text-fg-muted">Create Template</div>
               </div>
             </button>
           )}

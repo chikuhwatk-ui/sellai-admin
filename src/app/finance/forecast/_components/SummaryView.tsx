@@ -40,8 +40,8 @@ export function SummaryView({ outputs }: { outputs: ForecastOutputs }) {
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line type="monotone" dataKey="bookingsTotalUsd" name="Bookings" stroke="#6366F1" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="totalRevenueUsd" name="Revenue" stroke="#10B981" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="closingCashUsd" name="Closing cash" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="totalRevenueUsd" name="Revenue" stroke="var(--color-accent)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="closingCashUsd" name="Closing cash" stroke="var(--color-warning)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -81,7 +81,7 @@ export function SummaryView({ outputs }: { outputs: ForecastOutputs }) {
                   <XAxis dataKey="yearMonth" stroke="var(--color-fg-subtle)" style={{ fontSize: 10 }} />
                   <YAxis stroke="var(--color-fg-subtle)" style={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip contentStyle={{ background: "var(--color-panel)", border: "1px solid var(--color-border-default)", fontSize: 12 }} formatter={(v: any) => formatMoney(Number(v))} />
-                  <Bar dataKey="ebitdaUsd" name="EBITDA" fill="#10B981" />
+                  <Bar dataKey="ebitdaUsd" name="EBITDA" fill="var(--color-accent)" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
