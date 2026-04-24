@@ -213,7 +213,10 @@ function LoginForm() {
                 inputMode="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  if (error) setError('');
+                  setEmail(e.target.value);
+                }}
                 placeholder="admin@sellai.app"
                 required
                 readOnly={step === 'otp'}
@@ -249,21 +252,39 @@ function LoginForm() {
                   autoComplete="one-time-code"
                   maxLength={6}
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => {
+                    // Clear any stale "Invalid credentials" error the moment
+                    // the user starts correcting — otherwise a prior failed
+                    // attempt's error lingers on screen during the next
+                    // submit and reads as "login failed even though it
+                    // succeeded".
+                    if (error) setError('');
+                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6));
+                  }}
                   placeholder="• • • • • •"
                   required
                   className={cn(
-                    'w-full h-14 rounded-lg bg-panel border border-default',
+                    'w-full h-14 rounded-lg bg-panel border',
                     'font-mono text-2xl text-center tracking-[0.5em] pl-[0.5em]',
                     'tabular text-fg placeholder:text-fg-subtle',
                     'transition-colors duration-fast',
-                    'focus-visible:outline-none focus-visible:border-accent hover:border-strong',
+                    'focus-visible:outline-none focus-visible:border-accent',
+                    error ? 'border-danger' : 'border-default hover:border-strong',
                   )}
                 />
                 <div className="flex items-center justify-between mt-2">
                   <button
                     type="button"
-                    onClick={handleRequestOtp}
+                    onClick={() => {
+                      // Fat-finger guard: a new code replaces the old one in
+                      // Redis, so a misclick here would silently invalidate
+                      // whatever the user already typed above. Tiny confirm
+                      // kills that class of bug.
+                      if (otp.length > 0 && !confirm('A new code will replace the one you just received. Continue?')) return;
+                      setOtp('');
+                      setError('');
+                      handleRequestOtp();
+                    }}
                     disabled={sendingOtp}
                     className="text-2xs text-fg-subtle hover:text-fg-muted transition-colors disabled:opacity-50"
                   >
